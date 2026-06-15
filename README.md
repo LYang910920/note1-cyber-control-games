@@ -17,7 +17,10 @@ The examples are intentionally small and readable.  They are meant for study, mo
 | `src/ddqn_cyber_defense.py` | DDQN defender for a sampled-data ODE cyber-defense MDP. |
 | `src/madrl_ctde_hybrid_game.py` | Minimal CTDE/MADRL attacker-defender game example. |
 | `scripts/generate_figures.py` | Generates explanatory figures in `figures/`. |
+| `scripts/run_training_iterations.py` | Runs short training diagnostics and writes CSV histories in `experiments/`. |
 | `scripts/run_smoke_tests.sh` | Runs all fast checks for this repo. |
+| `.github/workflows/smoke-tests.yml` | GitHub Actions workflow for dependency install, smoke tests, and figure generation. |
+| `experiments/` | Small training-iteration CSV outputs and an explanation of each metric. |
 | `tests/` | Small regression tests for dynamics, environment contracts, and FBSM output. |
 
 ## Quick Start
@@ -41,6 +44,12 @@ Generate the figures used in this README:
 python scripts/generate_figures.py
 ```
 
+Run short training-iteration diagnostics:
+
+```bash
+python scripts/run_training_iterations.py
+```
+
 ## Main Ideas
 
 This repo separates three levels that are easy to blur:
@@ -51,16 +60,40 @@ This repo separates three levels that are easy to blur:
 
 ## Figures
 
+`figures/neural_architectures.png` summarizes the two neural-learning patterns in this note: DDQN for the defender and CTDE/MADRL for attacker-defender learning.
+
+![Neural architectures](figures/neural_architectures.png)
+
 `figures/fbsm_malware_control.png` shows the FBSM baseline: malware compartments and the optimized patching intensity.
 
 ![FBSM malware-control baseline](figures/fbsm_malware_control.png)
+
+`figures/hybrid_policy_comparison.png` compares no-defense, fixed-defense, and adaptive hybrid policies on the same scripted-attacker scenario.
+
+![Hybrid policy comparison](figures/hybrid_policy_comparison.png)
 
 `figures/hybrid_policy_rollout.png` shows a simple hybrid rollout where the defender switches among patching, cleaning, and isolation decisions while the attacker follows a scripted policy.
 
 ![Hybrid ODE-RL rollout](figures/hybrid_policy_rollout.png)
 
+## Training Diagnostics
+
+`scripts/run_training_iterations.py` writes three small experiment tables:
+
+| CSV | What to inspect |
+|---|---|
+| `experiments/fbsm_iteration_history.csv` | Whether the control update stabilizes as `max_control_change` falls. |
+| `experiments/ddqn_training_history.csv` | Whether evaluation return improves while epsilon decays. |
+| `experiments/madrl_training_history.csv` | Whether the CTDE loss, entropy, and defender/attacker returns stay numerically stable. |
+
+The combined plot is:
+
+![Training iteration diagnostics](figures/training_iteration_diagnostics.png)
+
 ## Validation
 
-The repo includes smoke tests for every executable script and unit tests for the core numerical contracts.  The current version also replaces deprecated NumPy integration calls and casts reward outputs to plain Python floats for cleaner logs.
+The repo includes smoke tests for every executable script and unit tests for the core numerical contracts.  It also has a GitHub Actions workflow that installs dependencies, runs smoke tests, and regenerates figures on push or pull request.
+
+This consolidated version merges the duplicate Note 1 materials into one final repo: it keeps the PDFs/source materials, generated figures, tests, CI workflow, and short training diagnostics in the same place.
 
 These examples are teaching code, not benchmark implementations.  For serious experiments, add multiple seeds, stronger baselines, full logging, and exploitability-style game diagnostics.

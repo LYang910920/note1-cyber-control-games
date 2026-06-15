@@ -103,6 +103,7 @@ def train(args):
     critic_a = CentralCritic(env.obs_dim, env.n_defender_actions, env.n_attacker_actions, args.hidden).to(DEVICE)
     opt = optim.Adam(list(defender.parameters()) + list(attacker.parameters()) +
                      list(critic_d.parameters()) + list(critic_a.parameters()), lr=args.lr)
+    history = []
 
     for ep in range(args.episodes):
         data = rollout(env, defender, attacker, critic_d, env.cfg.horizon)
@@ -127,6 +128,17 @@ def train(args):
             rd_total = sum(x.item() for x in rd)
             ra_total = sum(x.item() for x in ra)
             print(f"ep={ep:04d}, len={len(data):03d}, Rd={rd_total:7.2f}, Ra={ra_total:7.2f}, loss={loss.detach().item():.3f}")
+            history.append({
+                "episode": ep,
+                "rollout_length": len(data),
+                "defender_return": float(rd_total),
+                "attacker_return": float(ra_total),
+                "loss": float(loss.detach().item()),
+                "critic_loss": float(critic_loss.detach().item()),
+                "entropy": float(entropy_bonus.detach().item()),
+            })
+    if getattr(args, "return_history", False):
+        return defender, attacker, history
     return defender, attacker
 
 

@@ -86,10 +86,12 @@ def train(args):
     opt = optim.Adam(q.parameters(), lr=args.lr)
     replay = ReplayBuffer(args.buffer_size)
     global_step = 0
+    history = []
 
     for ep in range(args.episodes):
         s = env.reset()
         ep_return = 0.0
+        last_loss = float("nan")
         for k in range(env.cfg.horizon):
             eps = args.eps_end + (args.eps_start - args.eps_end)*np.exp(-global_step/args.eps_decay)
             if random.random() < eps:
@@ -113,6 +115,7 @@ def train(args):
                     y = br + args.gamma*(1.0-bd)*next_q
                 loss = nn.functional.smooth_l1_loss(q_sa, y)
                 opt.zero_grad(); loss.backward(); nn.utils.clip_grad_norm_(q.parameters(), 5.0); opt.step()
+                last_loss = float(loss.detach().item())
 
             if global_step % args.target_update == 0:
                 target.load_state_dict(q.state_dict())
@@ -121,6 +124,16 @@ def train(args):
         if ep % args.log_every == 0:
             val = evaluate(q, episodes=2, horizon=10 if args.smoke else None)
             print(f"ep={ep:04d}, return={ep_return:8.2f}, eval={val:8.2f}, eps={eps:.3f}")
+            history.append({
+                "episode": ep,
+                "training_return": float(ep_return),
+                "evaluation_return": float(val),
+                "epsilon": float(eps),
+                "last_td_loss": last_loss,
+                "replay_size": len(replay),
+            })
+    if getattr(args, "return_history", False):
+        return q, history
     return q
 
 

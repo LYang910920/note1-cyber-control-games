@@ -76,11 +76,98 @@ def plot_hybrid_rollout(output_dir: Path) -> None:
     plt.close(fig)
 
 
+def plot_hybrid_policy_comparison(output_dir: Path) -> None:
+    policies = [
+        ("No defense", lambda env, k, obs: env.DEF_NONE),
+        ("Always patch", lambda env, k, obs: (env.DEF_PATCH, 0.8)),
+        ("Always clean", lambda env, k, obs: (env.DEF_CLEAN, 0.8)),
+        ("Adaptive hybrid", lambda env, k, obs: (
+            (env.DEF_ISOLATE, 0.8) if obs[1] > 0.20 else
+            (env.DEF_DECEIVE, 0.7) if k < 20 else
+            (env.DEF_PATCH, 0.7)
+        )),
+    ]
+    fig, ax = plt.subplots(figsize=(8, 4.5))
+    for label, policy in policies:
+        env = HybridCyberDefenseEnv(seed=7)
+        obs = env.reset()
+        compromised = [obs[1]]
+        for k in range(50):
+            obs, _, done, _ = env.step(policy(env, k, obs), scripted_attacker(env, k))
+            compromised.append(obs[1])
+            if done:
+                break
+        ax.plot(compromised, linewidth=2, label=label)
+    ax.set_title("Hybrid defense policy comparison")
+    ax.set_xlabel("Decision epoch")
+    ax.set_ylabel("Compromised share I(t)")
+    ax.grid(alpha=0.25)
+    ax.legend(loc="best")
+    fig.tight_layout()
+    fig.savefig(output_dir / "hybrid_policy_comparison.png", dpi=180)
+    plt.close(fig)
+
+
+def _box(ax, xy, text, width=1.8, height=0.55, fc="#f7f7f7", ec="#333333", fontsize=8.5):
+    rect = plt.Rectangle(xy, width, height, facecolor=fc, edgecolor=ec, linewidth=1.4)
+    ax.add_patch(rect)
+    ax.text(xy[0] + width / 2, xy[1] + height / 2, text, ha="center", va="center", fontsize=fontsize)
+    return rect
+
+
+def _arrow(ax, start, end):
+    ax.annotate("", xy=end, xytext=start, arrowprops={"arrowstyle": "->", "lw": 1.4, "color": "#333333"})
+
+
+def plot_neural_architectures(output_dir: Path) -> None:
+    fig, axes = plt.subplots(1, 2, figsize=(11, 4.8))
+
+    ax = axes[0]
+    _box(ax, (0.1, 2.8), "state x(t_k)\n+ time/context", fc="#e8f1ff")
+    _box(ax, (2.4, 2.8), "Q-network\nMLP", fc="#fff4df")
+    _box(ax, (4.7, 2.8), "Q-values\nfor actions", fc="#e9f7ef")
+    _box(ax, (7.0, 2.8), "argmax\nor epsilon", fc="#f4ecff")
+    _box(ax, (2.4, 1.55), "target\nQ-network", fc="#fff4df")
+    _box(ax, (4.7, 1.55), "DDQN target\nr + gamma Q'", width=2.1, fc="#ffecec")
+    _arrow(ax, (1.9, 3.08), (2.4, 3.08))
+    _arrow(ax, (4.2, 3.08), (4.7, 3.08))
+    _arrow(ax, (6.5, 3.08), (7.0, 3.08))
+    _arrow(ax, (5.75, 2.8), (5.75, 2.1))
+    _arrow(ax, (4.2, 1.82), (4.7, 1.82))
+    ax.set_title("DDQN defender")
+    ax.set_xlim(0, 9.2)
+    ax.set_ylim(0.8, 4.0)
+    ax.axis("off")
+
+    ax = axes[1]
+    _box(ax, (0.1, 2.9), "defender obs", fc="#e8f1ff")
+    _box(ax, (0.1, 1.75), "attacker obs", fc="#ffecec")
+    _box(ax, (2.3, 2.9), "defender actor\npi_D(a_D|o_D)", fc="#fff4df")
+    _box(ax, (2.3, 1.75), "attacker actor\npi_A(a_A|o_A)", fc="#fff4df")
+    _box(ax, (4.8, 2.25), "central critic\nQ(s, a_D, a_A)", width=2.1, fc="#e9f7ef")
+    _box(ax, (7.4, 2.25), "policy-gradient\nupdates", fc="#f4ecff")
+    _arrow(ax, (1.9, 3.18), (2.3, 3.18))
+    _arrow(ax, (1.9, 2.03), (2.3, 2.03))
+    _arrow(ax, (4.1, 3.18), (4.8, 2.8))
+    _arrow(ax, (4.1, 2.03), (4.8, 2.45))
+    _arrow(ax, (6.9, 2.53), (7.4, 2.53))
+    ax.set_title("CTDE attacker-defender learning")
+    ax.set_xlim(0, 9.5)
+    ax.set_ylim(0.8, 4.0)
+    ax.axis("off")
+
+    fig.tight_layout()
+    fig.savefig(output_dir / "neural_architectures.png", dpi=180)
+    plt.close(fig)
+
+
 def main() -> None:
     output_dir = ROOT / "figures"
     output_dir.mkdir(exist_ok=True)
     plot_fbsm(output_dir)
     plot_hybrid_rollout(output_dir)
+    plot_hybrid_policy_comparison(output_dir)
+    plot_neural_architectures(output_dir)
     print(f"Wrote figures to {output_dir}")
 
 
