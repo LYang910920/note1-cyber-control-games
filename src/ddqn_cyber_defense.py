@@ -56,6 +56,7 @@ class MLP(nn.Module):
 
 
 def evaluate(qnet, episodes=5, seed=1000, horizon=None):
+    """Evaluate the greedy defender policy against the scripted attacker."""
     env = HybridCyberDefenseEnv(seed=seed)
     if horizon is not None:
         env.cfg.horizon = horizon
@@ -76,6 +77,12 @@ def evaluate(qnet, episodes=5, seed=1000, horizon=None):
 
 
 def train(args):
+    """Train a DDQN defender and optionally return logged history.
+
+    Required arguments are provided by the CLI or by
+    `scripts/run_training_iterations.py`.  The returned network maps the current
+    cyber state to Q-values for the five defender actions.
+    """
     random.seed(args.seed); np.random.seed(args.seed); torch.manual_seed(args.seed)
     env = HybridCyberDefenseEnv(seed=args.seed)
     if args.smoke:

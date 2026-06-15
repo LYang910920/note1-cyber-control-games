@@ -19,3 +19,11 @@ python scripts/run_training_iterations.py --episodes 300
 ```
 
 The checked-in CSV files and figures are examples from one deterministic teaching run.  For research claims, rerun with multiple seeds and report uncertainty.
+
+## What Each Script Needs
+
+| Script | Needs | Expected result |
+|---|---|---|
+| `run_smoke_tests.sh` | installed dependencies from `requirements.txt` | exits with status 0 and unit-test summary |
+| `generate_figures.py` | working NumPy/Matplotlib environment | rewrites the PNG files under `figures/` |
+| `run_training_iterations.py` | working PyTorch/NumPy/Matplotlib environment | rewrites training CSVs, summary markdown, and the diagnostic PNG |

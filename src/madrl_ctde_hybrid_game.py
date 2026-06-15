@@ -64,6 +64,7 @@ class CentralCritic(nn.Module):
 
 
 def rollout(env, defender, attacker, critic, horizon):
+    """Collect one attacker-defender trajectory from the hybrid environment."""
     obs_np = env.reset()
     storage = []
     for k in range(horizon):
@@ -93,6 +94,12 @@ def discounted_returns(rewards, gamma=0.99):
 
 
 def train(args):
+    """Train compact decentralized actors with centralized critics.
+
+    The function returns defender and attacker actors.  When
+    `return_history=True`, it also returns per-episode diagnostics for teaching
+    plots.  This is a readable CTDE skeleton, not a full MAPPO implementation.
+    """
     torch.manual_seed(args.seed); np.random.seed(args.seed)
     env = HybridCyberDefenseEnv(seed=args.seed)
     if args.smoke:

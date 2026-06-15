@@ -38,7 +38,13 @@ class EnvConfig:
 
 
 class HybridCyberDefenseEnv:
-    """Continuous-time cyber propagation with sampled decisions and jumps."""
+    """Continuous-time cyber propagation with sampled decisions and jumps.
+
+    Inputs to `step` are a defender action and an attacker action.  The method
+    applies any immediate jump, integrates the ODE over one decision interval,
+    and returns the next observation, both players' rewards, a terminal flag,
+    and diagnostic information for plotting or debugging.
+    """
 
     # Defender modes
     DEF_NONE = 0

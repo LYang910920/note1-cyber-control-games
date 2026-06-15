@@ -9,6 +9,7 @@ This repository is designed to be read in layers.  You do not need to understand
 3. Run `bash scripts/run_smoke_tests.sh` to check the environment.
 4. Run `python scripts/generate_figures.py` to recreate the explanatory figures.
 5. Run `python scripts/run_training_iterations.py` when you want the longer convergence diagnostics.
+6. Read `docs/EXTENDING.md` when you want to move beyond the small teaching models.
 
 ## Find The Right File
 
@@ -19,6 +20,8 @@ This repository is designed to be read in layers.  You do not need to understand
 | Understand the Python modules | `src/README.md` |
 | Know which command generates which output | `scripts/README.md` |
 | Inspect convergence and training metrics | `experiments/README.md` and `experiments/training_summary.md` |
+| Connect this repo to the differential-games repo | `docs/LEARNING_PATH.md` |
+| Extend to complex cyber or network models | `docs/EXTENDING.md` |
 | Check the license and copyright assumptions | `LICENSE` and `NOTICE.md` |
 
 ## Recommended Code Reading Order
@@ -38,3 +41,4 @@ This repository is designed to be read in layers.  You do not need to understand
 | Change reward trade-offs | `EnvConfig` in `src/cyber_hybrid_env.py` |
 | Run longer DDQN/MADRL diagnostics | `python scripts/run_training_iterations.py --episodes 300` |
 | Add a new baseline policy | `scripts/generate_figures.py` or a new script under `scripts/` |
+| Move to degree-level or node-level networks | `docs/EXTENDING.md` plus `network-control-differential-games` |

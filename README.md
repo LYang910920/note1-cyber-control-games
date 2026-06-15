@@ -17,6 +17,8 @@ If this is your first time opening the repo, read `START_HERE.md` first.  It giv
 | `docs/README.md` | Reading path and lecture-structure guide. |
 | `docs/implementation_companion.pdf` | Companion explanation for implementation choices. |
 | `docs/code_run_guide.pdf` | General run guide from the original bundle. |
+| `docs/LEARNING_PATH.md` | How this repo connects to the differential-games and PINN/PIDL repos. |
+| `docs/EXTENDING.md` | How to extend the examples to richer models and large network settings. |
 | `src/README.md` | Source-code map and state conventions. |
 | `src/cyber_dynamics.py` | Shared RK4 integration and malware dynamics utilities. |
 | `src/cyber_hybrid_env.py` | Hybrid cyber-defense environment with flow, jump, and mixed actions. |
@@ -59,6 +61,17 @@ Run longer training-iteration diagnostics:
 python scripts/run_training_iterations.py
 ```
 
+## What You Need And What You Get
+
+| Question | Answer |
+|---|---|
+| What do I need to install? | Python, NumPy, PyTorch, and Matplotlib from `requirements.txt`. |
+| What should I run first? | `bash scripts/run_smoke_tests.sh`. |
+| What does a successful run prove? | The dynamics, learning loops, tests, and figure-generation scripts execute in this environment. |
+| What files should I inspect after training? | `experiments/training_summary.md`, the CSV files in `experiments/`, and `figures/training_iteration_diagnostics.png`. |
+| Where do I learn how to extend the model? | `docs/EXTENDING.md`. |
+| Where is the larger network-control foundation? | `docs/LEARNING_PATH.md` links this repo to `network-control-differential-games`. |
+
 ## Common Workflows
 
 | Goal | Command or file |
@@ -69,6 +82,8 @@ python scripts/run_training_iterations.py
 | Increase training time | `python scripts/run_training_iterations.py --episodes 300` |
 | Understand module responsibilities | `src/README.md` |
 | Understand command outputs | `scripts/README.md` |
+| Extend to network-scale models | `docs/EXTENDING.md` |
+| Follow the cross-repo sequence | `docs/LEARNING_PATH.md` |
 
 ## Main Ideas
 
@@ -120,6 +135,14 @@ The repo includes smoke tests for every executable script and unit tests for the
 This consolidated version keeps the Note 1 PDFs, source materials, generated figures, tests, CI workflow, and longer teaching diagnostics in one final repo.
 
 These examples are teaching code, not benchmark implementations.  For serious experiments, add multiple seeds, stronger baselines, full logging, and exploitability-style game diagnostics.
+
+## Related Repository
+
+For the optimal-control and differential-game foundation behind the FBSM and hybrid-control pieces, see:
+
+https://github.com/LYang910920/network-control-differential-games
+
+Use that repository first for degree-level, node-level, and hybrid impulse examples.  Then use this repository to study sampled-data RL and attacker-defender learning on cyber-control dynamics.
 
 ## License And Copyright
 
