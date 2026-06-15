@@ -9,6 +9,7 @@ The examples are intentionally small and readable.  They are meant for study, mo
 | Path | Purpose |
 |---|---|
 | `docs/note1_game_learning_cyber_control.pdf` | Main lecture note for game learning and cyber control. |
+| `docs/README.md` | Reading path and lecture-structure guide. |
 | `docs/implementation_companion.pdf` | Companion explanation for implementation choices. |
 | `docs/code_run_guide.pdf` | General run guide from the original bundle. |
 | `src/cyber_dynamics.py` | Shared RK4 integration and malware dynamics utilities. |
@@ -17,7 +18,7 @@ The examples are intentionally small and readable.  They are meant for study, mo
 | `src/ddqn_cyber_defense.py` | DDQN defender for a sampled-data ODE cyber-defense MDP. |
 | `src/madrl_ctde_hybrid_game.py` | Minimal CTDE/MADRL attacker-defender game example. |
 | `scripts/generate_figures.py` | Generates explanatory figures in `figures/`. |
-| `scripts/run_training_iterations.py` | Runs short training diagnostics and writes CSV histories in `experiments/`. |
+| `scripts/run_training_iterations.py` | Runs longer teaching diagnostics and writes CSV histories in `experiments/`. |
 | `scripts/run_smoke_tests.sh` | Runs all fast checks for this repo. |
 | `.github/workflows/smoke-tests.yml` | GitHub Actions workflow for dependency install, smoke tests, and figure generation. |
 | `experiments/` | Small training-iteration CSV outputs and an explanation of each metric. |
@@ -44,7 +45,7 @@ Generate the figures used in this README:
 python scripts/generate_figures.py
 ```
 
-Run short training-iteration diagnostics:
+Run longer training-iteration diagnostics:
 
 ```bash
 python scripts/run_training_iterations.py
@@ -78,13 +79,16 @@ This repo separates three levels that are easy to blur:
 
 ## Training Diagnostics
 
-`scripts/run_training_iterations.py` writes three small experiment tables:
+`scripts/run_training_iterations.py` writes three experiment tables and a summary:
 
 | CSV | What to inspect |
 |---|---|
 | `experiments/fbsm_iteration_history.csv` | Whether the control update stabilizes as `max_control_change` falls. |
 | `experiments/ddqn_training_history.csv` | Whether evaluation return improves while epsilon decays. |
 | `experiments/madrl_training_history.csv` | Whether the CTDE loss, entropy, and defender/attacker returns stay numerically stable. |
+| `experiments/training_summary.md` | First-versus-last diagnostic values and interpretation. |
+
+The default run is intentionally longer than smoke mode.  FBSM should show clear numerical convergence.  DDQN should be read through the rolling evaluation trend.  CTDE/MADRL is included as a stability diagnostic because short stochastic game training is not an equilibrium proof.
 
 The combined plot is:
 
@@ -94,6 +98,6 @@ The combined plot is:
 
 The repo includes smoke tests for every executable script and unit tests for the core numerical contracts.  It also has a GitHub Actions workflow that installs dependencies, runs smoke tests, and regenerates figures on push or pull request.
 
-This consolidated version merges the duplicate Note 1 materials into one final repo: it keeps the PDFs/source materials, generated figures, tests, CI workflow, and short training diagnostics in the same place.
+This consolidated version keeps the Note 1 PDFs, source materials, generated figures, tests, CI workflow, and longer teaching diagnostics in one final repo.
 
 These examples are teaching code, not benchmark implementations.  For serious experiments, add multiple seeds, stronger baselines, full logging, and exploitability-style game diagnostics.

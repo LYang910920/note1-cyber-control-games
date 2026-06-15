@@ -97,6 +97,8 @@ def train(args):
     env = HybridCyberDefenseEnv(seed=args.seed)
     if args.smoke:
         env.cfg.horizon = 10
+    if hasattr(args, "horizon") and args.horizon is not None:
+        env.cfg.horizon = args.horizon
     defender = Actor(env.obs_dim, env.n_defender_actions, args.hidden).to(DEVICE)
     attacker = Actor(env.obs_dim, env.n_attacker_actions, args.hidden).to(DEVICE)
     critic_d = CentralCritic(env.obs_dim, env.n_defender_actions, env.n_attacker_actions, args.hidden).to(DEVICE)

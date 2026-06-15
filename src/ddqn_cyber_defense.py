@@ -80,6 +80,8 @@ def train(args):
     env = HybridCyberDefenseEnv(seed=args.seed)
     if args.smoke:
         env.cfg.horizon = 10
+    if hasattr(args, "horizon") and args.horizon is not None:
+        env.cfg.horizon = args.horizon
     q = MLP(env.obs_dim, env.n_defender_actions, hidden=args.hidden)
     target = MLP(env.obs_dim, env.n_defender_actions, hidden=args.hidden)
     target.load_state_dict(q.state_dict())
@@ -122,7 +124,10 @@ def train(args):
             if done:
                 break
         if ep % args.log_every == 0:
-            val = evaluate(q, episodes=2, horizon=10 if args.smoke else None)
+            eval_horizon = getattr(args, "eval_horizon", None)
+            if eval_horizon is None and args.smoke:
+                eval_horizon = 10
+            val = evaluate(q, episodes=getattr(args, "eval_episodes", 2), horizon=eval_horizon)
             print(f"ep={ep:04d}, return={ep_return:8.2f}, eval={val:8.2f}, eps={eps:.3f}")
             history.append({
                 "episode": ep,
