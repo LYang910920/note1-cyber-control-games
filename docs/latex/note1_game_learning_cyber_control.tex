@@ -1,0 +1,2010 @@
+
+\documentclass[11pt,a4paper]{article}
+\input{lecture_style}
+\begin{document}
+\lecturetitle{Lecture Note 1}{Cyber Differential Games, PMP, RL/DRL, MADRL, Neural ODE, PINN/PIDL, and Hybrid Control}{A self-contained guide from models to implementation}{Prepared for advanced research discussion and supervision}
+\tableofcontents
+\newpage
+\section{How This Lecture Note Is Organized}
+The note is organized around a clean workflow:
+\begin{equation}
+\begin{array}{c}
+\boxed{\text{cyber dynamics}}\rightarrow\boxed{\text{control/game objective}}\rightarrow\boxed{\text{continuous-time theory}}\\[0.4em]
+\rightarrow\boxed{\text{learning formulation}}\rightarrow\boxed{\text{implementation and evaluation}}
+\end{array}
+\end{equation}
+The most important improvement is that RL, DRL, and MARL are not presented as unrelated tools after PMP. Instead, the note explains exactly how a continuous-time optimal control or differential game is converted into an MDP or Markov game, and what information from PMP is preserved or lost in that conversion.
+
+\begin{boxednote}
+\textbf{Key methodological principle.}
+PMP and differential games define the continuous-time mathematical problem. RL/DRL/MARL usually solve a discretized feedback-control problem derived from that problem. PINN/PIDL can either learn unknown dynamics, solve the PMP residual system, or approximate HJB/HJI equations. These are different levels of coupling, and they should not be confused.
+\end{boxednote}
+
+
+
+\section{Notation and Method Selection}
+This note uses a small number of repeated symbols. The same notation is used across optimal control, differential games, RL, and PINN/PIDL so that the link among methods is visible.
+
+\begin{longtable}{p{0.20\textwidth}p{0.70\textwidth}}
+\toprule
+Symbol & Meaning \\
+\midrule
+$x(t)$ & continuous-time cyber state, for example malware compartments, APT asset states, or misinformation populations \\
+$u_D(t),u_A(t)$ & continuous-time defender and attacker controls \\
+$a_D^k,a_A^k$ & discrete-time actions selected at decision epoch $t_k$ \\
+$\theta$ & physical or propagation parameters, such as infection, repair, forgetting, deception-decay, or correction rates \\
+$J_D,J_A$ & cumulative defender and attacker objectives in continuous time \\
+$H$ & Hamiltonian used by PMP or differential-game optimality conditions \\
+$\lambda(t)$ & costate or adjoint variable; it measures marginal value of changing the state \\
+$s_k$ & RL/DRL/MARL state at decision epoch $t_k$; usually derived from $x(t_k)$ and observations \\
+$r_k$ & reward over the interval $[t_k,t_{k+1}]$, usually negative running cost \\
+$\policy$ & policy mapping states to actions, e.g., $\policy_D(a_D|s)$ \\
+\bottomrule
+\end{longtable}
+
+\subsection{What each method consumes and outputs}
+A useful way to avoid confusion is to ask what each method consumes as input and what it returns as output.
+\begin{longtable}{p{0.18\textwidth}p{0.34\textwidth}p{0.34\textwidth}}
+\toprule
+Method & Main input & Main output \\
+\midrule
+PMP & ODE model, cost functional, constraints & optimality system: state, costate, stationarity, boundary conditions \\
+FBSM & PMP optimality system and initial guess for controls & open-loop trajectory $u^*(t)$ and state $x^*(t)$ \\
+RL/DQN & MDP simulator $(s,a,r,s')$ with discrete actions & feedback policy or Q-function $Q(s,a)$ \\
+PPO/SAC/DDPG & simulator with continuous or stochastic actions & feedback actor $\policy(a|s)$ and critic \\
+MARL & Markov game simulator with multiple agents & attacker and defender policies, often with centralized critics \\
+Neural ODE & observed trajectories and differentiable ODE solver & learned dynamics $\dot{x}=f_\theta(x,u,t)$ or residual term $g_\theta$ \\
+PINN/PIDL & data, equations, constraints, priors, possibly PMP/HJI residuals & states, parameters, controls, costates, or value functions satisfying residual constraints \\
+\bottomrule
+\end{longtable}
+
+\begin{boxednote}
+\textbf{Practical selection rule.}
+Use PMP/FBSM when the model is known, continuous, and low- to moderate-dimensional. Use RL/DRL when actions are operational decisions and feedback policies are needed. Use MARL when the attacker adapts. Use Neural ODE when the dynamics are partly unknown. Use PINN/PIDL when equations and constraints are important and data are sparse, or when one wants a neural solver for PMP/HJB/HJI residual systems.
+\end{boxednote}
+
+
+\section{Game Concepts Before Learning: What Exactly Is Being Solved?}\label{sec:game-concepts}
+A source of confusion in recent learning-for-differential-games papers is that the word ``game'' may refer to several different mathematical objects. Before choosing PMP, FBSM, RL, DRL, MARL, MADRL, PINN, or PIDL, it is useful to identify the game type and the solution concept. Differential games extend optimal control from one decision maker to multiple strategic decision makers: each player controls the same evolving state, but each player evaluates the outcome through its own objective. This point is emphasized in classical dynamic-game theory \cite{isaacs1965,basar1999} and in cyber differential-game tutorials.
+
+\subsection{A compact taxonomy for cyber differential games}
+The following table is intended as a practical checklist for malware, APT, deception, and propaganda-war models.
+
+\begin{longtable}{p{0.21\textwidth}p{0.33\textwidth}p{0.36\textwidth}}
+\toprule
+Dimension & Meaning & Typical cyber interpretation \\
+\midrule
+Zero-sum vs general-sum & In a zero-sum game, $J_A=-J_D$. In a general-sum game, each player has a different payoff. & Malware attacker-defender games may be approximated as zero-sum. Propaganda, compliance, and insider-assisted APT games are often general-sum because costs, reputational effects, and operational benefits are not exact negatives. \\
+Deterministic vs stochastic & The state equation is an ODE or a stochastic process. & Most propagation models use deterministic ODEs for tractability. RL/MADRL can add stochasticity through random initial states, random attacks, noisy observations, or network sampling. \\
+Nash vs Stackelberg & In Nash games, players decide simultaneously. In Stackelberg games, a leader commits first and a follower responds. & Attacker-defender malware control is often modeled as Nash. Security investment, auditing, and compliance guidance can be Stackelberg if the organization commits first and employees or attackers respond. \\
+Open-loop vs feedback & Open-loop controls are functions of time. Feedback controls are functions of the observed state. & PMP/FBSM usually returns $u_i(t)$ for a fixed initial state. RL/MADRL usually returns $\pi_i(a_i|s)$ that adapts to the current state. \\
+Continuous vs impulsive vs hybrid & Continuous controls act through $\dot{x}=f(\cdot)$. Impulses create jumps $x(\tau^+)=G(x(\tau^-),v)$. Hybrid models combine continuous flows, discrete modes, and impulses. & Continuous propaganda spending, continuous patching, or monitoring affect transition rates. Human incident response, media-literacy campaigns, isolation, and takedown actions may be better modeled as impulses. \\
+\bottomrule
+\end{longtable}
+
+\begin{boxednote}
+\textbf{Why this taxonomy matters for learning.}
+DQN, PPO, SAC, MADDPG, MAPPO, and other MADRL methods do not directly require the original PMP equations. They require an environment. The game taxonomy determines what the environment should contain: one agent or multiple agents; zero-sum or general-sum rewards; simultaneous or sequential actions; discrete, continuous, or hybrid actions; continuous flow only or impulse jumps.
+\end{boxednote}
+
+\subsection{Nash equilibrium in continuous time and in Markov games}
+For a two-player continuous-time differential game,
+\begin{equation}
+\dot{x}(t)=f(x(t),u_1(t),u_2(t),t),\quad x(0)=x_0,
+\end{equation}
+with objectives $J_1(u_1,u_2)$ and $J_2(u_1,u_2)$, an open-loop Nash equilibrium $(u_1^*,u_2^*)$ satisfies
+\begin{equation}
+J_1(u_1^*,u_2^*)\ge J_1(u_1,u_2^*)\quad \text{for all }u_1,
+\end{equation}
+\begin{equation}
+J_2(u_1^*,u_2^*)\ge J_2(u_1^*,u_2)\quad \text{for all }u_2,
+\end{equation}
+when the convention is payoff maximization. If the problem is written as cost minimization, the inequality directions are reversed. PMP gives necessary conditions for such equilibria by introducing one Hamiltonian and one costate system for each player. In nonzero-sum games these conditions are normally necessary rather than sufficient, so numerical comparison against alternative strategies remains important.
+
+After time discretization, state observation, action selection, and ODE/impulse simulation, the same strategic idea becomes a Markov game:
+\begin{equation}
+\mathcal{G}=\big(\mathcal{N},\mathcal{S},\{\mathcal{A}_i\}_{i\in\mathcal{N}},P,\{r_i\}_{i\in\mathcal{N}},\gamma\big).
+\end{equation}
+Here $\mathcal{N}$ is the player set, $\mathcal{S}$ is the state space, $\mathcal{A}_i$ is player $i$'s action space, $P(s'|s,a_1,\ldots,a_N)$ is the transition kernel, $r_i$ is the reward of player $i$, and $\gamma$ is a discount factor. A Markov-perfect Nash equilibrium is a profile of feedback policies $\pi_i^*(a_i|s)$ such that no player can improve its value by unilateral deviation:
+\begin{equation}
+V_i^{\pi_i^*,\pi_{-i}^*}(s)\ge V_i^{\pi_i,\pi_{-i}^*}(s),\quad \forall \pi_i,\; \forall s.
+\end{equation}
+This is the precise object that MARL and MADRL try to approximate.
+
+\subsection{How the HODGE propaganda-war paper fits this taxonomy}
+The HODGE/ORIENTATION framework is a useful example because it is not a simple continuous-control game. It combines a degree-based network model for dual competitive information spreading with a dual hybrid control mechanism: continuous-time propaganda investment and discrete-time impulsive counter-propaganda investment \cite{cheng2024propaganda}. In words, propaganda is modeled as persistent influence over an interval, while counter-propaganda is modeled as targeted interventions at selected moments. This distinction is exactly the distinction between continuous flow control and impulse/jump control.
+
+A simplified abstraction is
+\begin{equation}
+\dot{x}(t)=f(x(t),u_R(t),u_B(t)),\quad t\notin \tau_R\cup\tau_B,
+\end{equation}
+\begin{equation}
+x(\tau_i^+)=G_R(x(\tau_i^-),v_R(\tau_i))\quad \text{or}\quad
+x(\tau_i^+)=G_B(x(\tau_i^-),v_B(\tau_i)),
+\end{equation}
+where $u_R,u_B$ are continuous propaganda investment rates and $v_R,v_B$ are impulsive counter-propaganda investment levels. The original HODGE algorithm approximates a Nash strategy profile by iteratively updating continuous and impulsive decisions. A learning-based extension would not simply ``replace PMP by MADRL.'' Instead, it would define a Markov game in which each party observes a state summary, selects continuous and/or impulsive investment actions at decision epochs, applies jump maps if an impulse is selected, integrates the degree-based ODE until the next decision epoch, and receives a reward based on narrative benefit minus investment cost.
+
+\begin{flowbox}
+\textbf{Hybrid propaganda game as a Markov game}\par
+Observe degree-based state summary $s_k$\par
+$\Downarrow$\par
+Red chooses $(m_R^k,v_R^k,u_R^k)$, Blue chooses $(m_B^k,v_B^k,u_B^k)$\par
+$\Downarrow$\par
+If $m_i^k$ is impulsive, apply jump map $G_i$\par
+$\Downarrow$\par
+Integrate ODE with continuous investments over $[t_k,t_{k+1}]$\par
+$\Downarrow$\par
+Compute rewards: influence benefit $-$ continuous cost $-$ impulse cost\par
+$\Downarrow$\par
+Update MADRL policies by self-play or CTDE
+\end{flowbox}
+
+
+\section{Cyber Dynamic Models: What Is Being Controlled?}
+\subsection{Controlled malware propagation}
+A basic malware or virus propagation model is
+\begin{align}
+    \dot{S}(t)&=-\beta S(t)I(t)-u_p(t)S(t)+\omega R(t), \\
+    \dot{I}(t)&=\beta S(t)I(t)-\gamma I(t)-u_c(t)I(t), \\
+    \dot{R}(t)&=\gamma I(t)+u_p(t)S(t)+u_c(t)I(t)-\omega R(t).
+\end{align}
+Here $S(t)$ denotes vulnerable devices, $I(t)$ compromised devices, and $R(t)$ recovered or protected devices. The infection term $\beta SI$ expresses the idea that vulnerable devices are compromised through interaction with infected devices. The control $u_p(t)$ represents patching or hardening, and $u_c(t)$ represents cleaning, monitoring, or incident response.
+
+This model is suitable for introducing optimal control because the defender must balance two competing goals: reduce $I(t)$ and avoid excessive control cost. A typical objective is
+\begin{equation}
+J_D(u_p,u_c)=\int_0^T\left[A_I I(t)+\frac{B_p}{2}u_p^2(t)+\frac{B_c}{2}u_c^2(t)\right]\dd t+A_T I(T).
+\end{equation}
+The term $A_I I(t)$ is security loss, while $B_pu_p^2/2$ and $B_cu_c^2/2$ penalize aggressive intervention. The terminal term $A_T I(T)$ penalizes residual compromise.
+
+\subsection{APT repair and deception dynamics}
+APT attacks are persistent and stealthy, so it is useful to include repair, isolation, and deception. A compact APT-oriented model is
+\begin{align}
+    \dot{V} &= -\beta(1-\chi z)VC-u_hV+\omega P, \\
+    \dot{C} &= \beta(1-\chi z)VC-(\gamma+u_r+u_i)C, \\
+    \dot{P} &= u_hV+(\gamma+u_r+u_i)C-\omega P, \\
+    \dot{z} &= u_d(1-z)-\xi z.
+\end{align}
+Here $V$ is vulnerable but uncompromised assets, $C$ is compromised assets, $P$ is protected or repaired assets, and $z\in[0,1]$ is deception effectiveness. The factor $(1-\chi z)$ reduces the effective compromise rate. When $z$ is large, honeypots, decoys, moving-target defense, or false information confuse the attacker. This extends differential-game APT repair ideas such as Yang et al. \cite{yang2019apt} and connects naturally with impulsive and hybrid APT defense models \cite{sun2023impulsive,qin2024impulsive}.
+
+\subsection{Rumor and misinformation defense}
+For rumor, misinformation, or cyber propaganda, a simple correction model is
+\begin{align}
+    \dot{U} &= -\beta_MUM-\beta_CUC, \\
+    \dot{M} &= \beta_MUM-\alpha MC-\delta M-u_fM, \\
+    \dot{C} &= \beta_CUC+\alpha MC+u_fM-\delta_CC, \\
+    \dot{R} &= \delta M+\delta_CC.
+\end{align}
+$U$ is unaware users, $M$ misinformation believers or spreaders, $C$ correction believers or counter-message spreaders, and $R$ inactive or removed users. The control $u_f(t)$ represents fact-checking, trusted correction, platform intervention, or public communication. This model makes sense for cyber propaganda games, where opposing sides can strategically influence narrative populations \cite{cheng2024propaganda}.
+
+\begin{boxednote}
+\textbf{Common structure.}
+Malware, APT, and misinformation models all have the form
+\[
+\dot{x}=f(x,u_D,u_A,\theta,t),
+\]
+where $x$ is a cyber/social state, $u_D$ is defense intervention, $u_A$ is attack effort, and $\theta$ contains propagation parameters. This common structure is why PMP, FBSM, HJB/HJI, RL/DRL/MARL, Neural ODE, and PINN/PIDL can be studied in one framework.
+\end{boxednote}
+
+
+
+\subsection{How to read these models operationally}
+The compartment variables should not be interpreted as only biological analogies. In cybersecurity, a compartment can represent a proportion of devices, accounts, hosts, services, narratives, or users. For example, $I(t)$ in a malware model can be the fraction of compromised IoT devices, while $M(t)$ in a misinformation model can be the fraction of users currently spreading a false narrative. A control is any costly intervention that changes transition rates. Patching changes the transition from vulnerable to protected. Cleaning changes the transition from compromised to recovered. Fact-checking changes the transition from misinformation to correction. Deception changes the effective attack rate by altering the attacker's information.
+
+The main modeling decision is therefore not the name of the compartments but the transition mechanism. A paper should explain why each term exists. For example, $\beta SI$ means mass-action infection: compromise increases when both vulnerable and infected assets are present. The term $(1-\chi z)$ means deception reduces useful attacker contact. The term $u_fM$ means correction effort converts misinformation spreaders into corrected or inactive users. Clear interpretation of every term is essential before applying PMP or learning methods.
+
+\subsection{What makes a cyber model suitable for learning-based control?}
+A model is suitable when it can be simulated under candidate actions. For RL/DRL/MARL, the simulator may be an ODE solver, an agent-based simulator, a cyber range, or a hybrid environment. For PINN/PIDL, the model must provide differentiable residuals or differentiable approximations. For Neural ODE, one needs trajectory data or simulated traces to train the dynamics. For PMP/FBSM, the model should be differentiable with respect to states and controls so that $H_x$, $H_u$, and costate equations can be derived.
+
+
+\section{Continuous, Discrete, Impulsive, and Hybrid Cyber Control}\label{sec:continuous-discrete-impulse}
+
+This section clarifies a point that often causes confusion. In cyber control papers, the words \emph{continuous}, \emph{discrete}, \emph{impulsive}, and \emph{hybrid} refer to different parts of the model. They should not be used interchangeably.
+
+\subsection{Continuous-time state dynamics and continuous control}
+A continuous-time cyber model assumes that the state changes continuously over time:
+\begin{equation}
+    \dot{x}(t)=f(x(t),u(t),t),\qquad t\in[0,T].
+\end{equation}
+Here $x(t)$ may be the proportion of vulnerable, infected, compromised, recovered, or misinformed users. A continuous control $u(t)$ is a function defined over time. For example,
+\begin{equation}
+    u(t)=\text{patching intensity at time }t,\qquad 0\leq u(t)\leq 1.
+\end{equation}
+This means that the defender can continuously adjust the strength of patching, monitoring, deception, or fact-checking. Mathematically, $u(t)$ may be an open-loop function of time or a feedback law $u(t)=\pi(x(t),t)$.
+
+\begin{boxednote}
+\textbf{Important distinction.}
+Continuous control does not necessarily mean the defender manually changes the action at every instant. It means the mathematical decision variable is a function over the whole time interval. In numerical implementation, it is often approximated by a piecewise-constant or piecewise-linear function.
+\end{boxednote}
+
+For example, in a malware model,
+\begin{equation}
+\dot{S}=-\beta SI-u_p(t)S,\qquad
+\dot{I}=\beta SI-(\gamma+u_c(t))I,
+\end{equation}
+where $u_p(t)$ is continuous patching intensity and $u_c(t)$ is continuous cleaning intensity. PMP/FBSM is natural for this setting because the unknown is a control trajectory $u(t)$ over $[0,T]$.
+
+\subsection{Discrete decision with continuous flow: no jump}
+In real cyber operations, decisions are usually made at discrete times:
+\begin{equation}
+    t_k=k\Delta t,\qquad k=0,1,\ldots,K.
+\end{equation}
+At time $t_k$, the defender chooses an action $a_k$, such as \texttt{patch}, \texttt{monitor}, \texttt{isolate}, or \texttt{deceive}. After that choice, the system still evolves continuously until the next decision time:
+\begin{equation}
+    \dot{x}(t)=f(x(t),a_k,t),\qquad t\in[t_k,t_{k+1}).
+\end{equation}
+There is no instantaneous jump in the state:
+\begin{equation}
+    x(t_k^+)=x(t_k^-).
+\end{equation}
+Only the vector field changes. For instance, choosing \texttt{patch} may increase the patching rate during the next day, but the number of infected machines does not instantly drop at the exact decision instant.
+
+\begin{flowbox}
+Discrete decision without jump:\\[0.3em]
+observe $x_k$ $\rightarrow$ choose $a_k$ $\rightarrow$ hold $a_k$ over $[t_k,t_{k+1})$ $\rightarrow$ integrate ODE $\rightarrow$ obtain $x_{k+1}$
+\end{flowbox}
+
+This is the cleanest bridge to RL/DRL. The induced MDP transition is
+\begin{equation}
+    x_{k+1}=\ODESolve\big(f(\cdot,a_k),x_k,t_k,t_{k+1}\big).
+\end{equation}
+The reward is usually the negative accumulated cost over the same interval:
+\begin{equation}
+    r_k=-\int_{t_k}^{t_{k+1}} L(x(t),a_k)\,\dd t.
+\end{equation}
+DQN/DDQN can be used if $a_k$ is discrete; PPO/SAC/DDPG can be used if the action includes continuous intensity.
+
+\subsection{Impulsive control: discrete decision with state jump}
+An impulsive model assumes that some interventions cause an instantaneous state change at selected times. The dynamics are then
+\begin{equation}
+\begin{cases}
+\dot{x}(t)=f(x(t),u(t),t), & t\neq \tau_j,\\[0.2em]
+x(\tau_j^+)=G_j(x(\tau_j^-),a_j), & t=\tau_j.
+\end{cases}
+\end{equation}
+Here $\tau_j$ is an impulse time, $x(\tau_j^-)$ is the state just before the impulse, and $x(\tau_j^+)$ is the state just after the impulse. In cybersecurity, impulses are natural when a decision has an immediate effect, for example:
+\begin{itemize}
+\item emergency patching instantly moves a fraction of vulnerable machines to protected machines;
+\item isolation instantly removes a fraction of compromised hosts from the active network;
+\item a takedown operation instantly removes malicious accounts or command-and-control nodes;
+\item a fact-checking campaign instantly shifts a fraction of misinformed users into a corrected class.
+\end{itemize}
+A simple malware impulse can be written as
+\begin{equation}
+\begin{bmatrix}S(\tau_j^+)\\ I(\tau_j^+)\\ R(\tau_j^+)\end{bmatrix}
+=
+\begin{bmatrix}
+(1-p_j)S(\tau_j^-)\\
+(1-q_j)I(\tau_j^-)\\
+R(\tau_j^-)+p_jS(\tau_j^-)+q_jI(\tau_j^-)
+\end{bmatrix},
+\end{equation}
+where $p_j$ is the emergency patching fraction and $q_j$ is the emergency isolation/cleaning fraction. Impulsive APT defense and defense outsourcing models follow this logic \cite{sun2023impulsive,qin2024impulsive}.
+
+\begin{flowbox}
+Impulsive RL transition:\\[0.3em]
+observe pre-jump state $x_k^-$ $\rightarrow$ choose impulse action $a_k$ $\rightarrow$ jump $y_k=G(x_k^-,a_k)$ $\rightarrow$ integrate ODE $\rightarrow$ next state $x_{k+1}^-$
+\end{flowbox}
+
+The MDP transition becomes
+\begin{equation}
+    y_k=G(x_k,a_k),\qquad x_{k+1}=\ODESolve(f,y_k,t_k,t_{k+1}).
+\end{equation}
+The reward should include both the running cost and the impulse cost:
+\begin{equation}
+    r_k=-\int_{t_k}^{t_{k+1}}L(x(t),a_k)\,\dd t-C_{\rm imp}(x_k,a_k).
+\end{equation}
+Thus the RL environment must implement both a \texttt{jump()} function and an \texttt{integrate()} function.
+
+\subsection{Hybrid control: discrete mode plus continuous intensity}
+Hybrid cyber actions combine a discrete mode and a continuous parameter:
+\begin{equation}
+    a_k=(m_k,v_k),\qquad m_k\in\{1,\ldots,M\},\quad v_k\in[0,1].
+\end{equation}
+For example,
+\begin{equation}
+    m_k=\texttt{patch},\qquad v_k=0.7
+\end{equation}
+means that the defender chooses the patching mode with intensity $0.7$. Hybrid control may affect the system in two ways:
+\begin{enumerate}
+\item \textbf{Mode-dependent continuous flow:}
+\begin{equation}
+    \dot{x}=f_{m_k}(x,v_k,t),\qquad t\in[t_k,t_{k+1}).
+\end{equation}
+\item \textbf{Mode-dependent jump plus flow:}
+\begin{equation}
+    y_k=G_{m_k}(x_k,v_k),\qquad x_{k+1}=\ODESolve(f_{m_k},y_k,t_k,t_{k+1}).
+\end{equation}
+\end{enumerate}
+This form is often the most realistic for cyber defense because the defender chooses both \emph{what to do} and \emph{how strongly to do it}.
+
+\subsection{Mixed continuous-discrete differential games}
+In an attacker-defender game, both players may have hybrid actions:
+\begin{equation}
+    a_D^k=(m_D^k,v_D^k),\qquad a_A^k=(m_A^k,v_A^k).
+\end{equation}
+The continuous flow can be written as
+\begin{equation}
+    \dot{x}=f_{m_D^k,m_A^k}(x,v_D^k,v_A^k,t),\qquad t\in[t_k,t_{k+1}).
+\end{equation}
+If the actions also cause jumps,
+\begin{equation}
+    y_k=G_{m_D^k,m_A^k}(x_k,v_D^k,v_A^k),\qquad
+    x_{k+1}=\ODESolve(f_{m_D^k,m_A^k},y_k,t_k,t_{k+1}).
+\end{equation}
+The induced Markov game has transition
+\begin{equation}
+    P(s_{k+1}|s_k,a_D^k,a_A^k)
+\end{equation}
+implemented by jump and ODE integration. Defender and attacker rewards are
+\begin{equation}
+    r_D^k=-\int_{t_k}^{t_{k+1}}L_D(x(t),a_D^k,a_A^k)\,\dd t-C_D^{\rm imp},
+\end{equation}
+\begin{equation}
+    r_A^k=\int_{t_k}^{t_{k+1}}L_A(x(t),a_D^k,a_A^k)\,\dd t-C_A^{\rm imp}.
+\end{equation}
+This is the natural setting for MARL. The continuous-time model still provides the scientific mechanism, but the learning algorithm interacts with a discrete-time Markov game simulator.
+
+\subsection{Which method should be used?}
+\begin{longtable}{p{0.25\textwidth}p{0.32\textwidth}p{0.33\textwidth}}
+\toprule
+Model type & Mathematical form & Suitable learning/control method \\
+\midrule
+Continuous control & $\dot{x}=f(x,u(t),t)$ & PMP, FBSM, direct collocation, PMP-informed PINN \\
+Discrete decision without jump & $\dot{x}=f(x,a_k,t)$ over each interval & DQN/DDQN for discrete actions; PPO/SAC/DDPG for continuous actions \\
+Impulsive control & $x^+=G(x^-,a_k)$ plus continuous flow & impulse control theory; RL with jump+ODE transition; hybrid PMP for baseline \\
+Hybrid action & $a_k=(m_k,v_k)$ & parameterized-action RL, hybrid PPO/SAC, relaxed PINN for differentiable approximation \\
+Attacker-defender hybrid game & $\dot{x}=f(x,a_D^k,a_A^k)$ and possibly jumps & Markov game, MARL, CTDE, MAPPO/MADDPG-style training \\
+\bottomrule
+\end{longtable}
+
+
+\section{From Continuous-Time Control to MDPs and Markov Games}
+This section is the bridge that is often missing in papers. It explains how a continuous-time optimal control or differential game becomes a discrete-time learning environment.
+
+\subsection{Original continuous-time optimal control problem}
+A defender-only control problem is
+\begin{align}
+\min_{u_D(\cdot)} \quad &J_D=\Phi(x(T))+\int_0^T L_D(x(t),u_D(t),t)\dd t, \\
+\text{s.t.}\quad &\dot{x}(t)=f(x(t),u_D(t),t),\qquad x(0)=x_0.
+\end{align}
+PMP and FBSM solve this problem directly in continuous time. RL and DRL usually solve a derived discrete-time feedback-control problem.
+
+\subsection{Step-by-step conversion to an MDP}
+Choose decision times
+\begin{equation}
+0=t_0<t_1<\cdots<t_K=T,\qquad t_{k+1}-t_k=\Delta t.
+\end{equation}
+At each $t_k$, the defender observes a state
+\begin{equation}
+s_k=\psi(x(t_k),b_k,o_k),
+\end{equation}
+where $b_k$ may represent budget and $o_k$ may represent observations such as alerts or detection scores. The defender chooses an action $a_k$. The action can be discrete, continuous, or hybrid:
+\begin{align}
+\text{discrete: }&a_k\in\{\text{patch},\text{monitor},\text{isolate},\text{deceive}\},\\
+\text{continuous: }&a_k=[u_p^k,u_c^k,u_d^k]\in[0,1]^3,\\
+\text{hybrid: }&a_k=(m_k,v_k),\quad m_k\in\{\text{patch},\text{monitor},\text{deceive}\},\; v_k\in[0,1].
+\end{align}
+The continuous dynamics then run between decision points:
+\begin{equation}
+x_{k+1}=\ODESolve\left(f,x_k,a_k,[t_k,t_{k+1}]\right).
+\end{equation}
+The reward is the negative of the interval cost:
+\begin{equation}
+r_k=-\int_{t_k}^{t_{k+1}}L_D(x(t),a_k,t)\dd t.
+\end{equation}
+A simple numerical approximation is
+\begin{equation}
+r_k\approx -\Delta t\,L_D(x_{k+1},a_k,t_{k+1}).
+\end{equation}
+Now the problem is an MDP
+\begin{equation}
+(\mathcal{S},\mathcal{A},P,r,\gamma_d),
+\end{equation}
+where $P$ is implicitly generated by the ODE solver and any stochastic disturbances. This is the correct Level 1 bridge from optimal control to RL \cite{sutton2018}.
+
+\begin{flowbox}
+\textbf{Continuous-time model to MDP}\\[0.3em]
+$\dot{x}=f(x,u,t)$, $J=\int L\dd t$\quad
+$\Longrightarrow$ choose $\Delta t$\quad
+$\Longrightarrow$ define $s_k$ and $a_k$\quad
+$\Longrightarrow$ ODE transition $s_{k+1}$\quad
+$\Longrightarrow$ reward $r_k\approx-\int L\dd t$\quad
+$\Longrightarrow$ train RL/DRL policy $\pi(a|s)$.
+\end{flowbox}
+
+
+
+\subsection{Discounting and continuous-time costs}
+If the original continuous-time objective uses discounting
+\begin{equation}
+J=\int_0^T e^{-\rho t}L(x(t),u(t))\dd t,
+\end{equation}
+then the discrete discount factor can be chosen as
+\begin{equation}
+\gamma_d=e^{-\rho\Delta t}.
+\end{equation}
+If the original problem has a finite horizon and no discount, many implementations simply set $\gamma_d$ close to one and terminate at $K=T/\Delta t$. The key is to make the discrete reward consistent with the original running cost. Otherwise, the DRL policy may optimize a different problem from the one stated in the differential-game model.
+
+\subsection{Action-to-control map}
+A common source of confusion is the difference between a discrete RL action and a continuous control in the ODE. The bridge is an action-to-control map
+\begin{equation}
+\Gamma:\mathcal{A}\rightarrow\mathcal{U},\qquad u(t)=\Gamma(a_k),\quad t\in[t_k,t_{k+1}).
+\end{equation}
+For example,
+\begin{equation}
+\Gamma(\text{patch})=(u_p,u_c,u_d)=(0.8,0.1,0),
+\end{equation}
+while
+\begin{equation}
+\Gamma(\text{deceive})=(0.1,0.1,0.9).
+\end{equation}
+In hybrid-action RL, $a_k=(m_k,v_k)$ and the map becomes
+\begin{equation}
+\Gamma(m_k,v_k)=v_k\Gamma_{max}(m_k),
+\end{equation}
+so the agent chooses both intervention type and intensity.
+
+\subsection{A practical environment interface}
+In code, the continuous-time model becomes an environment with two important functions:
+\begin{methodbox}
+\textbf{ODE-based cyber MDP interface.}
+\begin{enumerate}
+\item \texttt{reset}: sample or set $x_0$, budget $b_0$, attack scenario, and horizon $K$.
+\item \texttt{observe}: return $s_k=\psi(x_k,o_k,b_k)$, where $o_k$ may be noisy alerts or partial measurements.
+\item \texttt{step(a\_k)}: convert $a_k$ to ODE controls, integrate the dynamics for one interval, compute reward, update budget, and return $(s_{k+1},r_k,done)$.
+\end{enumerate}
+\end{methodbox}
+The Markov property requires that $s_k$ contain enough information to predict the next state distribution given the action. If the defender observes only alerts rather than true compromise levels, the problem is closer to a partially observable MDP. A practical workaround is to include a history window, recurrent neural network, or state estimator.
+
+\subsection{Conversion to a Markov game}
+For an attacker-defender differential game,
+\begin{align}
+\dot{x}&=f(x,u_A,u_D,t),\\
+J_D&=\Phi_D(x(T))+\int_0^T L_D(x,u_A,u_D,t)\dd t,\\
+J_A&=\Phi_A(x(T))+\int_0^T L_A(x,u_A,u_D,t)\dd t.
+\end{align}
+Discretize time. At step $k$,
+\begin{equation}
+a_A^k\sim\pi_A(\cdot|s_k),\qquad a_D^k\sim\pi_D(\cdot|s_k).
+\end{equation}
+The transition is
+\begin{equation}
+s_{k+1}=\ODESolve(f,s_k,a_A^k,a_D^k,[t_k,t_{k+1}]),
+\end{equation}
+and rewards are
+\begin{align}
+r_D^k&\approx-\Delta t\,L_D(s_{k+1},a_A^k,a_D^k),\\
+r_A^k&\approx\Delta t\,L_A(s_{k+1},a_A^k,a_D^k).
+\end{align}
+This gives a Markov game
+\begin{equation}
+(\mathcal{S},\mathcal{A}_A,\mathcal{A}_D,P,r_A,r_D,\gamma_d).
+\end{equation}
+MARL learns policies $\pi_A$ and $\pi_D$ by repeated interaction.
+
+\subsection{What is preserved and what is lost?}
+This conversion preserves the state dynamics, intervention costs, and strategic interaction. However, it usually does not preserve the costate equations or Hamiltonian stationarity conditions unless these are explicitly added to the learning objective. Therefore, a DRL solver for the induced MDP is not automatically a solver for the PMP boundary-value problem. It is a feedback-policy solver for a discretized control/game problem.
+
+\section{PMP and FBSM: Classical Continuous-Time Solution}
+\subsection{PMP conditions}
+For
+\begin{equation}
+\min_u \Phi(x(T))+\int_0^T L(x,u,t)\dd t,
+\qquad \dot{x}=f(x,u,t),
+\end{equation}
+define the Hamiltonian
+\begin{equation}
+H(x,u,\lambda,t)=L(x,u,t)+\lambda^\top f(x,u,t).
+\end{equation}
+PMP gives \cite{pontryagin1962,lenhart2007}
+\begin{align}
+\dot{x}^*&=H_\lambda(x^*,u^*,\lambda,t),\\
+\dot{\lambda}&=-H_x(x^*,u^*,\lambda,t),\\
+u^*(t)&=\argmin_{u\in\mathcal{U}}H(x^*,u,\lambda,t),\\
+\lambda(T)&=\Phi_x(x^*(T)).
+\end{align}
+For a zero-sum differential game, the saddle-point condition is
+\begin{equation}
+u_D^*=\argmin_{u_D}H(x,u_A^*,u_D,\lambda,t),\qquad
+u_A^*=\argmax_{u_A}H(x,u_A,u_D^*,\lambda,t).
+\end{equation}
+
+\subsection{Malware example: deriving the control formula}
+For the controlled malware model, the Hamiltonian is
+\begin{align}
+H=&A_I I+\frac{B_p}{2}u_p^2+\frac{B_c}{2}u_c^2
++\lambda_S(-\beta SI-u_pS+\omega R)\nonumber\\
+&+\lambda_I(\beta SI-\gamma I-u_cI)
++\lambda_R(\gamma I+u_pS+u_cI-\omega R).
+\end{align}
+The stationarity conditions are
+\begin{align}
+H_{u_p}&=B_pu_p-\lambda_SS+\lambda_RS=0,\\
+H_{u_c}&=B_cu_c-\lambda_II+\lambda_RI=0.
+\end{align}
+With bounds, the controls are
+\begin{align}
+u_p^*(t)&=\clip\left(\frac{(\lambda_S-\lambda_R)S}{B_p},0,u_{p,\max}\right),\\
+u_c^*(t)&=\clip\left(\frac{(\lambda_I-\lambda_R)I}{B_c},0,u_{c,\max}\right).
+\end{align}
+This formula is interpretable: if the marginal benefit of moving vulnerable devices to protected devices is high, $u_p$ increases; if the marginal benefit of cleaning compromised devices is high, $u_c$ increases.
+
+\subsection{Forward-backward sweep method}
+The PMP system is a two-point boundary-value problem. FBSM solves it iteratively \cite{mcasey2012}:
+\begin{flowbox}
+Guess $u^{(0)}(t)$ $\rightarrow$ forward solve $x^{(i)}(t)$ $\rightarrow$ backward solve $\lambda^{(i)}(t)$ $\rightarrow$ update $u^{(i+1)}(t)$ $\rightarrow$ repeat.
+\end{flowbox}
+A relaxed update is
+\begin{equation}
+u^{(i+1)}(t)=\alpha \tilde{u}^{(i+1)}(t)+(1-\alpha)u^{(i)}(t),\qquad 0<\alpha\leq1.
+\end{equation}
+FBSM is an excellent baseline when the dynamics are known and the control is continuous. It becomes less natural when the defender must choose discrete actions such as isolate or deceive.
+
+
+
+\subsection{FBSM versus RL/DRL: what changes?}
+FBSM and RL solve different computational versions of the same modeling idea. FBSM normally returns an open-loop control $u^*(t)$ for a fixed initial condition and fixed parameters. If the actual cyber state deviates from the predicted trajectory, the open-loop schedule may be suboptimal unless the problem is solved again. RL/DRL instead learns a feedback policy $\policy(a|s)$ that reacts to the observed state.
+
+\begin{longtable}{p{0.22\textwidth}p{0.34\textwidth}p{0.34\textwidth}}
+\toprule
+Aspect & FBSM/PMP & RL/DRL/MARL \\
+\midrule
+Control type & naturally continuous & discrete, continuous, or hybrid \\
+Output & open-loop trajectory $u(t)$ & feedback policy $\policy(a|s)$ \\
+Theory & strong optimality interpretation under assumptions & approximate, data/simulation-driven \\
+Need derivatives & yes, $H_x,H_u$ & no analytic derivatives needed \\
+Adaptation & requires re-solving or feedback extension & policy directly reacts to state \\
+Discrete modes & awkward unless switching/impulse control is used & natural \\
+Training cost & usually cheap for low-dimensional ODEs & can be expensive due to many episodes \\
+Interpretability & high & medium to low, unless policy is analyzed \\
+\bottomrule
+\end{longtable}
+
+A useful experimental design is to treat FBSM as a continuous-control benchmark and DRL as a practical feedback controller. If DRL is claimed to improve FBSM, explain whether the improvement comes from feedback adaptation, discrete action modeling, robustness to stochasticity, or simply from optimizing a different objective.
+
+\section{How PMP Should Be Connected to Learning}
+\subsection{Five levels of coupling}
+\begin{longtable}{p{0.11\textwidth}p{0.24\textwidth}p{0.53\textwidth}}
+\toprule
+Level & Name & Meaning \\
+\midrule
+0 & Disconnected learning & PMP is derived, but RL/DRL ignores $H$, $\lambda$, and $H_u$. It only uses simulator rewards. \\
+1 & PMP-formulated RL/DRL & PMP/differential-game theory defines the continuous-time model and payoff; RL solves the induced MDP or Markov game. This is common in DDQN malware and PPO deception studies \cite{shen2023ddqn,he2026timedelay,he2024deception}. \\
+2 & PMP-assisted learning & FBSM/PMP controls are used as expert demonstrations, warm starts, reward shaping, or baselines. \\
+3 & PMP-informed PINN/PIDL & The neural loss explicitly contains state residuals, costate residuals, stationarity residuals $\|H_u\|^2$, and boundary residuals. \\
+4 & HJI/Pontryagin operator learning & The learner approximates value gradients or costate operators across states and parameters, as in Pontryagin neural operator work \cite{zhang2024pno}. \\
+\bottomrule
+\end{longtable}
+
+\begin{boxednote}
+\textbf{Writing advice.}
+If a method trains on $(s,a,r,s')$ only, call it a DRL solver for the induced MDP or Markov game. If the loss contains $\dot{\lambda}+H_x$, $H_u$, or HJI residuals, call it PMP-informed or HJI-informed. This avoids overstating the connection between PMP and learning.
+\end{boxednote}
+
+\subsection{Why recent papers often use Level 1}
+PMP/FBSM gives structure but may be too slow, too offline, or too continuous for operational cyber actions. For example, DDQN malware suppression formulates the malware game and then uses DDQN because actions such as patching decisions are discrete \cite{shen2023ddqn}. Time-delay deception deployment formulates a differential game but converts it to a Markov game and uses PPO to learn real-time feedback policies \cite{he2026timedelay}. These are valid designs, but the methodological contribution is not ``solving PMP by DRL.'' It is ``using DRL to solve the feedback decision problem induced by a differential game.''
+
+\section{RL and DRL in Cyber Control}
+This section keeps the main ideas concise. Appendix \ref{app:rl-background} gives the prerequisite details.
+
+\subsection{Why use RL?}
+RL is useful when the defender can simulate the cyber system but cannot easily solve the analytic optimality system. It is also useful when actions are operational and discrete. In the MDP derived in Section 3, RL learns
+\begin{equation}
+\pi(a|s)\quad\text{or}\quad Q(s,a),
+\end{equation}
+so the defender can react to the current cyber state instead of following a precomputed open-loop control $u(t)$.
+
+\subsection{DQN for discrete cyber actions}
+For discrete actions such as no-op, patch, monitor, isolate, and deceive, DQN approximates $Q(s,a)$ using a neural network \cite{mnih2015}. The Bellman target is
+\begin{equation}
+y=r+\gamma_d\max_{a'}Q_{\theta^-}(s',a'),
+\end{equation}
+and the training loss is
+\begin{equation}
+\mathcal{L}_{DQN}(\theta)=\E_{(s,a,r,s')\sim\mathcal{D}}\left[\left(Q_\theta(s,a)-y\right)^2\right].
+\end{equation}
+Double DQN reduces overestimation by using the online network to select the next action and the target network to evaluate it \cite{vanhasselt2016ddqn}:
+\begin{equation}
+y^{DDQN}=r+\gamma_d Q_{\theta^-}\left(s',\argmax_{a'}Q_\theta(s',a')\right).
+\end{equation}
+
+\begin{methodbox}
+\textbf{DQN implementation for malware defense.}
+\begin{enumerate}
+\item State: $s_k=[S_k,I_k,R_k,z_k,b_k]$, normalized to $[0,1]$.
+\item Actions: $\{\text{no-op},\text{patch},\text{monitor},\text{isolate},\text{deceive}\}$.
+\item Transition: map the action to ODE parameters, integrate from $t_k$ to $t_{k+1}$.
+\item Reward: $r_k=-\Delta t(A_II_{k+1}+c_a(a_k)+c_{iso}\mathbf{1}_{a_k=\text{isolate}}I_{k+1})$.
+\item Network: MLP $5\to64\to64\to5$.
+\item Training: replay buffer, target network, $\epsilon$-greedy exploration, Adam optimizer.
+\end{enumerate}
+\end{methodbox}
+
+\subsection{Actor-critic methods for continuous controls}
+If actions are continuous intensities such as $u_p,u_c,u_d\in[0,1]$, DQN is inconvenient. Actor-critic methods learn a policy network and a value or Q network. DDPG learns a deterministic actor for continuous actions \cite{lillicrap2015}; PPO uses a clipped policy-gradient objective for stable updates \cite{schulman2017}; SAC adds entropy regularization for exploration \cite{haarnoja2018}. A typical actor for cyber defense is
+\begin{equation}
+\pi_\theta(s)=\left[u_p(s),u_c(s),u_d(s)\right],\qquad u_i(s)=\sigmoid(h_i(s)).
+\end{equation}
+
+
+
+\subsection{DQN training loop in detail}
+DQN learns from transitions rather than complete analytic equations. For an ODE-based malware environment, each transition is generated by solving the ODE for one decision interval. The training loop is:
+\begin{enumerate}
+\item Initialize the online Q-network $Q_\theta$ and target network $Q_{\theta^-}$.
+\item At state $s_k$, choose a random action with probability $\epsilon$, otherwise choose $a_k=\argmax_aQ_\theta(s_k,a)$.
+\item Run the ODE environment to obtain $(s_{k+1},r_k,done)$.
+\item Store $(s_k,a_k,r_k,s_{k+1},done)$ in replay buffer $\mathcal{D}$.
+\item Sample a mini-batch from $\mathcal{D}$ and compute Bellman targets.
+\item Update $\theta$ by minimizing squared Bellman error.
+\item Periodically copy $\theta$ to $\theta^-$ or use a soft update.
+\end{enumerate}
+Typical starting hyperparameters are replay buffer size $10^4$--$10^6$, mini-batch size 64--256, learning rate $10^{-4}$--$10^{-3}$, target update every 100--1000 gradient steps, and an $\epsilon$ schedule decreasing from 1 to 0.05. These values should be reported because they affect reproducibility.
+
+\subsection{When to use DQN, PPO, SAC, or DDPG}
+\begin{itemize}
+\item Use \textbf{DQN/DDQN} when actions are a small set of discrete interventions such as patch, isolate, monitor, and deceive.
+\item Use \textbf{PPO} when actions are discrete, continuous, or hybrid and stable policy updates are more important than sample efficiency.
+\item Use \textbf{DDPG/TD3/SAC} when controls are continuous resource intensities. SAC is often more robust because entropy encourages exploration.
+\item Use \textbf{parameterized-action RL} when a decision has both a mode and a continuous intensity, for example patch at intensity 0.7.
+\end{itemize}
+A good paper should justify the algorithm from the action space and cyber decision structure, not just use a popular DRL method.
+
+\subsection{Reward shaping without changing the problem too much}
+Reward shaping is useful but dangerous. The base reward should be the negative running cost from the original optimal-control problem:
+\begin{equation}
+r_k^{base}\approx-\int_{t_k}^{t_{k+1}}L(x(t),a_k)\dd t.
+\end{equation}
+Additional terms can encourage containment or safe exploration, for example
+\begin{equation}
+r_k=r_k^{base}+\eta_1(C_k-C_{k+1})-\eta_2\ind\{C_{k+1}>C_{max}\}.
+\end{equation}
+However, if the shaping terms dominate, the DRL agent may solve a different problem. In research writing, list the base objective first and state clearly which shaping terms are added for training stability.
+
+\section{MARL for Attacker-Defender Interaction}
+\subsection{Markov game implementation}
+A Markov game is used when the attacker adapts. At each step,
+\begin{equation}
+a_A^k\sim\pi_A(\cdot|s_k),\qquad a_D^k\sim\pi_D(\cdot|s_k),
+\end{equation}
+and the ODE environment returns $s_{k+1},r_A^k,r_D^k$. The defender and attacker update their policies using sampled trajectories.
+
+\begin{flowbox}
+\textbf{MARL interaction loop}\\[0.3em]
+state $s_k$ $\rightarrow$ attacker action $a_A^k$ and defender action $a_D^k$ $\rightarrow$ ODE cyber transition $s_{k+1}$ $\rightarrow$ rewards $r_A^k,r_D^k$ $\rightarrow$ update $\pi_A,\pi_D$.
+\end{flowbox}
+
+\subsection{Concrete attacker-defender malware/deception game}
+Use $s_k=[V_k,C_k,P_k,z_k]$. Defender actions are patch, monitor, isolate, deceive. Attacker actions are scan, exploit, lateral movement, stealth. The ODE between decision points is
+\begin{align}
+\dot{V}&=-\beta_k(1-\chi z)VC-\rho_kV+\omega P,\\
+\dot{C}&=\beta_k(1-\chi z)VC-(\gamma+\mu_k+\iota_k)C,\\
+\dot{P}&=\rho_kV+(\gamma+\mu_k+\iota_k)C-\omega P,\\
+\dot{z}&=\eta_k(1-z)-\xi z-\zeta\mathbf{1}_{a_A\in\{\text{scan},\text{stealth}\}}z.
+\end{align}
+The defender reward is
+\begin{equation}
+r_D^k=-\Delta t\left(w_CC_{k+1}+c_\rho\rho_k^2+c_\mu\mu_k^2+c_\iota\iota_k^2+c_\eta\eta_k^2+c_U\iota_kC_{k+1}\right),
+\end{equation}
+and the attacker reward is
+\begin{equation}
+r_A^k=\Delta t\left(q_CC_{k+1}-d_A(a_A^k)-q_zz_{k+1}-q_PP_{k+1}\right).
+\end{equation}
+
+\subsection{Training order}
+A stable training order is:
+\begin{enumerate}
+\item train defender against scripted attacker;
+\item train attacker against fixed or pretrained defender;
+\item start self-play from pretrained policies;
+\item evaluate against unseen attackers and unseen defense costs.
+\end{enumerate}
+Independent learning is simple but unstable. Centralized training and decentralized execution (CTDE) improves stability by using critics such as
+\begin{equation}
+Q_D(s,a_A,a_D),\qquad Q_A(s,a_A,a_D),
+\end{equation}
+while actors execute using local observations. MADDPG and MAPPO are representative CTDE-style methods \cite{lowe2017,yu2021mappo}.
+
+
+
+\subsection{Independent learning versus CTDE}
+In independent learning, the attacker treats the defender as part of the environment and the defender treats the attacker as part of the environment. This is simple but can be unstable because each agent's learning changes the transition distribution for the other agent. CTDE addresses this by allowing the critic to see joint information during training:
+\begin{equation}
+Q_D(s,a_A,a_D),\qquad Q_A(s,a_A,a_D),
+\end{equation}
+while each actor still executes using its own observation. This is appropriate for cyber research because offline training may use complete simulator information, while deployment only uses observable alerts and measurements.
+
+\subsection{Self-play curriculum for cyber games}
+A practical MARL curriculum is:
+\begin{enumerate}
+\item train the defender against a weak scripted attacker;
+\item train the defender against stronger scripted attackers;
+\item freeze defender and train attacker to exploit it;
+\item alternate attacker and defender updates;
+\item evaluate against held-out attackers and randomized parameters.
+\end{enumerate}
+This curriculum is often more stable than starting from fully random self-play. It also produces interpretable experimental stages: basic containment, adaptive attack, and robust defense.
+
+
+\subsection{MADRL algorithm families for attacker-defender games}
+MARL is the broad field of reinforcement learning with multiple agents. MADRL is the deep-learning version, where policies, critics, or value functions are neural networks. For cyber differential games, four families are especially useful.
+
+\begin{longtable}{p{0.22\textwidth}p{0.31\textwidth}p{0.37\textwidth}}
+\toprule
+Family & How it works & When it is suitable \\
+\midrule
+Independent DQN/PPO & Each agent treats the other agents as part of the environment and learns its own value or policy. & Simple baseline. Useful for small cyber games, but training can be unstable because the environment is nonstationary from each agent's view. \\
+Self-play & Agents repeatedly train against recent or historical versions of opponents. & Good for attacker-defender cyber games where we want adaptive behavior rather than a policy overfitted to one fixed attacker. \\
+Centralized critic, decentralized actors & During training, the critic sees joint actions and possibly global state; during execution, each actor uses local observation. & Useful for simultaneous attacker-defender decisions. MADDPG and MAPPO follow this spirit \cite{lowe2017,yu2021mappo}. \\
+Opponent modeling / population training & Agents learn or sample from a population of opponent policies. & Useful when the defender must be robust against many attacker types, not just the latest self-play opponent. \\
+\bottomrule
+\end{longtable}
+
+A common CTDE critic for player $i$ is
+\begin{equation}
+Q_i(s,a_1,\ldots,a_N;\phi_i),
+\end{equation}
+while the decentralized actor is
+\begin{equation}
+\pi_i(a_i|o_i;\theta_i),
+\end{equation}
+where $o_i$ may be a local observation rather than the full state. In an APT game, the defender may observe alerts and estimated compromise ratios, while the attacker may observe discovered vulnerable assets. The centralized critic is allowed to use the full simulator state during training because it is a training device, not an operational assumption.
+
+\subsection{A step-by-step MADRL recipe for a cyber differential game}
+For a two-player attacker-defender game, use the following sequence.
+\begin{enumerate}
+\item \textbf{Start from the continuous-time game.} Write $\dot{x}=f(x,u_A,u_D)$ and objectives $J_A,J_D$.
+\item \textbf{Choose the decision interval.} Set $t_k=k\Delta t$. The interval should match operational decision frequency: minutes for automated patching, hours or days for propaganda response.
+\item \textbf{Define observations.} Use $o_D^k=h_D(x(t_k))$ and $o_A^k=h_A(x(t_k))$. If both agents see the full state, the game is fully observed. If not, the practical model is a partially observed Markov game.
+\item \textbf{Define actions.} Choose discrete actions, continuous intensities, or hybrid parameterized actions. Example: defender action $a_D=(\text{deceive},0.7)$; attacker action $a_A=(\text{lateral movement},0.5)$.
+\item \textbf{Apply impulse first if needed.} If the action is an incident-response impulse, compute $x(t_k^+)=G(x(t_k^-),a_A^k,a_D^k)$.
+\item \textbf{Integrate the ODE.} Compute $x(t_{k+1})=\ODESolve(f,x(t_k^+),a_A^k,a_D^k,\Delta t)$.
+\item \textbf{Compute rewards by interval integration.} For player $i$, set $r_i^k\approx \int_{t_k}^{t_{k+1}} L_i(x,u_A,u_D)\dd t$ plus any impulse reward/cost.
+\item \textbf{Train policies.} Use independent PPO for a simple start, then MAPPO or MADDPG for CTDE.
+\item \textbf{Evaluate game quality.} Report not only average reward but also best-response tests, exploitability proxies, robustness to unseen opponents, and comparison with PMP/FBSM or HODGE-style baselines.
+\end{enumerate}
+
+\subsection{Equilibrium evaluation in MADRL}
+A trained pair of policies is not automatically a Nash equilibrium. In a paper, avoid saying that self-play ``finds the Nash equilibrium'' unless a meaningful equilibrium diagnostic is provided. Practical diagnostics include:
+\begin{enumerate}
+\item \textbf{Unilateral deviation test:} freeze the defender and retrain a new attacker best response. Then freeze the attacker and retrain a new defender best response.
+\item \textbf{Exploitability proxy:} measure how much reward a best-response agent gains over the trained agent.
+\item \textbf{Opponent pool robustness:} evaluate the defender against random, static, PMP/FBSM, HODGE-style, and learned attackers.
+\item \textbf{Cost-effectiveness comparison:} compare cumulative security benefit minus control cost, similar in spirit to hybrid-control propaganda-war experiments \cite{cheng2024propaganda}.
+\item \textbf{Structural sanity check:} verify that actions make cyber sense, e.g., early containment or deception when compromise grows, reduced spending when the system is already safe.
+\end{enumerate}
+
+\begin{boxednote}
+\textbf{Important wording.}
+For MADRL results, it is safer to write ``the learned policy profile is an approximate equilibrium candidate'' or ``a robust adaptive strategy profile'' unless best-response or exploitability analysis supports a stronger Nash claim.
+\end{boxednote}
+
+\subsection{How PMP/FBSM baselines strengthen MADRL papers}
+A cyber MADRL paper is stronger when it is not compared only with random or static policies. PMP/FBSM or HODGE-style strategies can serve three roles.
+\begin{enumerate}
+\item \textbf{Baseline:} compare learned feedback policies with open-loop continuous-time strategies.
+\item \textbf{Teacher:} generate state-action pairs from many initial states and pretrain the actor by behavior cloning.
+\item \textbf{Validation:} evaluate whether learned actions approximately satisfy Hamiltonian stationarity in regions where the action space is continuous.
+\end{enumerate}
+For example, if PMP gives $u_D^{\mathrm{PMP}}(t)$ for an initial state $x_0$, simulate small perturbations of $x_0$, solve FBSM repeatedly, and train a policy $\pi_D(x,t)$ to imitate the resulting controls. Then fine-tune by RL/MADRL. This produces a more transparent bridge between differential-game theory and learning.
+
+\section{Neural ODE, PINN, and PIDL: What They Do Differently}
+\subsection{Neural ODE as a dynamics learner}
+Neural ODE represents continuous dynamics by a neural network \cite{chen2018neuralode}:
+\begin{equation}
+\dot{x}=f_\theta(x,t).
+\end{equation}
+For cyber research, the most useful version is often hybrid mechanistic-neural:
+\begin{equation}
+\dot{x}=f_{known}(x,u,t)+g_\theta(x,u,t).
+\end{equation}
+The known term captures malware, APT, or rumor theory; the neural term captures unknown behavior such as attacker adaptation, social reinforcement, hidden vulnerabilities, or platform recommendation effects. Neural ODE learns dynamics; it still needs PMP, MPC, RL, or PINN/PIDL to solve control.
+
+\subsection{PINN/PIDL as equation-constrained learning}
+PINNs train networks to satisfy data and differential equation residuals \cite{raissi2019}. Approximate
+\begin{equation}
+\hat{x}(t)=N_x(t),\qquad \hat{u}(t)=N_u(t),
+\end{equation}
+and define
+\begin{equation}
+r_x(t)=\dot{\hat{x}}(t)-f(\hat{x}(t),\hat{u}(t),t;\theta).
+\end{equation}
+A basic loss is
+\begin{equation}
+\mathcal{L}=\mathcal{L}_{data}+\alpha_f\frac{1}{N_f}\sum_{j=1}^{N_f}\norm{r_x(t_j)}^2+\alpha_b\mathcal{L}_{boundary}.
+\end{equation}
+PIDL is broader than PINN: it can include ODE/PDE residuals, PMP residuals, HJB/HJI residuals, conservation laws, parameter priors, monotonicity constraints, and cyber-specific constraints.
+
+\subsection{PMP-informed PINN}
+A true PMP-informed neural solver approximates state, costate, and control:
+\begin{equation}
+\hat{x}(t)=N_x(t),\qquad \hat{\lambda}(t)=N_\lambda(t),\qquad \hat{u}(t)=N_u(t).
+\end{equation}
+The loss is
+\begin{align}
+\mathcal{L}_{PMP}=&\frac{1}{N_f}\sum_j\norm{\dot{\hat{x}}-H_\lambda}^2
++\frac{1}{N_f}\sum_j\norm{\dot{\hat{\lambda}}+H_x}^2 \\
+&+\frac{1}{N_f}\sum_j\norm{H_u}^2+\mathcal{L}_{IC}+\mathcal{L}_{terminal}.
+\end{align}
+This is different from Level 1 DRL: the Hamiltonian and costate equations appear inside the training objective.
+
+
+
+\subsection{How Neural ODE is trained in a cyber setting}
+Suppose observations $x(t_i)$ are available. A Neural ODE predicts
+\begin{equation}
+\hat{x}(t_{i+1})=\ODESolve(f_\theta,\hat{x}(t_i),[t_i,t_{i+1}]).
+\end{equation}
+The loss is
+\begin{equation}
+\mathcal{L}_{NODE}=\sum_i\norm{\hat{x}(t_i)-x^{obs}(t_i)}^2.
+\end{equation}
+For cyber models, a safer design is not to learn all of $f$ from scratch. Instead use
+\begin{equation}
+f_\theta(x,u,t)=f_{mechanistic}(x,u,t;\theta_p)+g_\theta(x,u,t),
+\end{equation}
+where $f_{mechanistic}$ encodes known propagation and $g_\theta$ learns missing mechanisms. This improves interpretability and reduces the amount of data required.
+
+\subsection{When PINN/PIDL is preferable to Neural ODE}
+Neural ODE primarily learns a trajectory-generating vector field from data. PINN/PIDL is preferable when one wants to enforce equations at collocation points, learn parameters under sparse data, impose conservation laws, or solve optimality systems. In short, Neural ODE is a dynamics learner; PINN/PIDL is an equation-constrained learning and solving framework. They can also be combined: Neural ODE learns unknown terms, while PINN/PIDL enforces physics and control residuals.
+
+\section{Hybrid Control and Mixed Continuous-Discrete Differential Games}
+\subsection{Why hybrid actions are natural}
+In practice, a defender chooses both a mode and an intensity:
+\begin{equation}
+a_D^k=(m_D^k,v_D^k),\quad m_D^k\in\{\text{patch},\text{monitor},\text{isolate},\text{deceive}\},\quad v_D^k\in[0,1].
+\end{equation}
+The attacker may choose
+\begin{equation}
+a_A^k=(m_A^k,v_A^k),\quad m_A^k\in\{\text{scan},\text{exploit},\text{lateral},\text{stealth}\},\quad v_A^k\in[0,1].
+\end{equation}
+Between decision times,
+\begin{equation}
+\dot{x}=f_{m_A^k,m_D^k}(x,v_A^k,v_D^k,t),\qquad t\in[t_k,t_{k+1}).
+\end{equation}
+This is a hybrid differential game: continuous state dynamics, discrete strategic modes, and continuous resource intensities.
+
+\subsection{Solution routes}
+\paragraph{Route 1: mode enumeration plus PMP.}
+Fix a mode sequence, solve continuous intensities by PMP/FBSM, and compare candidate sequences. This is interpretable but grows exponentially with the number of switching times.
+
+\paragraph{Route 2: parameterized action RL.}
+Use two policy heads \cite{hausknecht2015}:
+\begin{equation}
+\pi(s)=\left(\pi_m(m|s),\pi_v(v|s,m)\right).
+\end{equation}
+The first head selects a mode; the second outputs the intensity for that mode.
+
+\paragraph{Route 3: hybrid-action MARL.}
+Both attacker and defender use parameterized policies, and a centralized critic evaluates
+\begin{equation}
+Q(s,m_A,v_A,m_D,v_D).
+\end{equation}
+This is appropriate for continuous-discrete cyber games.
+
+\paragraph{Route 4: relaxed PINN/PIDL.}
+Represent discrete modes with soft weights
+\begin{equation}
+\omega_m(t)=\softmax(g_\theta(t)),\qquad \sum_m\omega_m(t)=1,
+\end{equation}
+and use relaxed dynamics
+\begin{equation}
+\dot{x}=\sum_m\omega_m(t)f_m(x,v_m,t).
+\end{equation}
+After training, select the dominant mode $m^*(t)=\argmax_m\omega_m(t)$. This is not exact mixed-integer control, but it provides a differentiable approximation.
+
+\paragraph{Route 5: impulse control and impulse games.}
+Some actions, such as emergency isolation or forced password reset, are instantaneous. They can be modeled as
+\begin{align}
+\dot{x}(t)&=f(x,u,t),\qquad t\neq\tau_j,\\
+x(\tau_j^+)&=G(x(\tau_j^-),a_j).
+\end{align}
+This connects with impulsive APT defense and outsourcing models \cite{sun2023impulsive,qin2024impulsive}.
+
+
+
+\subsection{How to choose among hybrid solution routes}
+The five routes above have different purposes. If the main contribution is mathematical structure, use switching PMP or impulse games. If the main contribution is an operational adaptive defender, use hybrid-action RL or MARL. If the main contribution is data-efficient learning under sparse observations, use PINN/PIDL for parameter learning and then use RL/MARL for the discrete strategic layer. A balanced cyber paper can combine them: PINN/PIDL estimates unknown propagation parameters, PMP/FBSM provides a continuous-control benchmark, and MARL learns hybrid feedback policies under adaptive attackers.
+
+\subsection{Example hybrid action mapping}
+For defender mode $m_D$ and intensity $v_D$, define
+\begin{align}
+\rho_k &= \rho_0+v_D\rho_{max}\ind\{m_D=\text{patch}\},\\
+\mu_k &= \mu_0+v_D\mu_{max}\ind\{m_D=\text{monitor}\},\\
+\iota_k &= v_D\iota_{max}\ind\{m_D=\text{isolate}\},\\
+\eta_k &= v_D\eta_{max}\ind\{m_D=\text{deceive}\}.
+\end{align}
+This map makes the model transparent. It also makes it clear which part is learned: the policy learns $m_D$ and $v_D$, while the ODE defines how these choices affect cyber dynamics.
+
+\section{Detailed Case Studies}
+
+\subsection{Case 0: HODGE-style hybrid propaganda war game}
+This case is useful because it contains several ingredients that should also appear in future MADRL extensions: two strategic parties, degree-based spreading dynamics, continuous controls, impulsive controls, and approximate Nash evaluation \cite{cheng2024propaganda}. A simplified implementation plan is:
+\begin{enumerate}
+\item \textbf{State:} use a degree-based summary such as average proportions of ignorant, propaganda-spreading, and counter-propaganda-spreading users for each party. If the full degree distribution is retained, the RL state can include $[P(1),\ldots,P(K),C(1),\ldots,C(K)]$ for each OSN.
+\item \textbf{Actions:} each party selects a continuous propaganda investment level and an optional impulsive counter-propaganda intervention. For MADRL, this can be encoded as a hybrid action $(m_i^k,u_i^k,v_i^k)$, where $m_i^k$ decides whether an impulse is applied.
+\item \textbf{Transition:} if $m_i^k=1$, apply the jump map to shift some propaganda spreaders or ignorant users toward counter-propaganda states; then integrate the degree-based ODE until the next decision epoch.
+\item \textbf{Reward:} combine influence benefit, counter-influence benefit, continuous investment cost, impulse cost, and terminal state benefit.
+\item \textbf{Solver comparison:} compare static investment, random hybrid investment, HODGE-style iterative strategies, independent PPO, and CTDE-based MADRL.
+\item \textbf{Evaluation:} report payoff, cost-effectiveness, timing of impulses, lower-bound sensitivity, and robustness to different OSN degree distributions.
+\end{enumerate}
+The main message for students is that HODGE is not merely a test case. It is a template for translating hybrid differential games into Markov games without losing the meaning of continuous and impulsive controls.
+
+
+\subsection{Case A: malware defense by DDQN}
+\begin{enumerate}
+\item Start from the malware ODE and choose $\Delta t$.
+\item Convert state $x(t_k)$ to $s_k=[S_k,I_k,R_k,b_k]$.
+\item Define discrete defense actions.
+\item Implement $\texttt{env.step}(a_k)$ by mapping $a_k$ to ODE parameters and integrating the ODE.
+\item Define reward as negative infection and action cost.
+\item Train DDQN using replay buffer and target network.
+\item Compare with no defense, static patching, threshold defense, and FBSM continuous-control baseline.
+\end{enumerate}
+This is Level 1 coupling: the continuous cyber model defines the MDP; DDQN solves the feedback policy. DDQN-based malware suppression follows this general logic \cite{shen2023ddqn,shen2026privacy,shen2026snn}.
+
+\subsection{Case B: APT defense by PMP-informed PINN}
+\begin{enumerate}
+\item Build the APT model with $x=[V,C,P,z]$.
+\item Define the defender cost with compromise loss, hardening cost, repair cost, isolation cost, and deception cost.
+\item Derive $H$, $\dot{x}=H_\lambda$, $\dot{\lambda}=-H_x$, and $H_u=0$.
+\item Build three neural networks $N_x(t)$, $N_\lambda(t)$, and $N_u(t)$.
+\item Train using state residual, costate residual, stationarity residual, initial condition, terminal condition, and control-bound penalties.
+\item Compare with FBSM and direct control PINN.
+\end{enumerate}
+This is Level 3 coupling because the PMP system appears directly in the loss.
+
+\subsection{Case C: misinformation defense by sequential PINN plus optimal control}
+\begin{enumerate}
+\item Use sparse time-series data for $M(t)$ and possibly $C(t)$.
+\item Train an inverse PINN to estimate $\beta_M,\beta_C,\alpha,\delta,\delta_C$.
+\item Fix learned parameters and solve optimal correction control $u_f(t)$ by FBSM or PMP-informed PINN.
+\item Evaluate cumulative misinformation, peak misinformation, correction cost, and robustness to parameter uncertainty.
+\end{enumerate}
+This sequential pipeline is common in PINN-based rumor and negative-information studies \cite{hou2026sapdr,jing2025simplicial,ma2026shtri}.
+
+
+
+\subsection{Case D: hybrid APT game by PINN/PIDL plus MARL}
+This case shows a complete pipeline that avoids forcing one method to do everything.
+\begin{enumerate}
+\item Use sparse observations of compromised assets $C(t)$ and possibly deception alerts to estimate parameters $\beta,\chi,\gamma,\xi$ with inverse PINN/PIDL.
+\item Fix or sample from the learned parameter distribution and define the hybrid Markov game with defender actions $(m_D,v_D)$ and attacker actions $(m_A,v_A)$.
+\item Train a defender policy against scripted attackers using PPO or hybrid-action actor-critic.
+\item Train an adaptive attacker against the defender.
+\item Start self-play with CTDE critics.
+\item Compare against static deception, static patching, threshold rules, FBSM continuous-control baselines, and no-defense baselines.
+\end{enumerate}
+This design is methodologically clean: PINN/PIDL handles parameter learning, PMP/FBSM gives theory and baseline controls, and MARL handles discrete-continuous strategic adaptation.
+
+\section{How to Report Results}
+Reward curves alone are not enough. Report cyber metrics:
+\begin{itemize}
+\item cumulative compromise or misinformation $\int_0^T C(t)\dd t$ or $\int_0^T M(t)\dd t$;
+\item peak compromise or peak misinformation;
+\item final compromised or misinformation level;
+\item total defense cost;
+\item containment time;
+\item action distribution for RL/MARL;
+\item learned parameter error for PINN/PIDL;
+\item robustness under parameter perturbation;
+\item computation time for FBSM, DRL inference, and PINN training.
+\end{itemize}
+
+
+\section{Implementation Cookbooks for Cyber Control and Games}
+This section turns the previous modeling discussion into concrete implementation recipes. The goal is to make clear what a researcher or student actually does in code. The recipes are intentionally modular. The same malware, APT, or misinformation model can be solved by FBSM, DQN, PPO, SAC, MARL, Neural ODE, or PINN/PIDL, but the computational objects are different.
+
+\subsection{Cookbook A: FBSM for continuous malware control}
+Consider the malware model
+\begin{align}
+\dot{S}&=-\beta SI-u_pS+\omega R,\\
+\dot{I}&=\beta SI-\gamma I-u_cI,\\
+\dot{R}&=\gamma I+u_pS+u_cI-\omega R,
+\end{align}
+with objective
+\begin{equation}
+J=\int_0^T\left[A_I I+\frac{B_p}{2}u_p^2+\frac{B_c}{2}u_c^2\right]\dd t+A_T I(T).
+\end{equation}
+The Hamiltonian is
+\begin{align}
+H=&A_I I+\frac{B_p}{2}u_p^2+\frac{B_c}{2}u_c^2+\lambda_S(-\beta SI-u_pS+\omega R)\nonumber\\
+&+\lambda_I(\beta SI-\gamma I-u_cI)+\lambda_R(\gamma I+u_pS+u_cI-\omega R).
+\end{align}
+The stationarity conditions give candidate controls
+\begin{align}
+\tilde{u}_p(t)&=\frac{(\lambda_S-\lambda_R)S}{B_p},\\
+\tilde{u}_c(t)&=\frac{(\lambda_I-\lambda_R)I}{B_c}.
+\end{align}
+With bounds $0\leq u_p\leq u_{p,\max}$ and $0\leq u_c\leq u_{c,\max}$,
+\begin{align}
+u_p^*(t)&=\clip\left(\frac{(\lambda_S-\lambda_R)S}{B_p},0,u_{p,\max}\right),\\
+u_c^*(t)&=\clip\left(\frac{(\lambda_I-\lambda_R)I}{B_c},0,u_{c,\max}\right).
+\end{align}
+
+\begin{methodbox}
+\textbf{FBSM implementation steps.}
+\begin{enumerate}
+\item Create a time grid $0=t_0<t_1<\cdots<t_N=T$.
+\item Initialize controls $u_p^{(0)}(t_i),u_c^{(0)}(t_i)$, often zeros or small constants.
+\item Forward step: solve the state ODE from $t=0$ to $T$ using the current controls.
+\item Backward step: solve the costate ODE from $T$ to $0$ using terminal conditions such as $\lambda_I(T)=A_T$.
+\item Control update: compute $\tilde{u}_p,\tilde{u}_c$ from stationarity and project them into admissible intervals.
+\item Relaxation: update $u^{(q+1)}=\alpha\tilde{u}+(1-\alpha)u^{(q)}$, with $\alpha\in[0.1,0.7]$.
+\item Stop when $\norm{u^{(q+1)}-u^{(q)}}$, $\norm{x^{(q+1)}-x^{(q)}}$, and $\norm{\lambda^{(q+1)}-\lambda^{(q)}}$ are small.
+\end{enumerate}
+\end{methodbox}
+
+FBSM produces an \emph{open-loop} control curve $u^*(t)$ for a given initial condition and parameter set. It is usually fast and interpretable for low-dimensional smooth models. Its weakness is that if the state unexpectedly changes, the precomputed open-loop control is not automatically adaptive.
+
+\subsection{Cookbook B: DQN/DDQN for discrete cyber defense}
+To use DQN, convert the continuous model into an MDP. Let
+\begin{equation}
+s_k=[S(t_k),I(t_k),R(t_k)]
+\end{equation}
+and define a discrete action set
+\begin{equation}
+\mathcal{A}_D=\{\text{no defense},\text{patch},\text{clean},\text{patch+clean}\}.
+\end{equation}
+Each action maps to a piecewise-constant control over $[t_k,t_{k+1}]$. For example,
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Action & $u_p$ & $u_c$ \\
+\midrule
+no defense & $0$ & $0$ \\
+patch & $u_{p,H}$ & $0$ \\
+clean & $0$ & $u_{c,H}$ \\
+patch+clean & $u_{p,M}$ & $u_{c,M}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+The environment integrates the ODE for one interval and returns
+\begin{equation}
+s_{k+1}=\ODESolve(f,s_k,a_k,\Delta t).
+\end{equation}
+The reward is the negative interval cost:
+\begin{equation}
+r_k=-\int_{t_k}^{t_{k+1}}\left[A_I I(t)+\frac{B_p}{2}u_p^2+\frac{B_c}{2}u_c^2\right]\dd t.
+\end{equation}
+In code, this integral can be approximated by the trapezoidal rule or by averaging values returned by the ODE solver.
+
+\begin{methodbox}
+\textbf{DQN/DDQN implementation steps.}
+\begin{enumerate}
+\item Define a simulator function \texttt{step(state, action)} that maps the action to controls, solves the ODE, computes reward, and returns next state.
+\item Define a Q-network $Q_\theta(s,a)$ with input $s$ and output one Q-value per discrete action.
+\item Use $\epsilon$-greedy exploration: choose a random action with probability $\epsilon$, otherwise choose $\argmax_a Q_\theta(s,a)$.
+\item Store transitions $(s_k,a_k,r_k,s_{k+1},d_k)$ in a replay buffer.
+\item Sample mini-batches from the buffer. For DQN, use
+\[
+y=r+\gamma_d\max_{a'}Q_{\bar{\theta}}(s',a').
+\]
+\item For Double DQN, select the next action using the online network but evaluate it using the target network:
+\[
+y=r+\gamma_dQ_{\bar{\theta}}\left(s',\argmax_{a'}Q_\theta(s',a')\right).
+\]
+\item Minimize $\left(y-Q_\theta(s,a)\right)^2$ and periodically update the target network.
+\end{enumerate}
+\end{methodbox}
+
+DQN is suitable when defense actions are naturally discrete. It is less suitable when the main decision is a continuous intensity, such as patching rate or deception strength. In that case, use PPO, DDPG, TD3, or SAC.
+
+\subsection{Cookbook C: PPO, DDPG, and SAC for continuous control}
+For continuous defense intensities, define
+\begin{equation}
+a_k=[u_p^k,u_c^k]\in[0,u_{p,\max}]\times[0,u_{c,\max}].
+\end{equation}
+The action remains constant on $[t_k,t_{k+1}]$. PPO uses a stochastic policy, for example
+\begin{equation}
+\pi_\theta(a|s)=\mathcal{N}(\mu_\theta(s),\Sigma_\theta(s)),
+\end{equation}
+followed by squashing or clipping to the control bounds. DDPG and SAC use actor-critic structures for continuous actions \cite{lillicrap2015,haarnoja2018}. SAC is often more stable because the entropy term encourages exploration.
+
+\begin{longtable}{p{0.22\textwidth}p{0.32\textwidth}p{0.34\textwidth}}
+\toprule
+Algorithm & Suitable cyber action & Practical note \\
+\midrule
+PPO & discrete or continuous actions & robust default; good for first experiments \\
+DDPG & deterministic continuous intensities & sensitive to exploration noise and tuning \\
+SAC & stochastic continuous intensities & strong choice when reward landscape is complex \\
+TD3 & continuous intensities & improves DDPG using twin critics and delayed actor updates \\
+\bottomrule
+\end{longtable}
+
+For cyber control, the policy should be evaluated not only by reward but also by security metrics: cumulative compromise, peak compromise, final compromise, control cost, and containment time.
+
+\subsection{Cookbook D: MARL and CTDE for attacker-defender games}
+For an attacker-defender game, define a Markov game state
+\begin{equation}
+s_k=[V_k,C_k,P_k,z_k],
+\end{equation}
+defender action $a_D^k$, attacker action $a_A^k$, and transition
+\begin{equation}
+s_{k+1}=F_{\Delta t}(s_k,a_D^k,a_A^k).
+\end{equation}
+The transition is implemented by an ODE solver. Rewards may be zero-sum,
+\begin{equation}
+r_A^k=-r_D^k,
+\end{equation}
+or general-sum, where the attacker's reward and defender's cost are related but not exact negatives.
+
+\begin{methodbox}
+\textbf{CTDE implementation steps.}
+\begin{enumerate}
+\item Actors: define $\pi_D(a_D|o_D)$ and $\pi_A(a_A|o_A)$, where observations can be the full state or partial observations.
+\item Centralized critics: define $Q_D(s,a_D,a_A)$ and $Q_A(s,a_D,a_A)$ during training.
+\item Rollout: at each step, both agents choose actions, the ODE environment advances one interval, and rewards are stored.
+\item Update critics using joint state-action information.
+\item Update each actor using its own objective and the centralized critic.
+\item During execution, remove centralized information and let each actor use its local observation.
+\end{enumerate}
+\end{methodbox}
+
+This is more realistic than single-agent RL because attackers adapt. However, training can be unstable because each agent changes the other agent's environment. Stabilization techniques include self-play with policy snapshots, opponent pools, slower attacker updates, reward normalization, and curriculum training from simple attackers to adaptive attackers.
+
+\subsection{Cookbook E: Hybrid continuous-discrete action games}
+Many cyber decisions are hybrid:
+\begin{equation}
+a_D^k=(m_D^k,v_D^k),\qquad m_D^k\in\{\text{patch},\text{monitor},\text{isolate},\text{deceive}\},\quad v_D^k\in[0,1].
+\end{equation}
+Here $m_D^k$ is the discrete mode and $v_D^k$ is its continuous intensity. A two-head policy is natural:
+\begin{align}
+\pi_D^{mode}(m|s)&=\softmax(g_\theta(s)),\\
+v_D &= v_{\max}\sigmoid(h_\theta(s,m)).
+\end{align}
+The mode head chooses what type of defense is used; the intensity head chooses how strongly it is used. This structure matches parameterized-action RL \cite{hausknecht2015}. For MARL, the attacker can have a similar two-head action structure.
+
+\begin{boxednote}
+\textbf{Implementation advice.}
+Start with purely discrete actions to debug the environment. Then add continuous intensities. Finally add adaptive attackers. Many failed DRL projects fail because the environment, reward, and action mapping are not tested with simple baselines first.
+\end{boxednote}
+
+\subsection{Reward shaping without changing the research objective}
+A reward should correspond to the original objective, but shaping can improve learning. For example,
+\begin{equation}
+r_k=-\Delta t\left[A_C C_{k+1}+B_u\norm{u_k}^2\right]-\eta_{peak}\max(0,C_{k+1}-C_{safe}).
+\end{equation}
+The first part is the discretized optimal-control cost. The last term penalizes unsafe peaks. If reward shaping is used, the paper should report both the shaped training reward and the original scientific metrics.
+
+\subsection{Testing the environment before training}
+Before running DRL, test the environment with deterministic action sequences:
+\begin{enumerate}
+\item no defense;
+\item always patch;
+\item always clean;
+\item periodic patching;
+\item threshold policy, e.g., clean if $I>0.2$;
+\item random actions.
+\end{enumerate}
+The DRL policy should outperform or at least match these baselines. If it does not, the issue may be reward scaling, action mapping, exploration, or simulator bugs.
+
+
+\section{Extra Implementation Guidance: From Equations to Experiments}
+The previous cookbooks describe the main algorithms. This section adds lower-level implementation details that are often omitted in papers but are important for producing convincing, reproducible results.
+
+\subsection{A minimal ODE-RL environment: objects and data flow}
+For an ODE-based cyber-defense environment, each environment step should perform four tasks: decode the action, integrate the ODE, compute the reward, and return the next observation. A clean implementation keeps these tasks separate.
+
+\begin{methodbox}
+\textbf{Recommended environment functions.}
+\begin{enumerate}
+\item \texttt{reset()}: sample initial state $x_0$, set $k=0$, return observation $s_0=\psi(x_0)$.
+\item \texttt{decode\_action(a)}: convert the RL action into ODE controls $u_D^k$, and possibly $u_A^k$.
+\item \texttt{rhs(t,x,u,theta)}: compute $f(x,u,\theta,t)$.
+\item \texttt{integrate(x,u)}: compute $x_{k+1}=\ODESolve(f,x_k,u,[t_k,t_{k+1}])$.
+\item \texttt{reward(x,u,x\_next)}: approximate $-\int_{t_k}^{t_{k+1}}L(x(t),u,t)\dd t$.
+\item \texttt{observe(x)}: return the part of the state visible to the learner.
+\end{enumerate}
+\end{methodbox}
+
+This design is better than embedding all logic into one large function. It lets the researcher test whether the ODE is correct before training RL, whether the reward has the intended sign and scale, and whether a learned policy is exploiting numerical artifacts.
+
+\subsection{What the RL state should include}
+In a pure mathematical model, the state is simply $x(t)$. In a cyber implementation, the observation may include derived quantities:
+\begin{equation}
+    s_k=\big[x(t_k),\; \Delta x_k,\; b_k,\; h_k,\; \tau_k\big].
+\end{equation}
+Here $\Delta x_k=x_k-x_{k-1}$ is a trend feature, $b_k$ is remaining budget, $h_k$ is a short action history, and $\tau_k=k/K$ is normalized time. These features can help a DRL agent learn time-dependent strategies. For example, a defender may patch aggressively early, deceive during fast spread, and monitor when $C(t)$ becomes small. If $s_k$ only contains $C_k$, the agent may not know whether compromise is increasing or decreasing.
+
+However, adding too many features can make interpretation harder. A good research protocol is to start from
+\begin{equation}
+    s_k=[V_k,C_k,P_k,z_k]
+\end{equation}
+and then report an ablation study showing whether trend, budget, or time features improve performance.
+
+\subsection{Reward scale and sign checks}
+Before training, evaluate the reward of simple policies. For example, compare no defense, always patch, always isolate, and rule-based defense. If no defense receives a better average return than reasonable defensive policies, the reward is probably incorrectly signed or badly scaled. A typical defender reward is
+\begin{equation}
+    r_D^k=-\Delta t\left(w_CC_{k+1}+c_pu_{p,k}^2+c_mu_{m,k}^2+c_iu_{i,k}^2+c_du_{d,k}^2\right).
+\end{equation}
+This reward should usually be negative. Less negative means better. If one wants positive rewards, define a reference loss $L_{\max}$ and use
+\begin{equation}
+    r_D^k=L_{\max}-\left(w_CC_{k+1}+c_pu_{p,k}^2+c_mu_{m,k}^2+c_iu_{i,k}^2+c_du_{d,k}^2\right).
+\end{equation}
+The transformation should not change the policy preference if it is applied consistently. The most important point is that the reward should match the original control objective.
+
+\subsection{ODE solver choice in RL experiments}
+In RL, the ODE solver is part of the environment transition. A high-accuracy solver reduces numerical error but can slow training. A practical choice is:
+\begin{itemize}
+\item use fixed-step RK4 for fast and reproducible training;
+\item use an adaptive solver, such as Runge-Kutta 45, to validate final policies;
+\item clip or project the state after each step to preserve physical constraints;
+\item test whether smaller $\Delta t$ changes the ranking of policies.
+\end{itemize}
+For compartment models, projection is often necessary because numerical integration can produce tiny negative values. A simple projection is
+\begin{equation}
+    \tilde{x}_i=\max(x_i,0),\qquad x_i^{\text{proj}}=\frac{\tilde{x}_i}{\sum_j\tilde{x}_j}.
+\end{equation}
+This should be used carefully. If projection is frequently large, the solver step size is too coarse or the ODE is unstable.
+
+\subsection{How to document an RL experiment}
+A cyber-control DRL paper should report more than final reward. At minimum, report:
+\begin{enumerate}
+\item the continuous-time model and all parameters;
+\item the decision interval $\Delta t$ and total horizon $T$;
+\item the state/observation vector $s_k$;
+\item the action set or continuous action bounds;
+\item the action-to-control map $\Gamma$;
+\item the reward formula and its relation to the continuous-time cost;
+\item the ODE solver and state projection rule;
+\item the training algorithm, network size, learning rate, batch size, replay buffer or rollout length;
+\item baselines and random seeds;
+\item trajectory plots, not only reward curves.
+\end{enumerate}
+This list makes the work reproducible and helps reviewers see that the learning method is solving the stated control or game problem.
+
+\subsection{Specific implementation choices for Section 10 cookbooks}
+The cookbooks in Section 10 can be implemented in a staged way.
+
+\paragraph{Stage 1: deterministic simulator.}
+Implement the ODE and run all static controls. Plot $C(t)$, $V(t)$, and accumulated cost. At this stage no neural network is needed.
+
+\paragraph{Stage 2: discrete-action MDP.}
+Map each action to a fixed control vector. For example,
+\begin{align}
+\Gamma(0)&=(u_p,u_m,u_i,u_d)=(0.0,0.1,0.0,0.0),\quad \text{monitor},\\
+\Gamma(1)&=(0.8,0.0,0.0,0.0),\quad \text{patch},\\
+\Gamma(2)&=(0.0,0.0,0.8,0.0),\quad \text{isolate},\\
+\Gamma(3)&=(0.0,0.0,0.0,0.8),\quad \text{deceive}.
+\end{align}
+Train DQN or DDQN on this MDP. This is the easiest way to verify the whole learning pipeline.
+
+\paragraph{Stage 3: continuous-action control.}
+Let the actor output $u_k\in[0,1]^m$. Use a squashing function such as
+\begin{equation}
+    u_k=\frac{1}{2}\left(1+\tanh(g_\phi(s_k))\right),
+\end{equation}
+where $g_\phi$ is the actor network. PPO, SAC, or DDPG can be used here.
+
+\paragraph{Stage 4: hybrid action.}
+Let the policy output both a mode and an intensity:
+\begin{equation}
+    p_m=\softmax(g_\phi^{m}(s_k)),\qquad v=\sigmoid(g_\phi^{v}(s_k,m)).
+\end{equation}
+The selected action is $a_k=(m_k,v_k)$. In practice, the discrete mode can be sampled from $p_m$, while the intensity is produced by a mode-conditioned head. This is useful for cyber defense because real interventions are often of the form ``choose a defense mode and choose how strongly to apply it.''
+
+\subsection{Connecting PMP more tightly to the RL implementation}
+If one wants the RL part to be more clearly connected to PMP, there are several concrete options.
+\begin{enumerate}
+\item \textbf{PMP baseline:} compute an FBSM open-loop control and compare DRL feedback policies against it.
+\item \textbf{Imitation warm start:} train a policy network to imitate FBSM controls at sampled states, then fine-tune with RL.
+\item \textbf{Reward shaping:} add a penalty when the action deviates from the PMP stationarity condition, for example
+\begin{equation}
+    r_k^{\text{shape}}=r_k-\eta_H\left\|H_u(x_k,u_k,\hat{\lambda}_k)\right\|^2.
+\end{equation}
+Here $\hat{\lambda}_k$ may come from an FBSM solution or a learned costate network.
+\item \textbf{Critic initialization:} use approximate value or costate information from PMP/HJB to initialize the critic.
+\item \textbf{Policy validation:} after training, evaluate whether learned controls approximately satisfy stationarity along the generated trajectory.
+\end{enumerate}
+These choices make the relationship between PMP and learning explicit. Without one of these links, a paper should honestly describe the method as simulator-based DRL inspired by, but not directly solving, the PMP optimality system.
+
+
+\section{Practical Python Implementation Roadmap}
+This section explains how the Python code in Appendix \ref{app:python-ode-rl} should be used. The code is intentionally written as skeleton code rather than a complete software package. It is designed to show the exact mapping from equations to implementation.
+
+\begin{enumerate}
+\item \textbf{Implement the ODE simulator first.} Before training any RL agent, implement a deterministic function that maps $(x_k,a_k)$ to $x_{k+1}$ using Euler or RK4. Check positivity, conservation, and whether the state reacts to actions in the expected direction.
+\item \textbf{Wrap the simulator as an environment.} The environment should have \texttt{reset()} and \texttt{step(action)}. The \texttt{step} function should decode the action, integrate the ODE, compute reward, and return the next observation.
+\item \textbf{Train a simple DQN before a complex DRL/MARL method.} DQN is not always the final method, but it is the best debugging tool for discrete defense actions. If DQN cannot learn against a scripted attacker, MAPPO or SAC will usually not fix the modeling error.
+\item \textbf{Only then add continuous or hybrid actions.} Continuous intensities can be handled with DDPG/SAC/PPO. Hybrid actions require both a discrete mode and a continuous intensity. Appendix \ref{app:hybrid-actions} gives the mathematical background.
+\item \textbf{For attacker-defender games, start with scripted opponents.} Train the defender against fixed attackers, then train the attacker against fixed defenders, and only then move to self-play or CTDE.
+\item \textbf{Compare against PMP/FBSM carefully.} FBSM gives an open-loop continuous-control benchmark. RL gives a feedback policy for a discretized environment. They should be compared using the same cost functional, initial conditions, action limits, and horizon.
+\end{enumerate}
+
+\begin{boxednote}
+\textbf{Implementation warning.}
+Most failed cyber DRL experiments fail because the environment is wrong, not because the neural network is too small. Always plot uncontrolled trajectories, static-action trajectories, and reward components before training.
+\end{boxednote}
+
+\section{Main Takeaways}
+PMP and FBSM provide theoretical structure, optimality conditions, and interpretable continuous-control baselines. RL and DRL learn feedback policies for MDPs induced by continuous-time cyber models. MARL extends this to adaptive attackers and defenders through Markov games. Neural ODE learns unknown continuous-time dynamics. PINN and PIDL embed equations, constraints, and possibly PMP or HJI residuals into neural training. Hybrid control is especially important in cybersecurity because real interventions combine discrete modes and continuous intensities.
+
+
+
+\section{Python Implementation Map and Code Organization}
+The accompanying code is intentionally organized around the same methodological structure as this note.  The mathematical model is separated from the solver so that FBSM, DDQN, MADRL, PINN, and PIDL can be compared on related cyber dynamics rather than on unrelated toy problems.
+
+\begin{longtable}{p{0.30\textwidth}p{0.60\textwidth}}
+\toprule
+Python file & What it demonstrates \\
+\midrule
+\texttt{cyber\_dynamics.py} & ODE right-hand sides, RK4 integration, and state projection for compartment models. \\
+\texttt{cyber\_hybrid\_env.py} & The central sampled-data hybrid environment: observe, decode action, apply jump map, integrate ODE, compute rewards. \\
+\texttt{fbsm\_malware\_baseline.py} & Classical PMP/FBSM baseline for continuous malware control. \\
+\texttt{ddqn\_cyber\_defense.py} & Discrete-action DDQN defender against a scripted attacker. \\
+\texttt{madrl\_ctde\_hybrid\_game.py} & A compact CTDE/MADRL attacker-defender Markov game. \\
+\texttt{inverse\_pinn\_sir\_malware.py} & Inverse PINN for learning propagation parameters. \\
+\texttt{pidl\_unknown\_mechanism.py} & PIDL model with known dynamics plus a learned missing mechanism. \\
+\texttt{control\_pinn\_malware.py} and \texttt{pmp\_informed\_pinn\_malware.py} & Direct control PINN and PMP-informed PINN baselines. \\
+\bottomrule
+\end{longtable}
+
+\begin{boxednote}
+\textbf{Recommended implementation sequence.}
+First run the ODE environment and FBSM baseline.  Then train DDQN against a scripted attacker.  Only after these two parts are debugged should one move to simultaneous attacker-defender MADRL.  PINN/PIDL scripts should be used to learn parameters or missing mechanisms before claiming data-driven control.
+\end{boxednote}
+
+\appendix
+
+\section{Deep Learning Background: Networks, Activations, and Optimization}\label{app:dl-background}
+A feedforward neural network represents a function by composing affine maps and nonlinear activations:
+\begin{align}
+    h^{(0)} &= s,\\
+    h^{(\ell+1)} &= \sigma\left(W^{(\ell)}h^{(\ell)}+b^{(\ell)}\right),\\
+    y &= W^{(L)}h^{(L)}+b^{(L)}.
+\end{align}
+In cyber-control applications, the input $s$ may be an observation such as $[V,C,P,z]$, and the output may be Q-values, action probabilities, continuous controls, or value estimates. The parameters are all matrices and vectors
+\begin{equation}
+    \Theta=\{W^{(\ell)},b^{(\ell)}\}_{\ell=0}^{L}.
+\end{equation}
+Training means minimizing a loss function by gradient-based optimization:
+\begin{equation}
+    \Theta\leftarrow \Theta-\alpha \nabla_\Theta \mathcal{L}(\Theta),
+\end{equation}
+where $\alpha$ is the learning rate. In practice, Adam is often used before more specialized optimizers.
+
+\subsection{Sigmoid, tanh, and softmax}
+The sigmoid function
+\begin{equation}
+    \sigmoid(z)=\frac{1}{1+e^{-z}}
+\end{equation}
+maps a real number to $(0,1)$, which is useful for bounded controls such as patching intensity. If a control has bounds $u\in[u_{\min},u_{\max}]$, one can set
+\begin{equation}
+    u=u_{\min}+(u_{\max}-u_{\min})\sigmoid(z).
+\end{equation}
+The softmax function maps logits $\ell_i$ to probabilities:
+\begin{equation}
+    p_i=\frac{e^{\ell_i/\tau}}{\sum_{j=1}^m e^{\ell_j/\tau}},\qquad i=1,\ldots,m.
+\end{equation}
+Here $\tau>0$ is a temperature. Large $\tau$ produces smoother probabilities; small $\tau$ makes the distribution close to one-hot. Softmax is used in policy networks for discrete actions such as patch, monitor, isolate, and deceive.
+
+\subsection{Why scaling matters}
+Neural networks train more reliably when inputs have similar scales. For example, if $C\in[0,1]$ but budget is measured in thousands, the network may overemphasize budget. Normalize features before training:
+\begin{equation}
+    \tilde{s}_i=\frac{s_i-\mu_i}{\sigma_i+10^{-8}}.
+\end{equation}
+For compartment models, states are often already in $[0,1]$, which is convenient.
+
+\section{ODE Solver Background for Cyber Control}\label{app:ode-background}
+ODE solvers approximate the solution of
+\begin{equation}
+    \dot{x}=f(x,u,t),\qquad x(t_k)=x_k.
+\end{equation}
+In an ODE-RL environment, the solver defines the transition from $x_k$ to $x_{k+1}$.
+
+\subsection{Euler and RK4}
+The forward Euler method is
+\begin{equation}
+    x_{k+1}=x_k+\Delta t f(x_k,u_k,t_k).
+\end{equation}
+It is simple but may be inaccurate or unstable for large $\Delta t$. A more reliable fixed-step method is RK4:
+\begin{align}
+    k_1&=f(x_k,u_k,t_k),\\
+    k_2&=f(x_k+\frac{\Delta t}{2}k_1,u_k,t_k+\frac{\Delta t}{2}),\\
+    k_3&=f(x_k+\frac{\Delta t}{2}k_2,u_k,t_k+\frac{\Delta t}{2}),\\
+    k_4&=f(x_k+\Delta t k_3,u_k,t_k+\Delta t),\\
+    x_{k+1}&=x_k+\frac{\Delta t}{6}(k_1+2k_2+2k_3+k_4).
+\end{align}
+RK4 is often a good default for repeated RL training because it is deterministic and easy to reproduce.
+
+\subsection{Adaptive solvers}
+Adaptive solvers select internal step sizes automatically. They are useful for validation but can be slower. When using adaptive solvers in RL, keep the outer decision interval $\Delta t$ fixed, even if the solver uses smaller internal steps. Otherwise the action timing changes across episodes.
+
+\subsection{Conservation and positivity}
+Compartment models often require $S+I+R=1$ and nonnegative states. Numerical solvers may slightly violate these constraints. Use either smaller steps, constrained parameterizations, or projection. Projection should be reported because it changes the environment transition.
+
+\section{MDP, Bellman Equation, and Q-Learning Background}\label{app:rl-background}
+An MDP consists of states $s$, actions $a$, transition probabilities $P(s'|s,a)$, rewards $r(s,a,s')$, and discount factor $\gamma_d$. The goal is to find a policy $\pi(a|s)$ that maximizes
+\begin{equation}
+    G_k=\sum_{j=0}^{K-k}\gamma_d^j r_{k+j}.
+\end{equation}
+The optimal Q-function satisfies the Bellman optimality equation
+\begin{equation}
+    Q^*(s,a)=\E\left[r+\gamma_d\max_{a'}Q^*(s',a')\mid s,a\right].
+\end{equation}
+Classical Q-learning updates a table by
+\begin{equation}
+Q(s,a)\leftarrow Q(s,a)+\alpha\left[r+\gamma_d\max_{a'}Q(s',a')-Q(s,a)\right].
+\end{equation}
+DQN replaces the table by a neural network $Q_\theta(s,a)$ 
+\cite{mnih2015}.
+
+\subsection{DQN and DDQN details}
+DQN minimizes
+\begin{equation}
+    \mathcal{L}(\theta)=\E_{(s,a,r,s')\sim\mathcal{B}}\left[\left(y-Q_\theta(s,a)\right)^2\right],
+\end{equation}
+where $\mathcal{B}$ is a replay buffer and
+\begin{equation}
+    y=r+\gamma_d\max_{a'}Q_{\theta^-}(s',a')
+\end{equation}
+uses a target network $\theta^-$. Double DQN reduces overestimation by decoupling action selection and evaluation:
+\begin{equation}
+    y=r+\gamma_d Q_{\theta^-}\left(s',\argmax_{a'}Q_\theta(s',a')\right).
+\end{equation}
+In cyber defense, DQN is suitable when actions are discrete, for example no-op, patch, isolate, and deceive.
+
+\subsection{Practical DQN hyperparameters}
+A reasonable first configuration is: two hidden layers with 64 or 128 units, ReLU activations, Adam optimizer, learning rate $10^{-4}$ to $10^{-3}$, replay buffer size $10^4$ to $10^5$, batch size 64 or 128, and target-network update every 500 to 2000 environment steps. The exploration rate $\epsilon$ can decay from 1.0 to 0.05. These are starting points, not universal settings.
+
+\section{PPO and Continuous-Action Actor-Critic Background}
+PPO trains a stochastic policy and a value function. The policy gradient is stabilized by clipping the probability ratio
+\begin{equation}
+    r_t(\phi)=\frac{\pi_\phi(a_t|s_t)}{\pi_{\phi_{old}}(a_t|s_t)}.
+\end{equation}
+The clipped objective is
+\begin{equation}
+\mathcal{L}^{\text{PPO}}(\phi)=
+\E\left[\min\left(r_t(\phi)\hat{A}_t,\clip(r_t(\phi),1-\epsilon,1+\epsilon)\hat{A}_t\right)\right],
+\end{equation}
+where $\hat{A}_t$ is an advantage estimate 
+\cite{schulman2017}. PPO is easy to use for both discrete and continuous actions.
+
+\subsection{DDPG and SAC}
+DDPG learns a deterministic actor $a=\mu_\phi(s)$ and a critic $Q_\theta(s,a)$ 
+\cite{lillicrap2015}. It is natural for continuous cyber controls but can be sensitive to exploration and hyperparameters. SAC learns a stochastic policy and maximizes both return and entropy:
+\begin{equation}
+    J(\pi)=\E\left[\sum_k \gamma_d^k\left(r_k+\alpha\mathcal{H}(\pi(\cdot|s_k))\right)\right].
+\end{equation}
+The entropy term encourages exploration, which is useful when the best defense strategy changes over time 
+\cite{haarnoja2018}.
+
+\section{Markov Game and MARL Background}\label{app:marl-background}
+A two-player Markov game has state $s$, defender action $a_D$, attacker action $a_A$, transition $P(s'|s,a_D,a_A)$, and rewards $r_D,r_A$ 
+\cite{littman1994}. In a zero-sum game,
+\begin{equation}
+    r_A=-r_D.
+\end{equation}
+In a general-sum game, the attacker and defender have different objectives.
+
+\subsection{Independent learning and nonstationarity}
+Independent learners treat other agents as part of the environment. This is simple but creates nonstationarity because the opponent's policy changes during training. In cyber games, this can appear as unstable training curves or policies that only work against one attacker.
+
+\subsection{Centralized training, decentralized execution}
+CTDE addresses nonstationarity by using a centralized critic during training:
+\begin{equation}
+    Q_D(s,a_D,a_A),\qquad Q_A(s,a_D,a_A).
+\end{equation}
+At execution time, each actor uses only its own observation. This fits cyber defense: training may use full simulator information, but deployment may only use defender observations.
+
+\section{Hybrid Actions, Softmax Relaxation, and Action Masks}\label{app:hybrid-actions}
+Hybrid cyber actions combine a discrete mode and a continuous intensity:
+\begin{equation}
+    a=(m,v),\qquad m\in\{1,\ldots,M\},\quad v\in[0,1].
+\end{equation}
+A policy can output mode probabilities $p=\softmax(g_m(s))$ and mode-conditioned intensities $v_m=\sigmoid(g_v(s,m))$. The executed action uses one mode $m$ and its corresponding intensity $v_m$.
+
+\subsection{Action masks}
+Some actions may be infeasible. For example, isolate may be unavailable when budget is too low. Let $M_i(s)\in\{0,1\}$ be an action mask. A masked softmax can be written as
+\begin{equation}
+    p_i=\frac{M_i(s)e^{\ell_i}}{\sum_j M_j(s)e^{\ell_j}}.
+\end{equation}
+This prevents the policy from selecting impossible actions. The mask should represent real operational constraints, not arbitrary tuning.
+
+\subsection{Differentiable relaxation}
+For differentiable training, one can use a soft mixture of modes:
+\begin{equation}
+    u(s)=\sum_{m=1}^{M}p_m(s)u_m(s).
+\end{equation}
+This is not the same as executing a single discrete mode, but it is useful in PINN/PIDL or differentiable simulation. If the final system requires discrete actions, validate by converting the soft policy to hard actions.
+
+
+
+
+\section{Appendix: Game-Theoretic Background for MARL and MADRL}\label{app:game-madrl-background}
+\subsection{Normal-form game, dynamic game, differential game, and Markov game}
+A normal-form game describes one-shot interaction: each player chooses an action once and receives a payoff. A dynamic game describes repeated or time-evolving interaction. A differential game is a dynamic game in which the state follows a differential equation. A Markov game is a discrete-time feedback version in which the next state depends on the current state and joint actions.
+
+\begin{longtable}{p{0.20\textwidth}p{0.36\textwidth}p{0.34\textwidth}}
+\toprule
+Object & Mathematical form & Learning interpretation \\
+\midrule
+Normal-form game & payoff $R_i(a_1,\ldots,a_N)$ & useful for local stage-game analysis \\
+Differential game & $\dot{x}=f(x,u_1,\ldots,u_N)$, $J_i=\int L_i\dd t$ & natural for cyber propagation and resource allocation \\
+Markov game & $s_{k+1}\sim P(\cdot|s_k,a_1^k,\ldots,a_N^k)$ & the standard environment model for MARL/MADRL \\
+Hybrid Markov game & jump map plus ODE integration between decisions & suitable for patching, incident response, takedown, and propaganda interventions \\
+\bottomrule
+\end{longtable}
+
+\subsection{Zero-sum and general-sum learning objectives}
+In a zero-sum game, the defender may solve
+\begin{equation}
+\max_{\pi_D}\min_{\pi_A} V_D^{\pi_D,\pi_A}(s),
+\end{equation}
+or equivalently the attacker maximizes $-V_D$. In a general-sum game, each player has a separate objective:
+\begin{equation}
+\pi_i^*\in \argmax_{\pi_i} V_i^{\pi_i,\pi_{-i}^*}(s),\quad i=1,\ldots,N.
+\end{equation}
+Many cyber games are closer to general-sum than pure zero-sum because each side has different operational costs, constraints, and benefits. This is why MADRL papers should state clearly whether they train with one shared zero-sum reward, separate rewards, or shaped rewards.
+
+\subsection{Open-loop, feedback, and sampled-data interpretations}
+Open-loop PMP strategies are functions of time, $u_i(t)$. Feedback strategies are functions of state, $u_i(t,x)$. Sampled-data strategies sit between them: players observe the state at discrete times and then apply a control over the next interval. RL/MADRL most naturally implements sampled-data feedback:
+\begin{equation}
+a_i^k\sim \pi_i(\cdot|s_k),\quad u_i(t)=\mu_i(a_i^k),\quad t\in[t_k,t_{k+1}).
+\end{equation}
+This is often more realistic in cyber settings than ideal continuous feedback because defenders review alerts, budgets, and threat intelligence at decision intervals rather than continuously measuring the entire network state.
+
+\subsection{MADDPG-style centralized critic}
+For continuous or hybrid actions, a centralized critic can be written as
+\begin{equation}
+Q_i(s,a_1,\ldots,a_N;\phi_i).
+\end{equation}
+The target is
+\begin{equation}
+y_i=r_i+\gamma Q_i^-(s',a_1',\ldots,a_N'),\quad a_j'\sim \pi_j^-(\cdot|o_j'),
+\end{equation}
+and the critic minimizes $\mathbb{E}[(Q_i-y_i)^2]$. The actor of player $i$ is updated to increase $Q_i$ while other actions are treated as fixed samples. This is useful when attacker and defender actions are continuous intensities such as attack effort, deception level, or patching intensity.
+
+\subsection{MAPPO-style centralized value function}
+For discrete or mixed actions, MAPPO often uses a centralized value function $V_i(s)$ and decentralized policies $\pi_i(a_i|o_i)$. The clipped PPO objective for each agent is based on
+\begin{equation}
+\rho_i=\frac{\pi_i(a_i^k|o_i^k)}{\pi_i^{old}(a_i^k|o_i^k)},
+\end{equation}
+\begin{equation}
+\mathcal{L}_{i}^{\mathrm{clip}}=\E\left[\min\left(\rho_i A_i,\clip(\rho_i,1-\epsilon,1+\epsilon)A_i\right)\right].
+\end{equation}
+For cyber games, MAPPO is often easier to stabilize than MADDPG when actions are discrete or hybrid.
+
+\subsection{Common MADRL failure modes in cyber games}
+\begin{enumerate}
+\item \textbf{Reward domination by cost or damage.} If compromise loss is $1000$ times larger than action cost, the learned agent may always choose maximum defense. Normalize terms.
+\item \textbf{Opponent overfitting.} A defender trained against one scripted attacker may fail against a different attacker. Use opponent pools.
+\item \textbf{No equilibrium check.} Self-play convergence curves do not prove Nash equilibrium. Use unilateral retraining tests.
+\item \textbf{Unrealistic observations.} If the defender observes the attacker's hidden state perfectly, the result may be too optimistic.
+\item \textbf{Ignoring impulse semantics.} If an action is modeled as an impulse, it should create a state jump or an immediate cost; if it only changes a rate over the next interval, call it a discrete decision with continuous flow instead.
+\end{enumerate}
+
+
+\section{Appendix: Detailed Conversion of Continuous, Impulsive, and Hybrid Models to RL}\label{app:continuous-impulse-rl}
+
+This appendix gives implementation-level details for the conversion described in Section \ref{sec:continuous-discrete-impulse}. The key idea is that RL does not directly optimize a continuous-time functional. Instead, the environment converts one decision into a transition and reward.
+
+\subsection{Case 1: continuous flow only}
+Suppose a defender chooses a discrete action $a_k$ at time $t_k$, and this action sets a constant control parameter $u_k=\phi(a_k)$ during the interval $[t_k,t_{k+1})$. Then
+\begin{equation}
+    x_{k+1}=\ODESolve(f,x_k,u_k,\Delta t).
+\end{equation}
+A minimal reward is
+\begin{equation}
+    r_k=-\Delta t\,L(x_{k+1},u_k),
+\end{equation}
+while a more accurate reward integrates the running loss along the ODE trajectory:
+\begin{equation}
+    r_k=-\sum_{j=0}^{M-1} h L(x_{k,j},u_k),\qquad h=\Delta t/M.
+\end{equation}
+The second form is recommended when the state changes rapidly inside one decision interval.
+
+\subsection{Case 2: impulse followed by continuous flow}
+For an impulse action, the first operation is not ODE integration but a jump map:
+\begin{equation}
+    y_k=G(x_k,a_k).
+\end{equation}
+Then the post-jump state is integrated:
+\begin{equation}
+    x_{k+1}=\ODESolve(f,y_k,u_k,\Delta t).
+\end{equation}
+The reward should penalize the instantaneous intervention:
+\begin{equation}
+    r_k=-C_{\rm jump}(x_k,a_k)-\sum_{j=0}^{M-1}hL(x_{k,j},u_k).
+\end{equation}
+In code, this suggests a clear environment structure:
+\begin{equation}
+\boxed{\texttt{decode action}}\rightarrow\boxed{\texttt{jump map}}\rightarrow\boxed{\texttt{ODE solver}}\rightarrow\boxed{\texttt{reward}}.
+\end{equation}
+
+\subsection{Case 3: hybrid discrete mode plus continuous intensity}
+A hybrid action $a_k=(m_k,v_k)$ requires two decoding operations:
+\begin{equation}
+    m_k=\text{selected mode},\qquad v_k=\text{continuous intensity}.
+\end{equation}
+The mode chooses which parameters or vector field are active. The intensity sets the magnitude. For example,
+\begin{equation}
+    \rho_k=\rho_0+\rho_{\max}v_k\quad \text{if }m_k=\texttt{patch},
+\end{equation}
+while
+\begin{equation}
+    \iota_k=\iota_{\max}v_k\quad \text{if }m_k=\texttt{isolate}.
+\end{equation}
+Parameterized-action RL treats the policy as two heads:
+\begin{equation}
+    \pi(m,v|s)=\pi_m(m|s)\pi_v(v|s,m).
+\end{equation}
+The first head is often a softmax over modes; the second head outputs a bounded continuous value through a sigmoid or a distribution such as a Gaussian followed by clipping.
+
+\subsection{Case 4: attacker-defender Markov game}
+For a game, the environment receives both actions:
+\begin{equation}
+    (a_D^k,a_A^k)=((m_D^k,v_D^k),(m_A^k,v_A^k)).
+\end{equation}
+A centralized critic can use all joint information,
+\begin{equation}
+    Q_D(s_k,a_D^k,a_A^k),\qquad Q_A(s_k,a_D^k,a_A^k),
+\end{equation}
+but the deployed defender policy may observe only defender-side information. This is the idea behind centralized training and decentralized execution.
+
+\subsection{Common mistakes}
+\begin{itemize}
+\item Treating a discrete decision as an impulse when the model only changes the rate during the next interval.
+\item Ignoring impulse cost, which can make the learned policy use unrealistically strong emergency actions.
+\item Using $x(t_k^-)$ and $x(t_k^+)$ inconsistently. Always state whether the RL state is pre-jump or post-jump.
+\item Claiming that DQN solves PMP. DQN solves the discretized MDP induced by the continuous-time model; it does not solve the costate boundary-value problem unless PMP residuals or expert PMP trajectories are explicitly used.
+\end{itemize}
+
+\subsection{Python skeleton: impulse and hybrid cyber environment}
+\begin{lstlisting}[style=pythonstyle,caption={Impulse and hybrid ODE environment skeleton.}]
+import numpy as np
+
+ACTIONS = {
+    0: ("monitor", 0.5),
+    1: ("patch", 0.7),
+    2: ("isolate", 0.8),
+    3: ("deceive", 0.6),
+}
+
+def jump_map(x, mode, intensity):
+    S, I, R, z = x
+    if mode == "patch":
+        moved = intensity * 0.20 * S       # emergency patch fraction
+        S, R = S - moved, R + moved
+    elif mode == "isolate":
+        moved = intensity * 0.30 * I       # immediate isolation/cleaning
+        I, R = I - moved, R + moved
+    # monitor and deceive may have no instantaneous jump
+    return np.array([S, I, R, z], dtype=float)
+
+def rhs(x, mode, intensity, params):
+    S, I, R, z = x
+    beta, gamma, omega, chi = params
+    patch_rate = clean_rate = deceive_rate = 0.0
+    if mode == "monitor":
+        clean_rate = 0.20 * intensity
+    elif mode == "patch":
+        patch_rate = 0.15 * intensity
+    elif mode == "deceive":
+        deceive_rate = 0.25 * intensity
+    effective_beta = beta * (1.0 - chi * z)
+    dS = -effective_beta * S * I - patch_rate * S + omega * R
+    dI = effective_beta * S * I - (gamma + clean_rate) * I
+    dR = patch_rate * S + (gamma + clean_rate) * I - omega * R
+    dz = deceive_rate * (1.0 - z) - 0.05 * z
+    return np.array([dS, dI, dR, dz], dtype=float)
+
+def rk4_step(x, mode, intensity, params, dt):
+    k1 = rhs(x, mode, intensity, params)
+    k2 = rhs(x + 0.5 * dt * k1, mode, intensity, params)
+    k3 = rhs(x + 0.5 * dt * k2, mode, intensity, params)
+    k4 = rhs(x + dt * k3, mode, intensity, params)
+    return x + dt * (k1 + 2*k2 + 2*k3 + k4) / 6.0
+
+def env_step(x, action_id, params, delta_t=1.0, substeps=20):
+    mode, intensity = ACTIONS[action_id]
+    y = jump_map(x, mode, intensity)  # instantaneous part
+    h = delta_t / substeps
+    running_loss = 0.0
+    x_next = y.copy()
+    for _ in range(substeps):
+        running_loss += h * (10.0 * x_next[1] + 0.1 * intensity**2)
+        x_next = rk4_step(x_next, mode, intensity, params, h)
+    x_next[:3] = np.maximum(x_next[:3], 0.0)
+    x_next[:3] = x_next[:3] / max(x_next[:3].sum(), 1e-8)
+    x_next[3] = np.clip(x_next[3], 0.0, 1.0)
+    jump_cost = 0.5 * intensity**2 if mode in ["patch", "isolate"] else 0.0
+    reward = -(running_loss + jump_cost)
+    return x_next, reward
+\end{lstlisting}
+
+
+\section{Python Skeletons for ODE-RL and DDQN}\label{app:python-ode-rl}
+This appendix gives compact Python-style skeleton code. It is not intended to be a polished library. Its purpose is to make the implementation mapping explicit:
+\[
+\text{ODE equations} \rightarrow \text{environment step} \rightarrow (s,a,r,s') \rightarrow \text{DQN/DDQN update}.
+\]
+
+\subsection{Minimal RK4-based cyber defense environment}
+The following environment uses a controlled malware model with three compartments $S,I,R$. The action set is discrete: no operation, patch, clean, and strong response. The function \texttt{action\_to\_control} implements the action-to-control map $\Gamma(a)$ introduced in the main text.
+
+\begin{lstlisting}[style=pythonstyle,caption={Minimal ODE-based cyber defense environment.}]
+import numpy as np
+
+class MalwareODEEnv:
+    def __init__(self, dt=1.0, horizon=100):
+        self.dt = dt
+        self.horizon = horizon
+        self.beta = 0.60      # infection rate
+        self.gamma = 0.05     # natural recovery rate
+        self.omega = 0.01     # loss of protection rate
+        self.max_patch = 0.40
+        self.max_clean = 0.35
+        self.cost_patch = 0.8
+        self.cost_clean = 1.0
+        self.w_infected = 10.0
+        self.k = 0
+        self.x = None
+
+    def reset(self, x0=None):
+        if x0 is None:
+            x0 = np.array([0.95, 0.05, 0.0], dtype=np.float64)
+        self.x = x0.copy()
+        self.k = 0
+        return self.observe()
+
+    def observe(self):
+        # In practice, include budget, alerts, time-to-go, or noisy estimates.
+        return self.x.copy()
+
+    def action_to_control(self, action):
+        # action 0: no-op, 1: patch, 2: clean, 3: strong response
+        if action == 0:
+            return 0.0, 0.0
+        if action == 1:
+            return self.max_patch, 0.05
+        if action == 2:
+            return 0.05, self.max_clean
+        if action == 3:
+            return 0.7 * self.max_patch, 0.7 * self.max_clean
+        raise ValueError("unknown action")
+
+    def rhs(self, x, u_patch, u_clean):
+        S, I, R = x
+        dS = -self.beta * S * I - u_patch * S + self.omega * R
+        dI =  self.beta * S * I - self.gamma * I - u_clean * I
+        dR =  self.gamma * I + u_patch * S + u_clean * I - self.omega * R
+        return np.array([dS, dI, dR], dtype=np.float64)
+
+    def rk4_step(self, x, u_patch, u_clean):
+        h = self.dt
+        k1 = self.rhs(x, u_patch, u_clean)
+        k2 = self.rhs(x + 0.5 * h * k1, u_patch, u_clean)
+        k3 = self.rhs(x + 0.5 * h * k2, u_patch, u_clean)
+        k4 = self.rhs(x + h * k3, u_patch, u_clean)
+        x_next = x + (h / 6.0) * (k1 + 2*k2 + 2*k3 + k4)
+        x_next = np.clip(x_next, 0.0, 1.0)
+        x_next = x_next / max(x_next.sum(), 1e-12)
+        return x_next
+
+    def step(self, action):
+        u_patch, u_clean = self.action_to_control(action)
+        x_next = self.rk4_step(self.x, u_patch, u_clean)
+        S, I, R = x_next
+        running_loss = self.w_infected * I
+        control_cost = self.cost_patch * u_patch**2 + self.cost_clean * u_clean**2
+        reward = -self.dt * (running_loss + control_cost)
+        self.x = x_next
+        self.k += 1
+        done = (self.k >= self.horizon) or (I < 1e-4) or (I > 0.95)
+        return self.observe(), reward, done, {"u_patch": u_patch, "u_clean": u_clean}
+\end{lstlisting}
+
+\subsection{Environment sanity checks before training}
+Before training an agent, check no-defense, static patching, static cleaning, and strong-response rollouts. If these baselines do not behave sensibly, the RL result will not be meaningful.
+
+\begin{lstlisting}[style=pythonstyle,caption={Simple environment sanity check.}]
+def rollout(env, policy_fn):
+    s = env.reset()
+    traj, rewards = [s], []
+    done = False
+    while not done:
+        a = policy_fn(s)
+        s, r, done, info = env.step(a)
+        traj.append(s)
+        rewards.append(r)
+    return np.array(traj), np.array(rewards)
+
+env = MalwareODEEnv()
+traj_no_def, rew_no_def = rollout(env, lambda s: 0)
+traj_patch, rew_patch = rollout(env, lambda s: 1)
+traj_clean, rew_clean = rollout(env, lambda s: 2)
+print("Peak I no defense:", traj_no_def[:, 1].max())
+print("Peak I patch:", traj_patch[:, 1].max())
+print("Peak I clean:", traj_clean[:, 1].max())
+\end{lstlisting}
+
+\subsection{DQN network and DDQN target update}
+DQN approximates $Q(s,a)$ for discrete actions. DDQN reduces overestimation by selecting the next action using the online network but evaluating it using the target network.
+
+\begin{lstlisting}[style=pythonstyle,caption={DQN/DDQN update skeleton in PyTorch.}]
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+class QNet(nn.Module):
+    def __init__(self, state_dim=3, n_actions=4, hidden=128):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(state_dim, hidden), nn.ReLU(),
+            nn.Linear(hidden, hidden), nn.ReLU(),
+            nn.Linear(hidden, n_actions)
+        )
+    def forward(self, s):
+        return self.net(s)
+
+def ddqn_loss(batch, q_online, q_target, gamma=0.99):
+    s, a, r, s_next, done = batch
+    q_values = q_online(s).gather(1, a.long().view(-1, 1)).squeeze(1)
+    with torch.no_grad():
+        next_action = q_online(s_next).argmax(dim=1, keepdim=True)
+        next_q = q_target(s_next).gather(1, next_action).squeeze(1)
+        target = r + gamma * (1.0 - done) * next_q
+    return F.mse_loss(q_values, target)
+\end{lstlisting}
+
+\subsection{Minimal training loop structure}
+The loop below omits replay-buffer implementation details. The important point is that each replay item is generated by integrating the ODE for one decision interval.
+
+\begin{lstlisting}[style=pythonstyle,caption={DQN training loop structure for an ODE environment.}]
+q_online = QNet()
+q_target = QNet()
+q_target.load_state_dict(q_online.state_dict())
+optimizer = torch.optim.Adam(q_online.parameters(), lr=1e-3)
+
+epsilon = 1.0
+for episode in range(500):
+    s = env.reset()
+    done = False
+    while not done:
+        if np.random.rand() < epsilon:
+            a = np.random.randint(4)
+        else:
+            with torch.no_grad():
+                ss = torch.tensor(s, dtype=torch.float32).unsqueeze(0)
+                a = int(q_online(ss).argmax(dim=1).item())
+        s_next, r, done, info = env.step(a)
+        replay_buffer.add(s, a, r, s_next, float(done))
+        s = s_next
+        if replay_buffer.size() >= 1000:
+            batch = replay_buffer.sample(batch_size=64)
+            loss = ddqn_loss(batch, q_online, q_target, gamma=0.99)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+    epsilon = max(0.05, epsilon * 0.995)
+    if episode % 10 == 0:
+        q_target.load_state_dict(q_online.state_dict())
+\end{lstlisting}
+
+\subsection{Extension to attacker-defender Markov games}
+For a Markov game, the environment step accepts two actions. The ODE right-hand side depends on both. The replay item should store joint information if using centralized training and decentralized execution.
+
+\begin{lstlisting}[style=pythonstyle,caption={Attacker-defender environment step interface.}]
+def step_markov_game(state, attacker_action, defender_action):
+    uA = attacker_action_to_control(attacker_action)
+    uD = defender_action_to_control(defender_action)
+    next_state = integrate_cyber_ode(state, uA, uD)
+    rD = defender_reward(next_state, uA, uD)
+    rA = attacker_reward(next_state, uA, uD)
+    return next_state, rA, rD
+
+# CTDE critic can use joint action information during training:
+# Q_D(s, a_D, a_A), Q_A(s, a_D, a_A).
+# During execution, each actor may use only its own observation.
+\end{lstlisting}
+
+\begin{boxednote}
+\textbf{How to present Python code in a paper.}
+Do not include long engineering code in the main paper. Present the environment equations, action map, reward definition, algorithm pseudocode, and implementation settings. Put full code in a repository. In a lecture note or tutorial, skeleton code like the above is useful because it shows exactly how mathematical notation becomes a simulator.
+\end{boxednote}
+
+\begin{thebibliography}{99}
+
+\bibitem{pontryagin1962}
+L. S. Pontryagin, V. G. Boltyanskii, R. V. Gamkrelidze, and E. F. Mishchenko, \emph{The Mathematical Theory of Optimal Processes}. Wiley, 1962.
+
+\bibitem{lenhart2007}
+S. Lenhart and J. T. Workman, \emph{Optimal Control Applied to Biological Models}. Chapman and Hall/CRC, 2007.
+
+\bibitem{mcasey2012}
+M. McAsey, L. Mou, and W. Han, ``Convergence of the forward-backward sweep method in optimal control,'' \emph{Computational Optimization and Applications}, vol. 53, pp. 207--226, 2012.
+
+\bibitem{sutton2018}
+R. S. Sutton and A. G. Barto, \emph{Reinforcement Learning: An Introduction}, 2nd ed. MIT Press, 2018.
+
+\bibitem{mnih2015}
+V. Mnih et al., ``Human-level control through deep reinforcement learning,'' \emph{Nature}, vol. 518, pp. 529--533, 2015.
+
+\bibitem{vanhasselt2016ddqn}
+H. van Hasselt, A. Guez, and D. Silver, ``Deep reinforcement learning with double Q-learning,'' in \emph{Proceedings of AAAI}, 2016.
+
+\bibitem{lillicrap2015}
+T. P. Lillicrap et al., ``Continuous control with deep reinforcement learning,'' arXiv:1509.02971, 2015.
+
+\bibitem{schulman2017}
+J. Schulman, P. Wolski, P. Dhariwal, A. Radford, and O. Klimov, ``Proximal policy optimization algorithms,'' arXiv:1707.06347, 2017.
+
+\bibitem{haarnoja2018}
+T. Haarnoja et al., ``Soft actor-critic algorithms and applications,'' arXiv:1812.05905, 2018.
+
+\bibitem{littman1994}
+M. L. Littman, ``Markov games as a framework for multi-agent reinforcement learning,'' in \emph{Proceedings of the 11th International Conference on Machine Learning}, pp. 157--163, 1994.
+
+\bibitem{lowe2017}
+R. Lowe et al., ``Multi-agent actor-critic for mixed cooperative-competitive environments,'' arXiv:1706.02275, 2017.
+
+\bibitem{yu2021mappo}
+C. Yu et al., ``The surprising effectiveness of PPO in cooperative multi-agent games,'' arXiv:2103.01955, 2021.
+
+\bibitem{hausknecht2015}
+M. Hausknecht and P. Stone, ``Deep reinforcement learning in parameterized action space,'' arXiv:1511.04143, 2015.
+
+\bibitem{chen2018neuralode}
+R. T. Q. Chen, Y. Rubanova, J. Bettencourt, and D. Duvenaud, ``Neural ordinary differential equations,'' \emph{Advances in Neural Information Processing Systems}, 2018.
+
+\bibitem{raissi2019}
+M. Raissi, P. Perdikaris, and G. E. Karniadakis, ``Physics-informed neural networks: A deep learning framework for solving forward and inverse problems involving nonlinear partial differential equations,'' \emph{Journal of Computational Physics}, vol. 378, pp. 686--707, 2019.
+
+\bibitem{sirignano2018}
+J. Sirignano and K. Spiliopoulos, ``DGM: A deep learning algorithm for solving partial differential equations,'' \emph{Journal of Computational Physics}, vol. 375, pp. 1339--1364, 2018.
+
+\bibitem{yang2019apt}
+L.-X. Yang, P. Li, Y. Zhang, X. Yang, Y. Y. Tang, and Y. Xiang, ``Effective repair strategy against advanced persistent threat: A differential game approach,'' \emph{IEEE Transactions on Information Forensics and Security}, vol. 14, no. 7, pp. 1713--1728, 2019.
+
+\bibitem{cheng2024propaganda}
+X. Cheng et al., ``Cost-effective hybrid control strategies for dynamical propaganda war game,'' \emph{IEEE Transactions on Information Forensics and Security}, 2024.
+
+\bibitem{sun2023impulsive}
+H. Sun et al., ``Impulsive artificial defense against advanced persistent threat,'' \emph{IEEE Transactions on Information Forensics and Security}, 2023.
+
+\bibitem{qin2024impulsive}
+Y. Qin, X. Yang, L.-X. Yang, and K. Huang, ``Modeling and study of defense outsourcing against advanced persistent threat through impulsive differential game approach,'' \emph{Computers \& Security}, vol. 145, 104003, 2024.
+
+\bibitem{shen2023ddqn}
+S. Shen, L. Xie, Y. Zhang, G. Wu, H. Zhang, and S. Yu, ``Joint differential game and double deep Q-networks for suppressing malware spread in Industrial Internet of Things,'' \emph{IEEE Transactions on Information Forensics and Security}, vol. 18, pp. 5302--5316, 2023.
+
+\bibitem{he2026timedelay}
+W. He, J. Tan, R. Wang, Z. Liu, X. Luo, H. Hu, and H. Zhang, ``A deep reinforcement learning approach to time delay differential game deception resource deployment,'' \emph{IEEE Transactions on Dependable and Secure Computing}, vol. 23, no. 1, pp. 1655--1670, 2026.
+
+\bibitem{he2024deception}
+W. He, J. Tan, Y. Guo, K. Shang, and H. Zhang, ``A deep reinforcement learning-based deception asset selection algorithm in differential games,'' \emph{IEEE Transactions on Information Forensics and Security}, vol. 19, pp. 8353--8366, 2024.
+
+\bibitem{shen2026privacy}
+S. Shen et al., ``Privacy-aware DRL for differential games-assisted malware defense in edge intelligence-enabled Social IoT,'' \emph{IEEE Transactions on Network and Service Management}, vol. 23, pp. 2680--2695, 2026.
+
+\bibitem{shen2026snn}
+Y. Shen, C. Shepherd, C. M. Ahmed, S. Shen, and S. Yu, ``Malware patching strategies in edge intelligence IoT systems: A differential games approach with spiking neural networks,'' \emph{IEEE Transactions on Dependable and Secure Computing}, early access, 2026.
+
+\bibitem{zhang2024pno}
+L. Zhang, M. Ghimire, Z. Xu, W. Zhang, and Y. Ren, ``Pontryagin neural operator for solving general-sum differential games with parametric state constraints,'' in \emph{Proceedings of Learning for Dynamics and Control}, PMLR, vol. 242, pp. 1--13, 2024.
+
+\bibitem{han2025nodec}
+D. Han, S. Jin, and C. Li, ``Controlling epidemics with information dynamics: A Neural ODE approach,'' \emph{IEEE Transactions on Computational Social Systems}, vol. 12, no. 6, pp. 4179--4192, 2025.
+
+\bibitem{hou2026sapdr}
+Y. Hou et al., ``SAPDR: A self-adaptive physics-informed deep learning framework for rumor propagation dynamics,'' 2026.
+
+\bibitem{jing2025simplicial}
+Y. Jing et al., ``Physics-informed learning for simplicial complex rumor dynamics,'' 2025.
+
+\bibitem{ma2026shtri}
+L. Ma et al., ``Physics-informed learning and optimal control for negative information propagation,'' 2026.
+
+
+\bibitem{isaacs1965}
+R. Isaacs, \emph{Differential Games: A Mathematical Theory with Applications to Warfare and Pursuit, Control and Optimization}. Wiley, 1965.
+
+\bibitem{basar1999}
+T. Basar and G. J. Olsder, \emph{Dynamic Noncooperative Game Theory}, 2nd ed. SIAM, 1999.
+
+\end{thebibliography}
+
+
+\end{document}

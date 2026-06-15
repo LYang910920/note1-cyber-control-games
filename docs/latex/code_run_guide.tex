@@ -1,0 +1,151 @@
+\documentclass[11pt,a4paper]{article}
+\input{lecture_style}
+
+\begin{document}
+\lecturetitle{Code Running Guide}{How to Run and Extend the Python Examples}{Installation, smoke tests, normal runs, outputs, and troubleshooting}{Companion to the cyber control and PINN/PIDL lecture notes}
+\tableofcontents
+\newpage
+
+\section{What This Guide Covers}
+This guide is a standalone manual for the Python examples. It explains how to set up the environment, run smoke tests, run longer examples, interpret outputs, and extend the code to more complex cyber models.
+
+\section{Folder Structure}
+After unpacking the bundle, the relevant files are:
+\begin{verbatim}
+code/
+  requirements.txt
+  README_RUN_CODE.md
+  run_smoke_tests.sh
+  cyber_dynamics.py
+  cyber_hybrid_env.py
+  fbsm_malware_baseline.py
+  ddqn_cyber_defense.py
+  madrl_ctde_hybrid_game.py
+  inverse_pinn_sir_malware.py
+  pidl_unknown_mechanism.py
+  control_pinn_malware.py
+  pmp_informed_pinn_malware.py
+\end{verbatim}
+
+\section{Installation}
+Create a Python virtual environment and install dependencies:
+\begin{lstlisting}[style=pythonstyle]
+python -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+pip install --upgrade pip
+pip install -r requirements.txt
+\end{lstlisting}
+The examples require only NumPy, PyTorch, and optionally Matplotlib. CUDA is optional.
+
+\section{Quick Smoke Test}
+Run all scripts in quick mode:
+\begin{lstlisting}[style=pythonstyle]
+cd code
+./run_smoke_tests.sh
+\end{lstlisting}
+A smoke test checks syntax and basic data flow. It does not train high-quality policies or high-accuracy PINNs.
+
+\section{Normal Runs}
+\subsection{Classical FBSM baseline}
+\begin{lstlisting}[style=pythonstyle]
+python fbsm_malware_baseline.py --max-iter 100
+\end{lstlisting}
+Expected output: iteration logs, peak infection, objective value, final state, and mean control.
+
+\subsection{DDQN defender}
+\begin{lstlisting}[style=pythonstyle]
+python ddqn_cyber_defense.py --episodes 300
+\end{lstlisting}
+Expected output: training return, validation return, and exploration rate. Improvement is stochastic; run multiple seeds.
+
+\subsection{MADRL attacker-defender game}
+\begin{lstlisting}[style=pythonstyle]
+python madrl_ctde_hybrid_game.py --episodes 200
+\end{lstlisting}
+Expected output: defender and attacker episode returns. This file is a compact CTDE teaching example. For research, extend it with MAPPO clipping, GAE, opponent pools, and cross-play evaluation.
+
+\subsection{Inverse PINN}
+\begin{lstlisting}[style=pythonstyle]
+python inverse_pinn_sir_malware.py --iters 5000
+\end{lstlisting}
+Expected output: loss, learned beta, learned gamma, data loss, and residual loss.
+
+\subsection{PIDL missing mechanism}
+\begin{lstlisting}[style=pythonstyle]
+python pidl_unknown_mechanism.py --iters 5000
+\end{lstlisting}
+Expected output: loss, known-model parameter estimates, and average learned correction magnitude.
+
+\subsection{Control PINN}
+\begin{lstlisting}[style=pythonstyle]
+python control_pinn_malware.py --iters 5000
+\end{lstlisting}
+Expected output: objective proxy, state residual, and mean control.
+
+\subsection{PMP-informed PINN}
+\begin{lstlisting}[style=pythonstyle]
+python pmp_informed_pinn_malware.py --iters 5000
+\end{lstlisting}
+Expected output: state residual, costate residual, stationarity residual, and boundary residual.
+
+\section{How to Interpret Outputs}
+\begin{longtable}{p{0.24\textwidth}p{0.66\textwidth}}
+\toprule
+Output & Interpretation \\
+\midrule
+Training return & Cumulative reward during learning. It is noisy and should not be the only metric. \\
+Validation return & Performance of the current policy without exploration against a fixed scenario. \\
+Peak infected & Maximum compromised population; useful cyber-risk metric. \\
+Area under $I(t)$ & Total compromise burden over time; often more informative than final infection. \\
+Data loss & How well PINN/PIDL fits observations. \\
+Residual loss & How well the learned trajectory satisfies the differential equation. \\
+Stationarity loss & How well PMP control optimality is satisfied. \\
+Correction magnitude & Whether PIDL is using the learned correction heavily or only mildly. \\
+\bottomrule
+\end{longtable}
+
+\section{Extending the Code}
+\subsection{From simple malware to APT}
+Add a deception state $z$ and modify the infection rate:
+\begin{equation}
+\beta SI\quad \rightarrow\quad \beta(1-\chi z)VC.
+\end{equation}
+Add actions such as deceive, isolate, and stealth. The provided environment already contains these mechanisms.
+
+\subsection{From compartment model to degree-based model}
+Replace $S,I,R$ by degree-indexed compartments. For example,
+\begin{equation}
+x=[S_1,I_1,R_1,\ldots,S_K,I_K,R_K].
+\end{equation}
+The infection pressure should use the degree-weighted infected probability.
+
+\subsection{From scripted attacker to learned attacker}
+Start with \texttt{ddqn\_cyber\_defense.py}. Replace the scripted attacker with an actor network. Then use \texttt{madrl\_ctde\_hybrid\_game.py} as the training template.
+
+\subsection{From open-loop to feedback control PINN}
+Change the control network input from $t$ to $[x,t]$. Train over multiple initial states. This produces a feedback-like neural control law rather than one open-loop trajectory.
+
+\section{Troubleshooting}
+\begin{itemize}
+\item If DDQN is unstable, reduce reward scale, reduce learning rate, enlarge replay buffer, and update target network less frequently.
+\item If MADRL cycles, freeze one agent for several updates, add opponent pools, and evaluate cross-play matrices.
+\item If PINN data loss is low but residual loss is high, increase residual weight or collocation points.
+\item If PINN residual loss is low but prediction is poor, the assumed model may be wrong or parameters may be unidentifiable.
+\item If PMP-informed PINN stationarity loss remains high, check control bounds and use projected/KKT residuals.
+\item If the correction network in PIDL dominates the known model, increase correction regularization.
+\end{itemize}
+
+\section{Reproducibility Checklist}
+For every experiment, record:
+\begin{itemize}
+\item model equations and parameter values;
+\item random seed and initial states;
+\item action space and reward formula;
+\item ODE solver and step size;
+\item network architecture and optimizer;
+\item loss weights for PINN/PIDL;
+\item number of episodes or iterations;
+\item all baselines used for comparison.
+\end{itemize}
+
+\end{document}
