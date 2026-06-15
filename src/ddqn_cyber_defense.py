@@ -143,21 +143,29 @@ def train(args):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--smoke", action="store_true")
-    parser.add_argument("--episodes", type=int, default=300)
-    parser.add_argument("--batch-size", type=int, default=128)
-    parser.add_argument("--hidden", type=int, default=128)
-    parser.add_argument("--lr", type=float, default=1e-3)
-    parser.add_argument("--gamma", type=float, default=0.99)
-    parser.add_argument("--buffer-size", type=int, default=50000)
-    parser.add_argument("--target-update", type=int, default=500)
-    parser.add_argument("--eps-start", type=float, default=1.0)
-    parser.add_argument("--eps-end", type=float, default=0.05)
-    parser.add_argument("--eps-decay", type=float, default=20000.0)
-    parser.add_argument("--log-every", type=int, default=25)
-    parser.add_argument("--seed", type=int, default=0)
+    parser = argparse.ArgumentParser(
+        description="Train a DDQN defender in the hybrid cyber-defense environment."
+    )
+    parser.add_argument("--smoke", action="store_true", help="Run a tiny execution check.")
+    parser.add_argument("--episodes", type=int, default=300, help="Number of training episodes.")
+    parser.add_argument("--horizon", type=int, default=None, help="Decision epochs per episode.")
+    parser.add_argument("--eval-horizon", type=int, default=None, help="Decision epochs for evaluation episodes.")
+    parser.add_argument("--eval-episodes", type=int, default=2, help="Evaluation episodes per log point.")
+    parser.add_argument("--batch-size", type=int, default=128, help="Replay minibatch size.")
+    parser.add_argument("--hidden", type=int, default=128, help="Hidden width for the Q-network.")
+    parser.add_argument("--lr", type=float, default=1e-3, help="Adam learning rate.")
+    parser.add_argument("--gamma", type=float, default=0.99, help="Discount factor.")
+    parser.add_argument("--buffer-size", type=int, default=50000, help="Replay-buffer capacity.")
+    parser.add_argument("--target-update", type=int, default=500, help="Target-network sync period in environment steps.")
+    parser.add_argument("--eps-start", type=float, default=1.0, help="Initial epsilon for exploration.")
+    parser.add_argument("--eps-end", type=float, default=0.05, help="Final epsilon for exploration.")
+    parser.add_argument("--eps-decay", type=float, default=20000.0, help="Exponential epsilon-decay time constant.")
+    parser.add_argument("--log-every", type=int, default=25, help="Episode interval for console logs and history rows.")
+    parser.add_argument("--seed", type=int, default=0, help="Random seed.")
     args = parser.parse_args()
     if args.smoke:
-        args.episodes = 2; args.batch_size = 4; args.log_every = 1; args.target_update = 10
+        args.episodes = 2
+        args.batch_size = 4
+        args.log_every = 1
+        args.target_update = 10
     train(args)

@@ -13,6 +13,8 @@ Recommended order:
 
 Source files are in `latex/`.  The source is included for inspection and adaptation; the checked-in PDF is the version intended for reading.
 
+For a practical first pass, use `START_HERE.md` before diving into the LaTeX source.  It points to the code, scripts, figures, and experiment outputs by task.
+
 The runnable code mirrors this lecture order:
 
 | Lecture idea | Code |

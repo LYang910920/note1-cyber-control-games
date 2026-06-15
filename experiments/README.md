@@ -18,3 +18,13 @@ The script performs longer, CPU-friendly teaching runs and writes:
 The companion plot is saved as `figures/training_iteration_diagnostics.png`.
 
 FBSM should show the clearest convergence. DDQN is stochastic, so inspect the rolling evaluation-return curve rather than one episode. CTDE/MADRL is a compact stability diagnostic, not a claim of Nash convergence.
+
+## How To Read The CSV Files
+
+Each row is a logged checkpoint rather than every optimizer step.  Use the first and last rows for a quick sanity check, then inspect the full curve in `figures/training_iteration_diagnostics.png`.
+
+| Question | Column to inspect |
+|---|---|
+| Did FBSM settle? | `max_control_change` in `fbsm_iteration_history.csv` |
+| Did DDQN improve? | `evaluation_return` and `epsilon` in `ddqn_training_history.csv` |
+| Did CTDE remain numerically stable? | `loss`, `critic_loss`, and `entropy` in `madrl_training_history.csv` |

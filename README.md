@@ -4,25 +4,33 @@ This repository is the executable companion for **Note 1: Game Learning for Cybe
 
 The examples are intentionally small and readable.  They are meant for study, modification, and sanity-checking research ideas before moving to a larger RL or MARL framework.
 
+## Start Here
+
+If this is your first time opening the repo, read `START_HERE.md` first.  It gives a five-minute path, a file finder, and the recommended code-reading order.
+
 ## Repository Map
 
 | Path | Purpose |
 |---|---|
+| `START_HERE.md` | First-stop guide for new readers. |
 | `docs/note1_game_learning_cyber_control.pdf` | Main lecture note for game learning and cyber control. |
 | `docs/README.md` | Reading path and lecture-structure guide. |
 | `docs/implementation_companion.pdf` | Companion explanation for implementation choices. |
 | `docs/code_run_guide.pdf` | General run guide from the original bundle. |
+| `src/README.md` | Source-code map and state conventions. |
 | `src/cyber_dynamics.py` | Shared RK4 integration and malware dynamics utilities. |
 | `src/cyber_hybrid_env.py` | Hybrid cyber-defense environment with flow, jump, and mixed actions. |
 | `src/fbsm_malware_baseline.py` | Forward-backward sweep method for a PMP malware-control baseline. |
 | `src/ddqn_cyber_defense.py` | DDQN defender for a sampled-data ODE cyber-defense MDP. |
 | `src/madrl_ctde_hybrid_game.py` | Minimal CTDE/MADRL attacker-defender game example. |
+| `scripts/README.md` | Command guide for validation, figures, and longer diagnostics. |
 | `scripts/generate_figures.py` | Generates explanatory figures in `figures/`. |
 | `scripts/run_training_iterations.py` | Runs longer teaching diagnostics and writes CSV histories in `experiments/`. |
 | `scripts/run_smoke_tests.sh` | Runs all fast checks for this repo. |
 | `.github/workflows/smoke-tests.yml` | GitHub Actions workflow for dependency install, smoke tests, and figure generation. |
 | `experiments/` | Small training-iteration CSV outputs and an explanation of each metric. |
 | `tests/` | Small regression tests for dynamics, environment contracts, and FBSM output. |
+| `LICENSE` and `NOTICE.md` | MIT license, copyright, and attribution notes. |
 
 ## Quick Start
 
@@ -50,6 +58,17 @@ Run longer training-iteration diagnostics:
 ```bash
 python scripts/run_training_iterations.py
 ```
+
+## Common Workflows
+
+| Goal | Command or file |
+|---|---|
+| Check that everything runs | `bash scripts/run_smoke_tests.sh` |
+| Rebuild README figures | `python scripts/generate_figures.py` |
+| Rebuild convergence diagnostics | `python scripts/run_training_iterations.py` |
+| Increase training time | `python scripts/run_training_iterations.py --episodes 300` |
+| Understand module responsibilities | `src/README.md` |
+| Understand command outputs | `scripts/README.md` |
 
 ## Main Ideas
 
@@ -101,3 +120,7 @@ The repo includes smoke tests for every executable script and unit tests for the
 This consolidated version keeps the Note 1 PDFs, source materials, generated figures, tests, CI workflow, and longer teaching diagnostics in one final repo.
 
 These examples are teaching code, not benchmark implementations.  For serious experiments, add multiple seeds, stronger baselines, full logging, and exploitability-style game diagnostics.
+
+## License And Copyright
+
+This repository is released under the MIT License.  See `LICENSE` for the full terms and `NOTICE.md` for copyright, dependency, and attribution notes.

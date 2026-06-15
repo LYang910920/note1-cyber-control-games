@@ -1,3 +1,10 @@
+"""Run longer Note 1 diagnostics and save reader-friendly artifacts.
+
+This script is separate from smoke tests.  Smoke tests answer "does the code
+run?" while this script answers "do the teaching metrics move in a sensible
+direction over time?"
+"""
+
 from __future__ import annotations
 
 import argparse
@@ -30,11 +37,13 @@ def write_csv(path: Path, rows: list[dict]) -> None:
 
 
 def run_fbsm() -> list[dict]:
+    """Run enough FBSM iterations to expose the control-update decay curve."""
     _, _, _, _, _, history = solve_fbsm(T=24.0, n=100, max_iter=35, return_history=True)
     return history
 
 
 def run_ddqn(episodes: int) -> list[dict]:
+    """Train the DDQN defender with small, stable settings for a laptop run."""
     args = SimpleNamespace(
         smoke=False,
         episodes=episodes,
@@ -59,6 +68,7 @@ def run_ddqn(episodes: int) -> list[dict]:
 
 
 def run_madrl(episodes: int) -> list[dict]:
+    """Run a compact CTDE/MADRL stability diagnostic."""
     args = SimpleNamespace(
         smoke=False,
         episodes=episodes,

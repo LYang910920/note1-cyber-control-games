@@ -145,16 +145,21 @@ def train(args):
 
 
 if __name__ == "__main__":
-    p = argparse.ArgumentParser()
-    p.add_argument("--smoke", action="store_true")
-    p.add_argument("--episodes", type=int, default=200)
-    p.add_argument("--hidden", type=int, default=128)
-    p.add_argument("--lr", type=float, default=3e-4)
-    p.add_argument("--gamma", type=float, default=0.99)
-    p.add_argument("--entropy-coef", type=float, default=0.01)
-    p.add_argument("--log-every", type=int, default=10)
-    p.add_argument("--seed", type=int, default=0)
+    p = argparse.ArgumentParser(
+        description="Run a compact CTDE/MADRL attacker-defender training loop."
+    )
+    p.add_argument("--smoke", action="store_true", help="Run a tiny execution check.")
+    p.add_argument("--episodes", type=int, default=200, help="Number of training episodes.")
+    p.add_argument("--horizon", type=int, default=None, help="Decision epochs per episode.")
+    p.add_argument("--hidden", type=int, default=128, help="Hidden width for actors and critics.")
+    p.add_argument("--lr", type=float, default=3e-4, help="Adam learning rate.")
+    p.add_argument("--gamma", type=float, default=0.99, help="Discount factor.")
+    p.add_argument("--entropy-coef", type=float, default=0.01, help="Entropy bonus coefficient.")
+    p.add_argument("--log-every", type=int, default=10, help="Episode interval for console logs and history rows.")
+    p.add_argument("--seed", type=int, default=0, help="Random seed.")
     args = p.parse_args()
     if args.smoke:
-        args.episodes = 3; args.log_every = 1; args.hidden = 32
+        args.episodes = 3
+        args.log_every = 1
+        args.hidden = 32
     train(args)

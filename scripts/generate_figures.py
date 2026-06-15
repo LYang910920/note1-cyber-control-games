@@ -1,3 +1,10 @@
+"""Generate static figures for the Note 1 README and teaching notes.
+
+The script is intentionally deterministic and lightweight.  It does not train
+neural policies; it visualizes model behavior, hand-coded policies, and the
+architecture diagrams used for orientation.
+"""
+
 from pathlib import Path
 import sys
 
