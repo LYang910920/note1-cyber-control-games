@@ -1,4 +1,7 @@
 """
+Copyright (c) 2026 Luxing Yang.
+Licensed under the MIT License. See LICENSE in the repository root.
+
 Shared cyber-dynamics utilities for the lecture-note examples.
 
 The goal is clarity rather than maximum speed.  The functions implement:

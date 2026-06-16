@@ -1,4 +1,7 @@
 """
+Copyright (c) 2026 Luxing Yang.
+Licensed under the MIT License. See LICENSE in the repository root.
+
 Hybrid cyber-defense environment for ODE-RL, DDQN, PPO, SAC, and MADRL examples.
 
 The environment illustrates the three control types used in the lecture notes:

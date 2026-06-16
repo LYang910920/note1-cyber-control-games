@@ -1,4 +1,7 @@
 """
+Copyright (c) 2026 Luxing Yang.
+Licensed under the MIT License. See LICENSE in the repository root.
+
 Small CTDE/MADRL example for an attacker-defender cyber Markov game.
 
 This is a deliberately compact MAPPO-like skeleton:

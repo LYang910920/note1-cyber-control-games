@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Copyright (c) 2026 Luxing Yang.
+# Licensed under the MIT License. See LICENSE in the repository root.
+
 set -euo pipefail
 
 python src/cyber_dynamics.py

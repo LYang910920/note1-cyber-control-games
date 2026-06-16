@@ -1,5 +1,8 @@
 """Run longer Note 1 diagnostics and save reader-friendly artifacts.
 
+Copyright (c) 2026 Luxing Yang.
+Licensed under the MIT License. See LICENSE in the repository root.
+
 This script is separate from smoke tests.  Smoke tests answer "does the code
 run?" while this script answers "do the teaching metrics move in a sensible
 direction over time?"

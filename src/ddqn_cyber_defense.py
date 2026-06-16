@@ -1,4 +1,7 @@
 """
+Copyright (c) 2026 Luxing Yang.
+Licensed under the MIT License. See LICENSE in the repository root.
+
 DDQN defender for a sampled-data cyber-defense MDP.
 
 The defender has discrete actions: none, patch, clean, deceive, isolate.  The

@@ -1,3 +1,6 @@
+# Copyright (c) 2026 Luxing Yang.
+# Licensed under the MIT License. See LICENSE in the repository root.
+
 from pathlib import Path
 import sys
 import unittest
