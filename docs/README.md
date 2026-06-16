@@ -10,8 +10,7 @@ Recommended order:
 4. Read the DDQN section before the CTDE/MADRL section.
 5. Use `implementation_companion.pdf` when mapping equations to code.
 6. Use `code_run_guide.pdf` for run commands and troubleshooting.
-7. Use `LEARNING_PATH.md` to connect this note with the network optimal-control and PINN/PIDL repositories.
-8. Use `EXTENDING.md` before adapting the examples to larger graph or cyber-security models.
+7. Use `EXTENDING.md` before adapting the examples to larger graph or cyber-security models.
 
 Source files are in `latex/`.  The source is included for inspection and adaptation; the checked-in PDF is the version intended for reading.
 
@@ -27,9 +26,4 @@ The runnable code mirrors this lecture order:
 | DDQN sampled-data defender | `src/ddqn_cyber_defense.py` |
 | CTDE/MADRL attacker-defender game | `src/madrl_ctde_hybrid_game.py` |
 
-Extension and cross-repository guides:
-
-| Guide | Purpose |
-|---|---|
-| `LEARNING_PATH.md` | Connects this repo to `network-control-differential-games` and Note 2. |
-| `EXTENDING.md` | Explains how to move from compact SIR/hybrid examples to larger network models. |
+For extension and cross-repository guidance, read `EXTENDING.md`.

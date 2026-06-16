@@ -1,28 +1,10 @@
 # Extending Note 1
 
-This repository starts with compact cyber-control examples.  The extension path is to keep the same modeling contracts while replacing the small state, environment, and learner with richer versions.
+Keep the same contracts while replacing the small teaching model:
 
-## What You Need
-
-| Need | Where it appears now |
-|---|---|
-| State variables and constraints | `src/cyber_dynamics.py`, `src/cyber_hybrid_env.py` |
-| Continuous-time dynamics | `controlled_sir_rhs` and `hybrid_rhs` |
-| Decision interface | `HybridCyberDefenseEnv.reset` and `HybridCyberDefenseEnv.step` |
-| Objective or payoff | reward calculation in `HybridCyberDefenseEnv.step` |
-| Baseline optimal-control solver | `solve_fbsm` in `src/fbsm_malware_baseline.py` |
-| Learning loop | `src/ddqn_cyber_defense.py` and `src/madrl_ctde_hybrid_game.py` |
-
-## What You Get
-
-The current scripts produce:
-
-| Output | Meaning |
-|---|---|
-| `figures/*.png` | Visual checks for dynamics, policies, and neural architectures |
-| `experiments/*.csv` | Logged training or iteration diagnostics |
-| `experiments/training_summary.md` | Short interpretation of the logged metrics |
-| GitHub Actions smoke tests | Basic confidence that scripts and figures still run |
+```text
+state -> dynamics -> environment step -> reward/payoff -> baseline or learner -> diagnostics
+```
 
 ## Extension Path
 
@@ -35,27 +17,19 @@ The current scripts produce:
 
 ## Scaling To Network Models
 
-The current state is compartmental: `S`, `I`, `R`, and a deception level.  A large network model usually needs one of these representations:
+For larger models, move from compartment states to degree-level arrays, node-level vectors, graph features, or event-driven jump maps. Keep the first version small and testable before adding a large RL/MARL framework.
 
-| Representation | Use when | Implementation direction |
+## Related Learning Path
+
+Use these repositories together:
+
+| Step | Repository | Focus |
 |---|---|---|
-| Degree-level state | nodes with similar degree can be grouped | track arrays by degree class and reuse PMP/FBSM patterns |
-| Node-level state | individual devices have different risk or value | use vectors of node states and sparse adjacency matrices |
-| Graph-feature state | policy should depend on topology | add node features and use a GNN policy or critic |
-| Event-driven state | attacks/patches occur as discrete events | keep ODE flow but add jump maps and event queues |
+| 1 | `network-control-differential-games` | PMP, FBSM, degree/node-level network control, differential games |
+| 2 | `note1-cyber-control-games` | ODE-to-RL conversion, DDQN, CTDE/MADRL |
+| 3 | `note2-pinn-pidl-cyber-control` | PINN/PIDL inverse learning and neural optimal control |
 
-For degree-level and node-level optimal-control patterns, compare with the companion repository:
-
-https://github.com/LYang910920/network-control-differential-games
-
-Useful pieces from that repository:
-
-| Concept | Where to look there | How it helps here |
-|---|---|---|
-| Degree-k SIS control | `examples/lecture/code/simple_degree_k_control.py` | Shows how to replace scalar compartments with degree classes |
-| Node-level control/game | `examples/lecture/code/network_control_examples.py` | Shows how to move from population shares to node vectors |
-| Hybrid impulse simulation | `examples/lecture/code/network_control_examples.py` | Matches the jump-map idea in `cyber_hybrid_env.py` |
-| Model adaptation checklist | `README.md` | Provides a disciplined order for changing dynamics and Hamiltonians |
+Companion repository: https://github.com/LYang910920/network-control-differential-games
 
 ## Research-Grade Checklist
 
