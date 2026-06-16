@@ -2,6 +2,8 @@
 
 Executable companion for **Note 1: Game Learning for Cyber Control**.  The repo keeps the teaching path small: continuous-time cyber dynamics, an FBSM optimal-control baseline, DDQN defense learning, and a compact attacker-defender CTDE/MADRL example.
 
+The main goal is to show how one cyber propagation model can be studied from three angles: classical optimal control, sampled-data reinforcement learning, and multi-agent game learning.  Each example is short enough to read directly, but still produces figures and logs that make the numerical behavior visible.
+
 If this is your first visit, start with `START_HERE.md`.
 
 ## Quick Start
@@ -44,6 +46,29 @@ cyber ODE dynamics
 ```
 
 ![Neural architectures](figures/neural_architectures.png)
+
+## What You Learn
+
+| Topic | In this repo |
+|---|---|
+| Continuous-time modeling | Malware spread is represented by ODE state variables and control inputs. |
+| Optimal-control baseline | FBSM gives a deterministic reference policy before learning is introduced. |
+| Hybrid RL | The continuous ODE is wrapped into a reset/step environment for sampled actions. |
+| Game learning | Defender and attacker policies are trained with a compact CTDE/MADRL loop. |
+
+## Representative Experiments
+
+The FBSM example gives a classical control baseline: the state trajectory and patching intensity show how the controller suppresses the infected compartment over time.
+
+![FBSM malware-control baseline](figures/fbsm_malware_control.png)
+
+The hybrid policy comparison rolls out the same cyber scenario under no defense, fixed defense, and adaptive defense.  This is the quickest visual check that the environment and reward design are producing meaningful behavior.
+
+![Hybrid policy comparison](figures/hybrid_policy_comparison.png)
+
+The training diagnostics plot summarizes longer teaching runs.  FBSM should show the clearest convergence; DDQN and CTDE/MADRL should be read as stochastic learning/stability diagnostics rather than formal equilibrium proofs.
+
+![Training iteration diagnostics](figures/training_iteration_diagnostics.png)
 
 ## Main Outputs
 
