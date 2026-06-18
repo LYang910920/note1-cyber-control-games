@@ -6,7 +6,12 @@ DDQN defender for a sampled-data cyber-defense MDP.
 
 The defender has discrete actions: none, patch, clean, deceive, isolate.  The
 attacker is scripted.  This is the simplest RL bridge from a continuous-time ODE
-model to an MDP: action -> ODE/jump transition -> reward -> replay update.
+model to an MDP:
+
+    observe x(t_k^-) -> choose a_k -> jump/ODE transition -> reward -> replay
+
+The MDP time step is the environment decision interval `EnvConfig.dt`.  RK4
+substeps inside `env.step` are only numerical integration points.
 """
 from __future__ import annotations
 
@@ -84,7 +89,8 @@ def train(args):
 
     Required arguments are provided by the CLI or by
     `scripts/run_training_iterations.py`.  The returned network maps the current
-    cyber state to Q-values for the five defender actions.
+    pre-jump cyber observation at a decision epoch to Q-values for the five
+    defender actions.
     """
     random.seed(args.seed); np.random.seed(args.seed); torch.manual_seed(args.seed)
     env = HybridCyberDefenseEnv(seed=args.seed)

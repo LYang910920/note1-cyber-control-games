@@ -20,6 +20,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from cyber_hybrid_env import HybridCyberDefenseEnv, scripted_attacker
+from evaluation_metrics import evaluate_policy_suite
 from fbsm_malware_baseline import solve_fbsm
 
 
@@ -71,14 +72,14 @@ def plot_hybrid_rollout(output_dir: Path) -> None:
     axes[0].plot(t, states[:, 2], label="Recovered/protected")
     axes[0].plot(t, states[:, 3], label="Deception level")
     axes[0].set_ylabel("State")
-    axes[0].set_title("Hybrid ODE-RL rollout under a simple threshold defender")
+    axes[0].set_title("Hybrid rollout: observe, act, jump if needed, then flow")
     axes[0].legend(loc="best")
     axes[0].grid(alpha=0.25)
 
     axes[1].step(np.arange(len(actions)), actions, where="post", color="black")
     axes[1].set_yticks([env.DEF_PATCH, env.DEF_CLEAN, env.DEF_ISOLATE])
     axes[1].set_yticklabels(["patch", "clean", "isolate"])
-    axes[1].set_xlabel("Decision epoch")
+    axes[1].set_xlabel("Decision epoch k, observation at t_k")
     axes[1].set_ylabel("Defender mode")
     axes[1].grid(alpha=0.25)
     fig.tight_layout()
@@ -87,32 +88,63 @@ def plot_hybrid_rollout(output_dir: Path) -> None:
 
 
 def plot_hybrid_policy_comparison(output_dir: Path) -> None:
-    policies = [
-        ("No defense", lambda env, k, obs: env.DEF_NONE),
-        ("Always patch", lambda env, k, obs: (env.DEF_PATCH, 0.8)),
-        ("Always clean", lambda env, k, obs: (env.DEF_CLEAN, 0.8)),
-        ("Adaptive hybrid", lambda env, k, obs: (
-            (env.DEF_ISOLATE, 0.8) if obs[1] > 0.20 else
-            (env.DEF_DECEIVE, 0.7) if k < 20 else
-            (env.DEF_PATCH, 0.7)
-        )),
-    ]
-    fig, ax = plt.subplots(figsize=(8, 4.5))
-    for label, policy in policies:
-        env = HybridCyberDefenseEnv(seed=7)
-        obs = env.reset()
-        compromised = [obs[1]]
-        for k in range(50):
-            obs, _, done, _ = env.step(policy(env, k, obs), scripted_attacker(env, k))
-            compromised.append(obs[1])
-            if done:
-                break
-        ax.plot(compromised, linewidth=2, label=label)
-    ax.set_title("Hybrid defense policy comparison")
-    ax.set_xlabel("Decision epoch")
-    ax.set_ylabel("Compromised share I(t)")
+    rollouts, metrics = evaluate_policy_suite(horizon=50, seed=7)
+    colors = ["#4c78a8", "#f58518", "#54a24b", "#b279a2"]
+    linestyles = ["-", "--", "-.", ":"]
+    markers = ["o", "s", "^", "D"]
+    labels = [row["policy"] for row in metrics]
+    x = np.arange(len(labels))
+
+    fig, axes = plt.subplots(2, 2, figsize=(11, 7.2))
+    ax = axes[0, 0]
+    for idx, rollout in enumerate(rollouts):
+        states = rollout["states"]
+        t = np.arange(states.shape[0])
+        markevery = max(1, len(t) // 8)
+        ax.plot(
+            t,
+            states[:, 1],
+            label=rollout["label"],
+            color=colors[idx],
+            linestyle=linestyles[idx],
+            marker=markers[idx],
+            markevery=markevery,
+            linewidth=2.0,
+            markersize=4,
+        )
+    ax.set_title("Compromised trajectory at observation points")
+    ax.set_xlabel("Decision epoch k")
+    ax.set_ylabel("Compromised share I")
     ax.grid(alpha=0.25)
-    ax.legend(loc="best")
+    ax.legend(fontsize=8)
+
+    ax = axes[0, 1]
+    ax.bar(x, [row["cumulative_compromised"] for row in metrics], color=colors, alpha=0.85)
+    ax.set_title("Cumulative compromised exposure")
+    ax.set_ylabel("sum mean(I) * Delta t")
+    ax.set_xticks(x, labels, rotation=20, ha="right")
+    ax.grid(axis="y", alpha=0.25)
+
+    width = 0.36
+    ax = axes[1, 0]
+    ax.bar(x - width / 2, [row["peak_compromised"] for row in metrics], width, label="peak I", color="#e45756", alpha=0.80)
+    ax.bar(x + width / 2, [row["final_compromised"] for row in metrics], width, label="final I", color="#72b7b2", alpha=0.85)
+    ax.set_title("Peak and final compromised share")
+    ax.set_ylabel("Compromised share")
+    ax.set_xticks(x, labels, rotation=20, ha="right")
+    ax.grid(axis="y", alpha=0.25)
+    ax.legend(fontsize=8)
+
+    ax = axes[1, 1]
+    costs = [row["total_defender_cost"] for row in metrics]
+    ax.barh(labels, costs, color=colors, alpha=0.85)
+    for idx, row in enumerate(metrics):
+        note = f'impulses={row["impulse_events"]}'
+        ax.text(costs[idx], idx, f" {note}", va="center", fontsize=8)
+    ax.set_title("Defender cost and impulse count")
+    ax.set_xlabel("Total defender cost (lower is better)")
+    ax.set_xlim(0, max(costs) * 1.18)
+    ax.grid(axis="x", alpha=0.25)
     fig.tight_layout()
     fig.savefig(output_dir / "hybrid_policy_comparison.png", dpi=180)
     plt.close(fig)

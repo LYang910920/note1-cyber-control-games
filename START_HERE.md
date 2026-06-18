@@ -7,23 +7,35 @@ This page is the compact map. You can ignore most files at first.
 ```text
 lecture note
   -> continuous-time cyber dynamics
+  -> impulse points and sampled decision points
   -> FBSM baseline, DDQN, CTDE/MADRL
   -> figures and training diagnostics
 ```
 
+## Timing In One Picture
+
+```text
+FBSM: continuous control u(t) on an ODE time grid
+DDQN: observe at t_k, act once, jump/flow to t_{k+1}
+MADRL: both players observe at t_k, choose joint actions, jump/flow to t_{k+1}
+```
+
+Read `docs/MODEL_TO_MDP.md` if the difference between continuous time, impulse jumps, and MDP/MG decision epochs is the main question.
+
 ## Five-Minute Path
 
 1. Open `docs/note1_game_learning_cyber_control.pdf` for the lecture narrative.
-2. Run `bash scripts/run_smoke_tests.sh` to check the environment.
-3. Run `python scripts/generate_figures.py` to recreate the figures.
-4. Run `python scripts/run_training_iterations.py` for longer diagnostics.
-5. Read `docs/EXTENDING.md` when you want to scale the model.
+2. Read `docs/MODEL_TO_MDP.md` for the continuous/impulse/MDP timing convention.
+3. Run `bash scripts/run_smoke_tests.sh` to check the environment.
+4. Run `python scripts/generate_figures.py` to recreate the figures.
+5. Run `python scripts/run_training_iterations.py` for longer diagnostics.
+6. Read `docs/EXTENDING.md` when you want to scale the model.
 
 ## Folder Map
 
 | Path | Purpose |
 |---|---|
-| `docs/` | lecture note, implementation notes, extension guide |
+| `docs/` | lecture note, model-to-MDP guide, implementation notes, extension guide |
 | `src/` | executable models and learning algorithms |
 | `scripts/` | commands for figures, smoke tests, and diagnostics |
 | `experiments/` | CSV histories and training summary |
@@ -34,8 +46,9 @@ lecture note
 
 1. `src/cyber_dynamics.py`: shared state conventions and ODE integration.
 2. `src/cyber_hybrid_env.py`: sampled decisions, ODE flow, jump maps, rewards.
-3. `src/fbsm_malware_baseline.py`: continuous-control PMP/FBSM baseline.
-4. `src/ddqn_cyber_defense.py`: single-agent defender learning.
-5. `src/madrl_ctde_hybrid_game.py`: attacker-defender CTDE/MADRL training loop.
+3. `src/evaluation_metrics.py`: policy rollouts and multi-metric comparison helpers.
+4. `src/fbsm_malware_baseline.py`: continuous-control PMP/FBSM baseline.
+5. `src/ddqn_cyber_defense.py`: single-agent sampled-data MDP learning.
+6. `src/madrl_ctde_hybrid_game.py`: attacker-defender sampled-data Markov-game loop.
 
 For command details, use `scripts/README.md`. For module details, use `src/README.md`.

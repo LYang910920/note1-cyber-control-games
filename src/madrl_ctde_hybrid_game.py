@@ -10,6 +10,10 @@ This is a deliberately compact MAPPO-like skeleton:
   * episodic rollouts through the hybrid ODE environment;
   * policy-gradient updates with a shared advantage estimate.
 
+The Markov-game step is sampled-data: both agents observe at t_k, choose joint
+actions, the environment applies any impulse jump, integrates the ODE until
+t_{k+1}, and returns the next observation and both rewards.
+
 For serious experiments, replace this with a full MAPPO implementation that uses
 GAE, mini-batches, clipped policy ratios, entropy scheduling, and opponent pools.
 The value of this file is pedagogical: it makes the interaction loop explicit.

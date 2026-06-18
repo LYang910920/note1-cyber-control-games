@@ -37,6 +37,20 @@ class CoreModelTests(unittest.TestCase):
         self.assertIn("attacker", rewards)
         self.assertIsInstance(done, bool)
         self.assertIn("path", info)
+        self.assertEqual(info["decision_epoch"], 0)
+        self.assertEqual(info["transition_order"], "observe -> jump_map -> ODE flow -> next_observation")
+        self.assertAlmostEqual(info["t_observe"], 0.0)
+        self.assertAlmostEqual(info["t_next_observe"], env.cfg.dt)
+        self.assertEqual(info["solver_substeps"], env.cfg.substeps)
+
+    def test_isolation_action_creates_impulse_jump(self):
+        env = HybridCyberDefenseEnv(seed=7)
+        env.reset(x0=np.array([0.75, 0.20, 0.05, 0.0]))
+        _, _, _, info = env.step(defender_action=(env.DEF_ISOLATE, 0.8), attacker_action=scripted_attacker(env, 0))
+
+        self.assertTrue(info["jump_applied"])
+        self.assertLess(info["post_jump"][1], info["pre_jump"][1])
+        self.assertGreater(info["post_jump"][2], info["pre_jump"][2])
 
     def test_fbsm_smoke_returns_finite_objective(self):
         t, x, u, lam, objective = solve_fbsm(n=30, max_iter=3)

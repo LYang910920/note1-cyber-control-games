@@ -11,6 +11,12 @@ The environment illustrates the three control types used in the lecture notes:
 
 The code intentionally avoids gym/gymnasium dependencies so that it can be read
 as plain Python.  It still follows the familiar reset/step interface.
+
+Timing convention
+-----------------
+At epoch k, policies observe x(t_k^-), choose actions, optional impulses create
+x(t_k^+), the ODE is integrated over [t_k,t_{k+1}), and the next observation is
+x(t_{k+1}^-).  RK4 substeps are internal solver points, not extra decisions.
 """
 from __future__ import annotations
 
@@ -24,8 +30,13 @@ Action = Union[int, Tuple[int, float]]
 
 @dataclass
 class EnvConfig:
+    # dt is the sampled-data decision interval Delta t. Policies observe and
+    # act once per interval, at t_k = k * dt.
     dt: float = 1.0
+    # substeps are internal RK4 solver steps inside one environment transition.
+    # They improve integration accuracy but do not create extra replay items.
     substeps: int = 10
+    # horizon is the maximum number of policy decisions in one episode.
     horizon: int = 100
     params: HybridParams = field(default_factory=HybridParams)
     # reward weights
@@ -99,7 +110,8 @@ class HybridCyberDefenseEnv:
 
         For a richer study, append time-to-go, budget remaining, or moving
         averages.  Keeping the default observation equal to x(t_k) makes the
-        Markov-game conversion transparent.
+        Markov-game conversion transparent.  The environment uses the pre-jump
+        state at the current decision epoch as the observation.
         """
         return self.state.copy()
 
@@ -150,12 +162,24 @@ class HybridCyberDefenseEnv:
         return project_simplex3(y)
 
     def step(self, defender_action: Action, attacker_action: Action = ATK_EXPLOIT):
+        """Advance one sampled-data MDP/Markov-game transition.
+
+        The ordering is deliberately explicit:
+
+        1. observe the pre-jump state x(t_k^-);
+        2. decode defender and attacker actions;
+        3. apply an instantaneous jump, if the chosen mode has one;
+        4. integrate the continuous ODE flow over one decision interval;
+        5. return x(t_{k+1}^-) as the next observation.
+        """
+        epoch = self.t
+        t_start = epoch * self.cfg.dt
         dpar = self.defense_parameters(defender_action)
         apar = self.attack_parameters(attacker_action)
         pre_jump = self.state.copy()
         post_jump = self.jump_map(pre_jump, dpar)
         rhs = lambda x, t: hybrid_rhs(x, dpar, apar, self.cfg.params)
-        next_state, path = rk4_integrate(rhs, post_jump, t0=self.t * self.cfg.dt,
+        next_state, path = rk4_integrate(rhs, post_jump, t0=t_start,
                                          dt=self.cfg.dt, substeps=self.cfg.substeps,
                                          project=project_simplex3)
         self.state = next_state
@@ -174,7 +198,24 @@ class HybridCyberDefenseEnv:
         defender_reward = -self.cfg.dt * defense_cost
         attacker_reward = float(self.cfg.dt * (8.0 * I_mean + 1.0 * S_mean - 2.0 * next_state[3] - apar["cost"]))
         done = bool(self.t >= self.cfg.horizon or next_state[1] < 1e-5 or next_state[1] > 0.95)
-        info = {"pre_jump": pre_jump, "post_jump": post_jump, "path": path, "dpar": dpar, "apar": apar}
+        info = {
+            "decision_epoch": epoch,
+            "t_observe": t_start,
+            "t_pre_jump": t_start,
+            "t_post_jump": t_start,
+            "t_next_observe": t_start + self.cfg.dt,
+            "decision_dt": self.cfg.dt,
+            "solver_substeps": self.cfg.substeps,
+            "transition_order": "observe -> jump_map -> ODE flow -> next_observation",
+            "observation_state": "pre_jump_state_at_t_k_minus",
+            "next_observation_state": "state_at_t_k_plus_1_minus",
+            "jump_applied": bool(np.linalg.norm(post_jump - pre_jump, ord=1) > 1e-12),
+            "pre_jump": pre_jump,
+            "post_jump": post_jump,
+            "path": path,
+            "dpar": dpar,
+            "apar": apar,
+        }
         return self.observe(), {"defender": defender_reward, "attacker": attacker_reward}, done, info
 
 

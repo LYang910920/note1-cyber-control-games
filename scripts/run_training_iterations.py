@@ -25,6 +25,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from ddqn_cyber_defense import train as train_ddqn
+from evaluation_metrics import evaluate_policy_suite
 from fbsm_malware_baseline import solve_fbsm
 from madrl_ctde_hybrid_game import train as train_madrl
 
@@ -88,6 +89,12 @@ def run_madrl(episodes: int) -> list[dict]:
     return history
 
 
+def run_policy_comparison() -> list[dict]:
+    """Compare fixed and adaptive policies with shared sampled-data metrics."""
+    _, rows = evaluate_policy_suite(horizon=50, seed=7)
+    return rows
+
+
 def rolling_mean(values: list[float], window: int = 5) -> list[float]:
     out = []
     for idx in range(len(values)):
@@ -98,19 +105,41 @@ def rolling_mean(values: list[float], window: int = 5) -> list[float]:
     return out
 
 
-def write_summary(path: Path, fbsm: list[dict], ddqn: list[dict], madrl: list[dict]) -> None:
+def write_summary(path: Path, fbsm: list[dict], ddqn: list[dict], madrl: list[dict], policy_metrics: list[dict]) -> None:
     fbsm_ratio = fbsm[-1]["max_control_change"] / max(fbsm[0]["max_control_change"], 1e-12)
     ddqn_eval = [r["evaluation_return"] for r in ddqn]
     madrl_loss = [r["loss"] for r in madrl]
+    timing = policy_metrics[0]
+    policy_rows = "\n".join(
+        f'| {row["policy"]} | {row["cumulative_compromised"]:.3f} | {row["peak_compromised"]:.3f} | '
+        f'{row["final_compromised"]:.3f} | {row["total_defender_cost"]:.2f} | {row["impulse_events"]} |'
+        for row in policy_metrics
+    )
     text = f"""# Training Summary
 
 These runs are intentionally small enough for a laptop, but long enough to show the main convergence or stabilization signals.
+
+## Timing Parameters
+
+| Parameter | Value | Meaning |
+|---|---:|---|
+| Decision interval `Delta t` | {timing["decision_dt"]:.2f} | Policies observe and act once per interval. |
+| RK4 substeps per interval | {timing["rk4_substeps"]} | Internal ODE solver steps, not extra MDP/MG decisions. |
+| Policy-comparison horizon | {timing["decision_epochs"]} | Number of sampled decision epochs in each rollout. |
 
 | Diagnostic | Start | End | Interpretation |
 |---|---:|---:|---|
 | FBSM max control change | {fbsm[0]["max_control_change"]:.3e} | {fbsm[-1]["max_control_change"]:.3e} | Control updates shrink to {fbsm_ratio:.3e} of the initial change. |
 | DDQN evaluation return | {ddqn_eval[0]:.3f} | {ddqn_eval[-1]:.3f} | Stochastic policy learning is noisy, so inspect the rolling trend rather than one episode. |
 | MADRL joint loss | {madrl_loss[0]:.3f} | {madrl_loss[-1]:.3f} | Compact CTDE runs are stability diagnostics, not equilibrium proofs. |
+
+## Representative Policy Comparison
+
+Lower cumulative/peak/final compromised values and lower defender cost are better.
+
+| Policy | Cumulative compromised | Peak compromised | Final compromised | Defender cost | Impulse events |
+|---|---:|---:|---:|---:|---:|
+{policy_rows}
 
 For longer research runs, increase `--episodes`, run multiple seeds, and compare against no-defense and rule-based baselines.
 """
@@ -165,11 +194,13 @@ def main() -> None:
     fbsm = run_fbsm()
     ddqn = run_ddqn(args.episodes)
     madrl = run_madrl(args.episodes)
+    policy_metrics = run_policy_comparison()
 
     write_csv(exp_dir / "fbsm_iteration_history.csv", fbsm)
     write_csv(exp_dir / "ddqn_training_history.csv", ddqn)
     write_csv(exp_dir / "madrl_training_history.csv", madrl)
-    write_summary(exp_dir / "training_summary.md", fbsm, ddqn, madrl)
+    write_csv(exp_dir / "policy_comparison_metrics.csv", policy_metrics)
+    write_summary(exp_dir / "training_summary.md", fbsm, ddqn, madrl, policy_metrics)
     plot_training_diagnostics(fig_dir / "training_iteration_diagnostics.png", fbsm, ddqn, madrl)
 
     print(f"Wrote experiment CSV files to {exp_dir}")

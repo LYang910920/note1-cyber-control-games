@@ -9,15 +9,18 @@ state -> dynamics -> environment step -> reward/payoff -> baseline or learner ->
 ## Extension Path
 
 1. **Change the state.** Add new compartments, budget variables, node features, or uncertainty states. Update projection or clipping logic so the state remains physically meaningful.
-2. **Change the dynamics.** Replace `controlled_sir_rhs` or `hybrid_rhs` with a new `f(x,u,a,t)`. Keep the function signature simple and write a short smoke test before adding learning.
-3. **Change the reward.** Decide which quantities should be minimized by the defender and maximized by the attacker. Add clear weights to `EnvConfig`.
-4. **Add baselines before learning.** Compare no-defense, constant-defense, threshold, and FBSM-style policies before training DDQN or MARL.
-5. **Scale the learner.** Move from the compact DDQN/MADRL files to a stronger library only after the environment contract is stable.
-6. **Add diagnostics.** For stochastic policies, report multiple seeds, rolling means, confidence intervals, and baseline comparisons.
+2. **Decide the timing.** State whether each action changes ODE rates, creates an impulse jump, or does both. Keep the observation point `x(t_k^-)` and next observation `x(t_{k+1}^-)` consistent.
+3. **Change the dynamics.** Replace `controlled_sir_rhs` or `hybrid_rhs` with a new `f(x,u,a,t)`. Keep the function signature simple and write a short smoke test before adding learning.
+4. **Change the reward.** Decide which quantities should be minimized by the defender and maximized by the attacker. Add clear weights to `EnvConfig`.
+5. **Add baselines before learning.** Compare no-defense, constant-defense, threshold, and FBSM-style policies before training DDQN or MARL.
+6. **Scale the learner.** Move from the compact DDQN/MADRL files to a stronger library only after the environment contract is stable.
+7. **Add diagnostics.** For stochastic policies, report multiple seeds, rolling means, confidence intervals, and baseline comparisons.
 
 ## Scaling To Network Models
 
 For larger models, move from compartment states to degree-level arrays, node-level vectors, graph features, or event-driven jump maps. Keep the first version small and testable before adding a large RL/MARL framework.
+
+For network-scale impulse models, record whether a jump is node-local, edge-local, or global. For example, isolating one subnet may create an immediate node-state jump, while patching campaigns may change vulnerability rates over the following interval.
 
 ## Related Learning Path
 

@@ -12,6 +12,10 @@ The goal is clarity rather than maximum speed.  The functions implement:
 
 All states are proportions.  For SIR-style models, the first three components
 should sum to one.  The helper functions renormalize small numerical drift.
+
+RK4 substeps are numerical solver steps.  They are not MDP or Markov-game
+decision points; policies only act at the outer observation times selected by
+the environment.
 """
 from __future__ import annotations
 
@@ -59,8 +63,9 @@ def rk4_integrate(
     dt:
         Length of integration interval.
     substeps:
-        Number of smaller RK4 steps.  Increase this if dynamics are stiff or if
-        state mass drifts noticeably.
+        Number of smaller RK4 steps inside this one integration interval.
+        Increase this if dynamics are stiff or if state mass drifts noticeably.
+        These substeps are hidden from RL/MARL policies.
     project:
         Optional projection/renormalization applied after every substep.
 

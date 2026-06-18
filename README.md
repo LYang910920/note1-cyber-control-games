@@ -4,6 +4,8 @@ Executable companion for **Note 1: Game Learning for Cyber Control**.  The repo 
 
 The main goal is to show how one cyber propagation model can be studied from three angles: classical optimal control, sampled-data reinforcement learning, and multi-agent game learning.  Each example is short enough to read directly, but still produces figures and logs that make the numerical behavior visible.
 
+The repository is especially careful about timing: continuous flow happens between decision points, impulse actions can create immediate state jumps, and the DDQN/MADRL examples expose only the sampled decision points as MDP or Markov-game observations.
+
 If this is your first visit, start with `START_HERE.md`.
 
 ## Quick Start
@@ -29,6 +31,7 @@ python scripts/run_training_iterations.py
 |---|---|
 | Short orientation | `START_HERE.md` |
 | Lecture narrative | `docs/note1_game_learning_cyber_control.pdf` |
+| Continuous/impulse/MDP guide | `docs/MODEL_TO_MDP.md` |
 | Source-code map | `src/README.md` |
 | Script and output map | `scripts/README.md` |
 | Training curves and CSVs | `experiments/README.md` |
@@ -47,14 +50,29 @@ cyber ODE dynamics
 
 ![Neural architectures](figures/neural_architectures.png)
 
+## Timing Convention
+
+The hybrid environment uses one clear transition order:
+
+```text
+observe x(t_k^-)
+  -> choose action(s)
+  -> apply impulse jump x(t_k^+) if needed
+  -> integrate continuous ODE over [t_k, t_{k+1})
+  -> return x(t_{k+1}^-) as the next observation
+```
+
+FBSM solves a continuous-time optimal-control problem on a numerical mesh; it does **not** create an MDP.  DDQN and CTDE/MADRL convert the simulator into a sampled-data MDP or Markov game, where `EnvConfig.dt` is the decision interval and RK4 `substeps` are only internal integration steps.  See `docs/MODEL_TO_MDP.md` for the full mapping.
+
 ## What You Learn
 
 | Topic | In this repo |
 |---|---|
 | Continuous-time modeling | Malware spread is represented by ODE state variables and control inputs. |
 | Optimal-control baseline | FBSM gives a deterministic reference policy before learning is introduced. |
-| Hybrid RL | The continuous ODE is wrapped into a reset/step environment for sampled actions. |
-| Game learning | Defender and attacker policies are trained with a compact CTDE/MADRL loop. |
+| Impulse and hybrid control | Some modes change continuous rates; isolation creates an immediate jump at `t_k`. |
+| Hybrid RL | The ODE and jump map are wrapped into a sampled-data MDP for DDQN. |
+| Game learning | Defender and attacker decisions form a sampled-data Markov game for CTDE/MADRL. |
 
 ## Representative Experiments
 
@@ -62,7 +80,7 @@ The FBSM example gives a classical control baseline: the state trajectory and pa
 
 ![FBSM malware-control baseline](figures/fbsm_malware_control.png)
 
-The hybrid policy comparison rolls out the same cyber scenario under no defense, fixed defense, and adaptive defense.  This is the quickest visual check that the environment and reward design are producing meaningful behavior.
+The hybrid policy comparison rolls out the same cyber scenario under no defense, fixed defense, and adaptive defense.  It compares multiple metrics, including compromised trajectory, cumulative compromised exposure, peak/final compromised share, defender reward, and impulse usage.
 
 ![Hybrid policy comparison](figures/hybrid_policy_comparison.png)
 
@@ -78,6 +96,7 @@ The training diagnostics plot summarizes longer teaching runs.  FBSM should show
 | `figures/hybrid_policy_comparison.png` | no-defense, fixed-defense, and adaptive-policy comparison |
 | `figures/hybrid_policy_rollout.png` | one hybrid rollout with defender and attacker actions |
 | `figures/training_iteration_diagnostics.png` | longer FBSM, DDQN, and CTDE/MADRL diagnostics |
+| `experiments/policy_comparison_metrics.csv` | multi-metric comparison of representative defense policies |
 | `experiments/*.csv` | logged histories behind the training plot |
 
 ## Validation
