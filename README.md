@@ -96,9 +96,9 @@ The game response matrix compares defender policies against several attacker str
 
 ![Attacker-defender response matrix](figures/game_response_matrix.png)
 
-The node-level robustness experiment shows a case where a low-dimensional open-loop FBSM schedule is computed with an underestimated propagation parameter, then deployed on a stochastic node graph.  The DDQN aggregate feedback policy observes the current compromised share and reacts to bursts, so the figure is a concrete example of when feedback learning can be more practical than an offline baseline.
+The node-level epidemic-model robustness experiment shows a case where a low-dimensional open-loop FBSM schedule is computed with an underestimated propagation parameter, then deployed on a stochastic graph.  Here **node-level** means every graph node has a local S/I/R epidemic state; the plotted curve is the aggregate infected-node share over action epochs.  The DDQN aggregate feedback policy observes the current infected-node share and reacts to bursts, so the figure is a concrete example of when feedback learning can be more practical than an offline baseline.
 
-![Node-level learning advantage](figures/node_level_learning_advantage.png)
+![Node-level epidemic model robustness](figures/node_level_learning_advantage.png)
 
 ## Main Outputs
 
@@ -110,11 +110,11 @@ The node-level robustness experiment shows a case where a low-dimensional open-l
 | `figures/hybrid_policy_rollout.png` | one hybrid rollout with defender and attacker actions |
 | `figures/training_iteration_diagnostics.png` | longer FBSM, DDQN, and CTDE/MADRL diagnostics |
 | `figures/game_response_matrix.png` | defender-policy performance against several attacker strategies |
-| `figures/node_level_learning_advantage.png` | node-level parameter-mismatch comparison: DDQN feedback versus nominal-beta FBSM |
+| `figures/node_level_learning_advantage.png` | node-level epidemic-model parameter-mismatch comparison: DDQN feedback versus nominal-beta FBSM |
 | `experiments/OUTPUT_PREVIEW.md` | categorized first-stop summary after longer experiment runs |
 | `experiments/policy_comparison_metrics.csv` | multi-metric comparison of representative defense policies |
 | `experiments/game_response_metrics.csv` | game-style attacker-defender response metrics |
-| `experiments/node_level_robustness_metrics.csv` | node-level robustness metrics over multiple random graph seeds |
+| `experiments/node_level_robustness_metrics.csv` | node-level epidemic-model robustness metrics over multiple random graph seeds |
 | `experiments/*.csv` | logged histories behind the training plot |
 
 ## Validation

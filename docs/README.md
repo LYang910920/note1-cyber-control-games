@@ -27,6 +27,6 @@ The runnable code mirrors this lecture order:
 | PMP/FBSM baseline | `src/fbsm_malware_baseline.py` |
 | DDQN sampled-data defender | `src/ddqn_cyber_defense.py` |
 | CTDE/MADRL attacker-defender game | `src/madrl_ctde_hybrid_game.py` |
-| Node-level robustness stress test | `src/node_level_robustness.py`, `figures/node_level_learning_advantage.png` |
+| Node-level epidemic-model robustness stress test | `src/node_level_robustness.py`, `figures/node_level_learning_advantage.png` |
 
 For extension and cross-repository guidance, read `EXTENDING.md`.

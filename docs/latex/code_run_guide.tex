@@ -90,7 +90,7 @@ Expected output:
 \begin{itemize}
 \item CSV histories under \texttt{experiments/};
 \item \texttt{OUTPUT\_PREVIEW.md} and \texttt{training\_summary.md};
-\item the training-diagnostics, game-response, and node-level robustness PNG figures.
+\item the training-diagnostics, game-response, and node-level epidemic-robustness PNG figures.
 \end{itemize}
 
 \section{How to Interpret Outputs}
@@ -105,7 +105,7 @@ Area under $I(t)$ & Total compromise burden over time; often more informative th
 Defender cost & Negative cumulative defender reward; lower is better when exposure is also controlled. \\
 Impulse events & How often immediate jump actions, such as isolation, were used. \\
 Game response matrix & Defender-policy performance against several attacker strategies. \\
-Node-level robustness plot & Parameter-mismatch stress test: nominal FBSM open-loop schedule versus DDQN aggregate feedback on a stochastic graph. \\
+Node-level epidemic robustness plot & Parameter-mismatch stress test: nominal FBSM open-loop schedule versus DDQN aggregate feedback on a stochastic graph where each node has a local S/I/R state. \\
 \bottomrule
 \end{longtable}
 

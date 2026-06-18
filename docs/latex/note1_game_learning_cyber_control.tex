@@ -996,23 +996,23 @@ Case & What to build & What the method needs & What to report \\
 \midrule
 FBSM malware baseline & Continuous SIR-style malware ODE with patching or cleaning intensity $u(t)$. & Known parameters, differentiable dynamics, running cost, terminal cost, control bounds. & Control-change convergence, objective, compromised trajectory, peak/final compromise, and open-loop control curve. \\
 DDQN malware defender & Sampled-data MDP with state $s_k=[S,I,R,z]$, discrete defense modes, jump map, and ODE flow. & Transition simulator, action map, reward, replay buffer, Q-network, fixed or documented nonuniform action schedule. & Training/evaluation return, cumulative compromise, peak/final compromise, defense cost, impulse count, and comparison with no-defense and fixed-policy baselines. \\
-Node-level robustness & Stochastic graph simulator with node infection, bursts, and aggregate feedback observation. & Node graph, true propagation parameters, nominal FBSM parameters, trained feedback policy. & A metric where feedback matters: cumulative compromise under parameter mismatch, peak compromise, final compromise, cost, and a scaling proxy for node-level PMP/FBSM unknowns. \\
+Node-level epidemic-model robustness & Stochastic graph simulator where each node has a local S/I/R state, bursts, and aggregate feedback observation. & Node graph, true propagation parameters, nominal FBSM parameters, trained feedback policy. & A metric where feedback matters: cumulative infected-node exposure under parameter mismatch, peak infected-node share, final infected-node share, cost, and a scaling proxy for node-level PMP/FBSM unknowns. \\
 HODGE-style propaganda game & Hybrid differential game with continuous influence investment and impulsive interventions \cite{cheng2024propaganda}. & Degree-based state, two-player rewards, impulse map, continuous investment costs. & Payoff, cost-effectiveness, impulse timing, lower-bound sensitivity, and approximate Nash or deviation diagnostics. \\
 PMP-informed PINN APT defense & Neural networks for state, costate, and control that satisfy PMP residuals. & APT model, Hamiltonian, boundary conditions, stationarity residual, control bounds. & Residual loss, boundary error, recovered control, comparison with FBSM, and sensitivity to sparse or noisy data. \\
 PINN/PIDL plus MARL pipeline & Estimate unknown parameters first, then train hybrid attacker-defender policies. & Sparse observations, inverse PINN/PIDL model, Markov-game simulator, scripted and learned opponents. & Parameter error, robustness under sampled parameters, game response matrix, unilateral deviation tests, and cyber security metrics. \\
 \bottomrule
 \end{longtable}
 
-\subsection{Why the node-level experiment can favor learning}
+\subsection{Why the node-level epidemic experiment can favor learning}
 FBSM is a strong baseline when the model is low-dimensional, smooth, known, and solved for the same parameters used in deployment. A feedback learning controller can look better in a different and practically important regime:
 \begin{itemize}
-\item the real system is a node graph, so a full PMP formulation would require many state and costate variables;
+\item the real system is a node-level S/I/R epidemic graph, so a full PMP formulation would require many state and costate variables;
 \item the FBSM baseline is open-loop and computed with nominal or underestimated propagation parameters;
 \item the attacker creates bursts or stochastic shocks that were not present in the nominal trajectory;
 \item the learned policy observes the current aggregate state and can react immediately at $t_k$.
 \end{itemize}
 
-This does not mean that DDQN universally dominates FBSM. It means the experiment is measuring \emph{feedback robustness under model mismatch}, not pure optimality for a known continuous-control problem. The metric should therefore be explicit: cumulative compromised exposure on the node graph, averaged over graph seeds, with the assumed FBSM parameter and true simulator parameter both reported.
+This does not mean that DDQN universally dominates FBSM. It means the experiment is measuring \emph{feedback robustness under model mismatch}, not pure optimality for a known continuous-control problem. The metric should therefore be explicit: cumulative infected-node exposure on the node-level epidemic graph, averaged over graph seeds, with the assumed FBSM parameter and true simulator parameter both reported.
 
 \subsection{Minimal implementation recipes}
 \begin{methodbox}
@@ -1030,14 +1030,14 @@ Define \texttt{step(state, action)} as: observe $x(t_k^-)$, decode the action, a
 Use decentralized actors $\pi_D(a_D|o_D)$ and $\pi_A(a_A|o_A)$ for execution, but centralized critics $Q_D(s,a_D,a_A)$ and $Q_A(s,a_D,a_A)$ during training. Stabilize with scripted-opponent curricula, opponent pools, slower opponent updates, reward normalization, and cross-play evaluation.
 \end{methodbox}
 
-\subsection{What must be reported}
-Reward curves alone are not enough. A clear cyber-control experiment should report:
+\subsection{Metrics for the case table}
+The case table is only useful if the reported metrics match the claim being made. Reward curves alone are not enough:
 \begin{itemize}
 \item model equations, parameter values, horizon, action schedule $t_k$ or $\Delta t_k$, solver substeps, observation vector, action map, and reward formula;
 \item cumulative compromise or misinformation $\int C(t)\dd t$, peak level, final level, containment time, and total defense cost;
 \item impulse count and action distribution when hybrid or impulsive controls are used;
 \item FBSM convergence diagnostics, DDQN/MADRL training curves, and game response or cross-play matrices;
-\item robustness under parameter perturbation, node-graph seeds, or unseen attacker policies;
+\item robustness under parameter perturbation, node-level epidemic graph seeds, or unseen attacker policies;
 \item computation time for FBSM, DRL inference/training, and PINN/PIDL training when method practicality is part of the claim.
 \end{itemize}
 
@@ -1062,7 +1062,7 @@ The case table above describes the algorithms. This shorter protocol is the chec
 \end{enumerate}
 \end{methodbox}
 
-\subsection{What must be reported}
+\subsection{Concise reporting checklist}
 Report the model equations, parameter values, action schedule $t_k$ or interval lengths $\Delta t_k$, solver substeps, horizon, observation vector, action map, reward formula, random seed, baselines, and metrics.  The key cyber metrics are cumulative compromise, peak compromise, final compromise, total defense cost, impulse count, and action distribution.  Reward curves alone are not enough.
 
 \subsection{Staged implementation}
@@ -1072,7 +1072,7 @@ Report the model equations, parameter values, action schedule $t_k$ or interval 
 \item Train a single-agent DDQN defender against scripted attackers.
 \item Compare DDQN against no defense, fixed patching, fixed cleaning, and a transparent rule-based baseline.
 \item Add attacker learning and evaluate a game matrix or cross-play table, not only a self-play reward curve.
-\item Compare FBSM and RL carefully: FBSM is an open-loop continuous-control benchmark for a known model; RL is a sampled-data feedback policy for an induced MDP or Markov game. If learning appears better, state whether the advantage comes from feedback, model mismatch, node-level scale, discrete actions, or adaptive attackers.
+\item Compare FBSM and RL carefully: FBSM is an open-loop continuous-control benchmark for a known model; RL is a sampled-data feedback policy for an induced MDP or Markov game. If learning appears better, state whether the advantage comes from feedback, model mismatch, node-level epidemic scale, discrete actions, or adaptive attackers.
 \end{enumerate}
 
 \begin{boxednote}
@@ -1098,15 +1098,15 @@ Python file & What it demonstrates \\
 {\footnotesize\texttt{fbsm\_malware\_baseline.py}} & Classical PMP/FBSM baseline for continuous malware control. \\
 {\footnotesize\texttt{ddqn\_cyber\_defense.py}} & Discrete-action DDQN defender against a scripted attacker. \\
 {\footnotesize\texttt{madrl\_ctde\_hybrid\_game.py}} & A compact CTDE/MADRL attacker-defender Markov game. \\
-{\footnotesize\texttt{node\_level\_robustness.py}} & Node-graph robustness experiment comparing DDQN aggregate feedback with nominal-parameter FBSM open-loop control. \\
-{\footnotesize\texttt{run\_training\_iterations.py}} & Produces convergence histories, policy-comparison metrics, game diagnostics, node-level robustness metrics, and training summaries. \\
+{\footnotesize\texttt{node\_level\_robustness.py}} & Node-level epidemic robustness experiment comparing DDQN aggregate feedback with nominal-parameter FBSM open-loop control. \\
+{\footnotesize\texttt{run\_training\_iterations.py}} & Produces convergence histories, policy-comparison metrics, game diagnostics, node-level epidemic robustness metrics, and training summaries. \\
 {\footnotesize\texttt{generate\_figures.py}} & Rebuilds the README figures, including neural-network and $t_k$ versus $\tau_j$ timing diagrams. \\
 \bottomrule
 \end{longtable}
 
 \begin{boxednote}
 \textbf{Recommended implementation sequence.}
-First run the ODE environment and FBSM baseline. Then train DDQN against a scripted attacker. Only after these two parts are debugged should one move to simultaneous attacker-defender CTDE/MADRL or node-level robustness experiments. Use the metric and figure scripts to compare learned policies against fixed, rule-based, and nominal-parameter optimal-control baselines.
+First run the ODE environment and FBSM baseline. Then train DDQN against a scripted attacker. Only after these two parts are debugged should one move to simultaneous attacker-defender CTDE/MADRL or node-level epidemic robustness experiments. Use the metric and figure scripts to compare learned policies against fixed, rule-based, and nominal-parameter optimal-control baselines.
 \end{boxednote}
 
 \appendix

@@ -22,7 +22,7 @@ For larger models, move from compartment states to degree-level arrays, node-lev
 
 For network-scale impulse models, record whether a jump is node-local, edge-local, or global. For example, isolating one subnet may create an immediate node-state jump, while patching campaigns may change vulnerability rates over the following interval.
 
-Use `src/node_level_robustness.py` as a small bridge from compartment states to node graphs. It demonstrates a useful stress test: compare a nominal-parameter FBSM open-loop schedule with a feedback policy when the true graph dynamics and propagation parameters differ from the baseline model.
+Use `src/node_level_robustness.py` as a small bridge from compartment states to node-level epidemic graphs. Each graph node has a local S/I/R state, while the feedback policy observes aggregate graph features. It demonstrates a useful stress test: compare a nominal-parameter FBSM open-loop schedule with a feedback policy when the true graph dynamics and propagation parameters differ from the baseline model.
 
 ## Related Learning Path
 

@@ -46,6 +46,10 @@ from node_level_robustness import (
     summarize_node_rollout,
 )
 
+NODE_NO_DEFENSE_LABEL = "Node-level epidemic model: no defense"
+NODE_FBSM_LABEL = "Node-level epidemic model: nominal-beta FBSM open-loop patching"
+NODE_DDQN_LABEL = "Node-level epidemic model: DDQN aggregate feedback"
+
 
 def write_csv(path: Path, rows: list[dict]) -> None:
     path.parent.mkdir(exist_ok=True)
@@ -131,7 +135,7 @@ def run_game_response(qnet) -> list[dict]:
 
 
 def make_ddqn_node_policy(qnet):
-    """Deploy the aggregate DDQN policy on a node-level simulator."""
+    """Deploy aggregate DDQN feedback on the node-level epidemic simulator."""
     def policy(k: int, obs: np.ndarray):
         with torch.no_grad():
             obs_t = torch.tensor(obs, dtype=torch.float32).unsqueeze(0)
@@ -142,7 +146,7 @@ def make_ddqn_node_policy(qnet):
 
 
 def run_node_level_robustness(qnet):
-    """Compare feedback learning with an open-loop FBSM policy under mismatch."""
+    """Compare node-level epidemic feedback control with nominal FBSM."""
     cfg = NodeSimConfig()
     beta_assumed = 0.45
     _, _, u_nominal, _, _ = solve_fbsm(
@@ -156,9 +160,9 @@ def run_node_level_robustness(qnet):
         max_iter=45,
     )
     policies = [
-        ("No defense on node graph", no_defense_node_policy),
-        ("FBSM open-loop patch, nominal beta", fbsm_open_loop_policy(u_nominal)),
-        ("DDQN aggregate feedback on node graph", make_ddqn_node_policy(qnet)),
+        (NODE_NO_DEFENSE_LABEL, no_defense_node_policy),
+        (NODE_FBSM_LABEL, fbsm_open_loop_policy(u_nominal)),
+        (NODE_DDQN_LABEL, make_ddqn_node_policy(qnet)),
     ]
     rollouts = []
     rows = []
@@ -209,11 +213,11 @@ def write_summary(
     game_best = min(game_metrics, key=lambda row: row["cumulative_compromised"])
     node_learning = [
         row for row in node_metrics
-        if row["policy"] == "DDQN aggregate feedback on node graph"
+        if row["policy"] == NODE_DDQN_LABEL
     ]
     node_fbsm = [
         row for row in node_metrics
-        if row["policy"] == "FBSM open-loop patch, nominal beta"
+        if row["policy"] == NODE_FBSM_LABEL
     ]
     node_ddqn_mean = float(np.mean([row["cumulative_compromised"] for row in node_learning]))
     node_fbsm_mean = float(np.mean([row["cumulative_compromised"] for row in node_fbsm]))
@@ -227,7 +231,7 @@ These runs are intentionally small enough for a laptop, but long enough to show 
 | Item | Setting |
 |---|---|
 | Model | Hybrid malware/deception state `[S,I,R,z]` |
-| Decision timing | observe at action point `t_k`, apply any impulse jump, integrate ODE to `t_{{k+1}}` |
+| Decision timing | observe at action point `t_k`, apply any impulse jump, integrate ODE to `t_{{k+1}}^-` |
 | Defender actions | none, patch, clean, deceive, isolate |
 | Attacker actions | scan, exploit, lateral, stealth |
 | DDQN setting | {episodes} episodes, horizon 24, hidden width 64, learning rate 1e-3, gamma 0.99 |
@@ -261,9 +265,9 @@ The learned DDQN policy has cumulative compromised exposure {ddqn_policy["cumula
 
 `game_response_metrics.csv` evaluates defender policies against several attacker strategies.  The lowest cumulative compromised exposure in the matrix is {game_best["cumulative_compromised"]:.3f}, achieved by `{game_best["defender_policy"]}` against `{game_best["attacker_policy"]}`.
 
-## Node-Level Robustness Snapshot
+## Node-Level Epidemic-Model Robustness Snapshot
 
-`node_level_robustness_metrics.csv` evaluates the same idea on a {node_example["nodes"]}-node random graph.  FBSM is solved as a low-dimensional open-loop control using nominal beta {node_example["beta_assumed_by_fbsm"]:.2f}, while the node simulator uses beta {node_example["beta_true_base"]:.2f} with burst multiplier {node_example["burst_multiplier"]:.2f}.  Mean cumulative compromised exposure is {node_ddqn_mean:.3f} for DDQN aggregate feedback versus {node_fbsm_mean:.3f} for the nominal FBSM open-loop schedule.  This is the intended teaching case for why feedback learning can be easier to use when node-level dynamics or parameters are not accurately known.  The point is not that DDQN always beats FBSM; it is that a feedback policy can react to a state that an offline open-loop baseline did not predict.
+`node_level_robustness_metrics.csv` evaluates the same idea on a {node_example["nodes"]}-node random graph.  Here **node-level** means that each graph node has a local S/I/R epidemic state, while the plotted trajectory is the aggregate infected-node share observed at learning action epochs.  FBSM is solved as a low-dimensional open-loop control using nominal beta {node_example["beta_assumed_by_fbsm"]:.2f}, then deployed on the node-level epidemic simulator, whose true beta is {node_example["beta_true_base"]:.2f} with burst multiplier {node_example["burst_multiplier"]:.2f}.  Mean cumulative infected-node exposure is {node_ddqn_mean:.3f} for DDQN aggregate feedback versus {node_fbsm_mean:.3f} for the nominal FBSM open-loop schedule.  This is the intended teaching case for why feedback learning can be easier to use when node-level dynamics or parameters are not accurately known.  The point is not that DDQN always beats FBSM; it is that a feedback policy can react to a state that an offline open-loop baseline did not predict.
 
 For longer research runs, increase `--episodes`, run multiple seeds, and compare against no-defense and rule-based baselines.
 """
@@ -285,11 +289,11 @@ def write_output_preview(
     game_best = min(game_metrics, key=lambda row: row["cumulative_compromised"])
     node_learning = [
         row for row in node_metrics
-        if row["policy"] == "DDQN aggregate feedback on node graph"
+        if row["policy"] == NODE_DDQN_LABEL
     ]
     node_fbsm = [
         row for row in node_metrics
-        if row["policy"] == "FBSM open-loop patch, nominal beta"
+        if row["policy"] == NODE_FBSM_LABEL
     ]
     node_ddqn_mean = float(np.mean([row["cumulative_compromised"] for row in node_learning]))
     node_fbsm_mean = float(np.mean([row["cumulative_compromised"] for row in node_fbsm]))
@@ -312,10 +316,10 @@ Open `figures/training_iteration_diagnostics.png`.
 
 | Panel | What to check |
 |---|---|
-| FBSM convergence | max control change should decay toward zero |
-| DDQN defender | rolling evaluation return should improve and stabilize |
-| CTDE/MADRL diagnostics | loss and defender return should remain finite and interpretable |
-| Learning vs baselines | DDQN should be competitive with or better than fixed policies |
+| FBSM baseline convergence | max control-update change should decay toward zero |
+| DDQN sampled-data defender | rolling evaluation return should improve and stabilize |
+| CTDE/MADRL attacker-defender diagnostics | loss and defender return should remain finite and interpretable |
+| Hybrid malware policy comparison | DDQN should be competitive with or better than fixed policies |
 
 ## 3. Learning-Versus-Baseline Result
 
@@ -334,14 +338,16 @@ Best cell in this deterministic response matrix:
 |---|---|---:|
 | {game_best["defender_policy"]} | {game_best["attacker_policy"]} | {game_best["cumulative_compromised"]:.3f} |
 
-## 5. Node-Level Robustness
+## 5. Node-Level Epidemic Model Robustness
 
 Open `figures/node_level_learning_advantage.png` and `experiments/node_level_robustness_metrics.csv`.
 
-| Method | Mean cumulative compromised |
+In this section, **node-level** means each graph node carries a local S/I/R epidemic state.  The metric is aggregate infected-node exposure over action epochs, averaged over random graph seeds.
+
+| Method deployed on the node-level epidemic model | Mean cumulative infected-node exposure |
 |---|---:|
-| DDQN aggregate feedback on node graph | {node_ddqn_mean:.3f} |
-| FBSM open-loop patch, nominal beta | {node_fbsm_mean:.3f} |
+| {NODE_DDQN_LABEL} | {node_ddqn_mean:.3f} |
+| {NODE_FBSM_LABEL} | {node_fbsm_mean:.3f} |
 
 ## 6. Files To Open First
 
@@ -351,7 +357,7 @@ Open `figures/node_level_learning_advantage.png` and `experiments/node_level_rob
 | Learning curves | `figures/training_iteration_diagnostics.png` |
 | Policy comparison CSV | `experiments/policy_comparison_metrics.csv` |
 | Game matrix CSV | `experiments/game_response_metrics.csv` |
-| Node-level robustness CSV | `experiments/node_level_robustness_metrics.csv` |
+| Node-level epidemic robustness CSV | `experiments/node_level_robustness_metrics.csv` |
 | Timing diagram and explanation | `figures/timing_semantics.png`, `docs/MODEL_TO_MDP.md` |
 """
     path.write_text(text)
@@ -362,7 +368,7 @@ def plot_training_diagnostics(output_path: Path, fbsm: list[dict], ddqn: list[di
     axes = axes.ravel()
 
     axes[0].semilogy([r["iteration"] for r in fbsm], [r["max_control_change"] for r in fbsm], color="black")
-    axes[0].set_title("FBSM convergence")
+    axes[0].set_title("FBSM baseline convergence: control-update decay")
     axes[0].set_xlabel("Iteration")
     axes[0].set_ylabel("Max control change")
     axes[0].grid(alpha=0.25)
@@ -373,7 +379,7 @@ def plot_training_diagnostics(output_path: Path, fbsm: list[dict], ddqn: list[di
     axes[1].plot(ddqn_episode, ddqn_train, alpha=0.35, label="train")
     axes[1].plot(ddqn_episode, ddqn_eval, alpha=0.35, label="eval")
     axes[1].plot(ddqn_episode, rolling_mean(ddqn_eval, window=5), color="black", linewidth=2, label="eval rolling mean")
-    axes[1].set_title("DDQN defender")
+    axes[1].set_title("DDQN sampled-data defender: evaluation return")
     axes[1].set_xlabel("Episode")
     axes[1].set_ylabel("Defender return")
     axes[1].grid(alpha=0.25)
@@ -385,7 +391,7 @@ def plot_training_diagnostics(output_path: Path, fbsm: list[dict], ddqn: list[di
     axes[2].plot(madrl_episode, madrl_loss, alpha=0.35, label="joint loss")
     axes[2].plot(madrl_episode, rolling_mean(madrl_loss, window=5), color="black", linewidth=2, label="loss rolling mean")
     axes[2].plot(madrl_episode, madrl_def, alpha=0.35, label="defender return")
-    axes[2].set_title("CTDE/MADRL diagnostics")
+    axes[2].set_title("CTDE/MADRL attacker-defender training diagnostics")
     axes[2].set_xlabel("Episode")
     axes[2].grid(alpha=0.25)
     axes[2].legend()
@@ -395,8 +401,8 @@ def plot_training_diagnostics(output_path: Path, fbsm: list[dict], ddqn: list[di
     axes[3].barh(y, [row["cumulative_compromised"] for row in policy_metrics], color="#4c78a8", alpha=0.85)
     axes[3].set_yticks(y, labels)
     axes[3].invert_yaxis()
-    axes[3].set_title("Learning vs baselines")
-    axes[3].set_xlabel("Cumulative compromised exposure")
+    axes[3].set_title("Hybrid malware policy comparison")
+    axes[3].set_xlabel("Cumulative compromised exposure (lower is better)")
     axes[3].grid(axis="x", alpha=0.25)
 
     fig.tight_layout()
@@ -418,14 +424,14 @@ def plot_game_response_matrix(output_path: Path, rows: list[dict]) -> None:
     im = ax.imshow(matrix, cmap="YlOrRd", aspect="auto")
     ax.set_xticks(np.arange(len(attackers)), [textwrap.fill(label, width=18) for label in attackers], rotation=25, ha="right")
     ax.set_yticks(np.arange(len(defenders)), [textwrap.fill(label, width=24) for label in defenders])
-    ax.set_title("Attacker-defender response matrix: cumulative compromised exposure")
+    ax.set_title("Markov-game response matrix: cumulative compromised exposure")
     ax.set_xlabel("Attacker strategy")
     ax.set_ylabel("Defender policy")
     for i in range(matrix.shape[0]):
         for j in range(matrix.shape[1]):
             ax.text(j, i, f"{matrix[i, j]:.2f}", ha="center", va="center", fontsize=8)
     cbar = fig.colorbar(im, ax=ax)
-    cbar.set_label("Lower is better")
+    cbar.set_label("Cumulative compromised exposure (lower is better)")
     fig.tight_layout()
     output_path.parent.mkdir(exist_ok=True)
     fig.savefig(output_path, dpi=180)
@@ -433,14 +439,19 @@ def plot_game_response_matrix(output_path: Path, rows: list[dict]) -> None:
 
 
 def plot_node_level_advantage(output_path: Path, rollouts: list[dict], rows: list[dict]) -> None:
-    """Plot the node-level parameter-mismatch comparison."""
+    """Plot the node-level epidemic-model parameter-mismatch comparison."""
     policies = list(dict.fromkeys(row["policy"] for row in rows))
     colors = {
-        "No defense on node graph": "#9e9e9e",
-        "FBSM open-loop patch, nominal beta": "#f58518",
-        "DDQN aggregate feedback on node graph": "#4c78a8",
+        NODE_NO_DEFENSE_LABEL: "#9e9e9e",
+        NODE_FBSM_LABEL: "#f58518",
+        NODE_DDQN_LABEL: "#4c78a8",
     }
-    fig, axes = plt.subplots(2, 2, figsize=(12, 8.0))
+    display_names = {
+        NODE_NO_DEFENSE_LABEL: "No defense\n(node S/I/R)",
+        NODE_FBSM_LABEL: "Nominal FBSM\nopen-loop patching",
+        NODE_DDQN_LABEL: "DDQN feedback\naggregate state",
+    }
+    fig, axes = plt.subplots(2, 2, figsize=(12.8, 8.7))
     axes = axes.ravel()
 
     ax = axes[0]
@@ -450,27 +461,27 @@ def plot_node_level_advantage(output_path: Path, rollouts: list[dict], rows: lis
         mean = series.mean(axis=0)
         std = series.std(axis=0)
         t = np.arange(len(mean))
-        ax.plot(t, mean, label=textwrap.fill(policy, width=22), color=colors.get(policy))
+        ax.plot(t, mean, label=display_names.get(policy, policy), color=colors.get(policy))
         ax.fill_between(t, np.maximum(0.0, mean - std), mean + std, color=colors.get(policy), alpha=0.14)
-    ax.set_title("Node-level DDQN feedback vs nominal-beta FBSM")
-    ax.set_xlabel("Decision/action epoch k")
-    ax.set_ylabel("Compromised node share")
+    ax.set_title("Node-Level Epidemic Model: Infected-State Evolution")
+    ax.set_xlabel("Action epoch k in node-level simulator")
+    ax.set_ylabel("Aggregate infected-node share I_k")
     ax.grid(alpha=0.25)
-    ax.legend(fontsize=8)
+    ax.legend(title="Policy deployed on graph", fontsize=7.5, title_fontsize=8)
 
     def mean_metric(policy: str, key: str) -> tuple[float, float]:
         vals = np.asarray([row[key] for row in rows if row["policy"] == policy], dtype=float)
         return float(vals.mean()), float(vals.std())
 
-    labels = [textwrap.fill(p, width=18) for p in policies]
+    labels = [display_names.get(p, p) for p in policies]
     x = np.arange(len(policies))
     cumulative = [mean_metric(p, "cumulative_compromised") for p in policies]
     ax = axes[1]
     ax.bar(x, [v[0] for v in cumulative], yerr=[v[1] for v in cumulative],
            color=[colors.get(p, "#4c78a8") for p in policies], alpha=0.85, capsize=4)
     ax.set_xticks(x, labels, rotation=18, ha="right")
-    ax.set_ylabel("Mean cumulative compromised")
-    ax.set_title("Lower exposure is better")
+    ax.set_ylabel("Mean cumulative infected-node exposure")
+    ax.set_title("Node-level epidemic exposure by policy")
     ax.grid(axis="y", alpha=0.25)
 
     peak = [mean_metric(p, "peak_compromised") for p in policies]
@@ -478,8 +489,8 @@ def plot_node_level_advantage(output_path: Path, rollouts: list[dict], rows: lis
     ax.bar(x, [v[0] for v in peak], yerr=[v[1] for v in peak],
            color=[colors.get(p, "#4c78a8") for p in policies], alpha=0.85, capsize=4)
     ax.set_xticks(x, labels, rotation=18, ha="right")
-    ax.set_ylabel("Mean peak compromised")
-    ax.set_title("Feedback reacts to bursts")
+    ax.set_ylabel("Mean peak infected-node share")
+    ax.set_title("Burst robustness: peak infected-node share")
     ax.grid(axis="y", alpha=0.25)
 
     ax = axes[3]
@@ -490,11 +501,25 @@ def plot_node_level_advantage(output_path: Path, rollouts: list[dict], rows: lis
     ax.set_xscale("log")
     ax.set_yscale("log")
     ax.set_xlabel("Nodes")
-    ax.set_ylabel("State+costate unknown proxy")
-    ax.set_title("Node-level FBSM scaling burden")
+    ax.set_ylabel("State+costate unknown count proxy")
+    ax.set_title("Why full node-level PMP/FBSM becomes expensive")
     ax.grid(alpha=0.25, which="both")
 
-    fig.tight_layout()
+    beta_assumed = rows[0]["beta_assumed_by_fbsm"]
+    beta_true = rows[0]["beta_true_base"]
+    burst = rows[0]["burst_multiplier"]
+    fig.text(
+        0.5,
+        0.025,
+        "Caption: node-level epidemic model means each graph node is S, I, or R; curves show aggregate infected-node share over 8 random graph seeds. "
+        f"The FBSM schedule uses nominal beta={beta_assumed:.2f}; the deployed simulator uses true beta={beta_true:.2f} and burst multiplier={burst:.2f}.",
+        ha="center",
+        va="bottom",
+        fontsize=9,
+        color="#333333",
+        wrap=True,
+    )
+    fig.tight_layout(rect=(0, 0.08, 1, 1))
     output_path.parent.mkdir(exist_ok=True)
     fig.savefig(output_path, dpi=180)
     plt.close(fig)
@@ -529,7 +554,7 @@ def main() -> None:
     print(f"Wrote experiment CSV files to {exp_dir}")
     print(f"Wrote training diagnostic figure to {fig_dir / 'training_iteration_diagnostics.png'}")
     print(f"Wrote game response matrix figure to {fig_dir / 'game_response_matrix.png'}")
-    print(f"Wrote node-level robustness figure to {fig_dir / 'node_level_learning_advantage.png'}")
+    print(f"Wrote node-level epidemic robustness figure to {fig_dir / 'node_level_learning_advantage.png'}")
 
 
 if __name__ == "__main__":

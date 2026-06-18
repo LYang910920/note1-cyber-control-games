@@ -51,6 +51,6 @@ Read `docs/MODEL_TO_MDP.md` if the difference between continuous time, impulse j
 4. `src/fbsm_malware_baseline.py`: continuous-control PMP/FBSM baseline.
 5. `src/ddqn_cyber_defense.py`: single-agent sampled-data MDP learning.
 6. `src/madrl_ctde_hybrid_game.py`: attacker-defender sampled-data Markov-game loop.
-7. `src/node_level_robustness.py`: node-graph parameter-mismatch experiment.
+7. `src/node_level_robustness.py`: node-level epidemic-model parameter-mismatch experiment.
 
 For command details, use `scripts/README.md`. For module details, use `src/README.md`.

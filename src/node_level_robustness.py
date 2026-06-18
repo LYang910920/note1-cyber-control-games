@@ -2,13 +2,13 @@
 Copyright (c) 2026 Luxing Yang.
 Licensed under the MIT License. See LICENSE in the repository root.
 
-Node-level robustness experiment for Note 1.
+Node-level epidemic-model robustness experiment for Note 1.
 
 The experiment is deliberately small and deterministic enough for a laptop.  It
 illustrates a setting where a low-dimensional FBSM policy is a useful theory
 baseline but is no longer the best operational controller:
 
-* the network simulator has node-level infection pressure;
+* each graph node has a local S/I/R state and node-level infection pressure;
 * the FBSM policy is open-loop and solved with a nominal, underestimated beta;
 * the feedback policy observes the current aggregate state and can react with
   patch, clean, deceive, or isolate actions.
@@ -27,7 +27,7 @@ NodePolicy = Callable[[int, np.ndarray], ActionDict]
 
 @dataclass
 class NodeSimConfig:
-    """Parameters for the node-level malware simulator."""
+    """Parameters for the node-level epidemic malware simulator."""
 
     nodes: int = 160
     horizon: int = 45

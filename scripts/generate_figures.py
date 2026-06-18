@@ -32,7 +32,7 @@ def plot_fbsm(output_dir: Path) -> None:
     axes[0].plot(t, x[:, 1], label="Compromised")
     axes[0].plot(t, x[:, 2], label="Recovered/protected")
     axes[0].set_ylabel("Population share")
-    axes[0].set_title(f"FBSM malware-control baseline, objective={objective:.2f}")
+    axes[0].set_title(f"FBSM malware-control baseline: state evolution, objective={objective:.2f}")
     axes[0].legend(loc="best")
     axes[0].grid(alpha=0.25)
 
@@ -73,14 +73,14 @@ def plot_hybrid_rollout(output_dir: Path) -> None:
     axes[0].plot(t, states[:, 2], label="Recovered/protected")
     axes[0].plot(t, states[:, 3], label="Deception level")
     axes[0].set_ylabel("State")
-    axes[0].set_title("Hybrid rollout: observe, act, jump if needed, then flow")
+    axes[0].set_title("Hybrid malware/deception rollout: state evolution after sampled actions")
     axes[0].legend(loc="best")
     axes[0].grid(alpha=0.25)
 
     axes[1].step(np.arange(len(actions)), actions, where="post", color="black")
     axes[1].set_yticks([env.DEF_PATCH, env.DEF_CLEAN, env.DEF_ISOLATE])
     axes[1].set_yticklabels(["patch", "clean", "isolate"])
-    axes[1].set_xlabel("Decision epoch k, observation at t_k")
+    axes[1].set_xlabel("Action epoch k, observation at t_k")
     axes[1].set_ylabel("Defender mode")
     axes[1].grid(alpha=0.25)
     fig.tight_layout()
@@ -113,16 +113,16 @@ def plot_hybrid_policy_comparison(output_dir: Path) -> None:
             linewidth=2.0,
             markersize=4,
         )
-    ax.set_title("Compromised trajectory at observation points")
-    ax.set_xlabel("Decision epoch k")
+    ax.set_title("Hybrid malware model: compromised-state trajectory")
+    ax.set_xlabel("Action/observation epoch k")
     ax.set_ylabel("Compromised share I")
     ax.grid(alpha=0.25)
     ax.legend(fontsize=8)
 
     ax = axes[0, 1]
     ax.bar(x, [row["cumulative_compromised"] for row in metrics], color=colors, alpha=0.85)
-    ax.set_title("Cumulative compromised exposure")
-    ax.set_ylabel("sum mean(I) * Delta t")
+    ax.set_title("Cumulative compromised exposure by policy")
+    ax.set_ylabel("sum I_k * Delta t (lower is better)")
     ax.set_xticks(x, labels, rotation=20, ha="right")
     ax.grid(axis="y", alpha=0.25)
 
@@ -130,7 +130,7 @@ def plot_hybrid_policy_comparison(output_dir: Path) -> None:
     ax = axes[1, 0]
     ax.bar(x - width / 2, [row["peak_compromised"] for row in metrics], width, label="peak I", color="#e45756", alpha=0.80)
     ax.bar(x + width / 2, [row["final_compromised"] for row in metrics], width, label="final I", color="#72b7b2", alpha=0.85)
-    ax.set_title("Peak and final compromised share")
+    ax.set_title("Peak and final compromised share by policy")
     ax.set_ylabel("Compromised share")
     ax.set_xticks(x, labels, rotation=20, ha="right")
     ax.grid(axis="y", alpha=0.25)
@@ -142,7 +142,7 @@ def plot_hybrid_policy_comparison(output_dir: Path) -> None:
     for idx, row in enumerate(metrics):
         note = f'impulses={row["impulse_events"]}'
         ax.text(costs[idx], idx, f" {note}", va="center", fontsize=8)
-    ax.set_title("Defender cost and impulse count")
+    ax.set_title("Defender cost and impulse-event count")
     ax.set_xlabel("Total defender cost (lower is better)")
     ax.set_xlim(0, max(costs) * 1.18)
     ax.grid(axis="x", alpha=0.25)

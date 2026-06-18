@@ -17,10 +17,10 @@ Open `figures/training_iteration_diagnostics.png`.
 
 | Panel | What to check |
 |---|---|
-| FBSM convergence | max control change should decay toward zero |
-| DDQN defender | rolling evaluation return should improve and stabilize |
-| CTDE/MADRL diagnostics | loss and defender return should remain finite and interpretable |
-| Learning vs baselines | DDQN should be competitive with or better than fixed policies |
+| FBSM baseline convergence | max control-update change should decay toward zero |
+| DDQN sampled-data defender | rolling evaluation return should improve and stabilize |
+| CTDE/MADRL attacker-defender diagnostics | loss and defender return should remain finite and interpretable |
+| Hybrid malware policy comparison | DDQN should be competitive with or better than fixed policies |
 
 ## 3. Learning-Versus-Baseline Result
 
@@ -39,14 +39,16 @@ Best cell in this deterministic response matrix:
 |---|---|---:|
 | DDQN learned defender (greedy) | Scripted scan -> exploit -> lateral attacker | 1.235 |
 
-## 5. Node-Level Robustness
+## 5. Node-Level Epidemic Model Robustness
 
 Open `figures/node_level_learning_advantage.png` and `experiments/node_level_robustness_metrics.csv`.
 
-| Method | Mean cumulative compromised |
+In this section, **node-level** means each graph node carries a local S/I/R epidemic state.  The metric is aggregate infected-node exposure over action epochs, averaged over random graph seeds.
+
+| Method deployed on the node-level epidemic model | Mean cumulative infected-node exposure |
 |---|---:|
-| DDQN aggregate feedback on node graph | 1.325 |
-| FBSM open-loop patch, nominal beta | 16.111 |
+| Node-level epidemic model: DDQN aggregate feedback | 1.325 |
+| Node-level epidemic model: nominal-beta FBSM open-loop patching | 16.111 |
 
 ## 6. Files To Open First
 
@@ -56,5 +58,5 @@ Open `figures/node_level_learning_advantage.png` and `experiments/node_level_rob
 | Learning curves | `figures/training_iteration_diagnostics.png` |
 | Policy comparison CSV | `experiments/policy_comparison_metrics.csv` |
 | Game matrix CSV | `experiments/game_response_metrics.csv` |
-| Node-level robustness CSV | `experiments/node_level_robustness_metrics.csv` |
+| Node-level epidemic robustness CSV | `experiments/node_level_robustness_metrics.csv` |
 | Timing diagram and explanation | `figures/timing_semantics.png`, `docs/MODEL_TO_MDP.md` |

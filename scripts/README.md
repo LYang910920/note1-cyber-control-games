@@ -6,7 +6,7 @@ Scripts are grouped by purpose: quick validation, figure generation, and longer 
 |---|---|---|---|
 | `run_smoke_tests.sh` | Fast confidence check for every executable component. | `bash scripts/run_smoke_tests.sh` | Console output only |
 | `generate_figures.py` | Rebuild static explanatory figures used by the README. | `python scripts/generate_figures.py` | `figures/*.png`, including `timing_semantics.png` |
-| `run_training_iterations.py` | Run longer FBSM, DDQN, CTDE/MADRL, policy-comparison, game-response, and node-level robustness diagnostics. | `python scripts/run_training_iterations.py` | `experiments/*.csv`, `experiments/training_summary.md`, `figures/training_iteration_diagnostics.png`, `figures/game_response_matrix.png`, `figures/node_level_learning_advantage.png` |
+| `run_training_iterations.py` | Run longer FBSM, DDQN, CTDE/MADRL, policy-comparison, game-response, and node-level epidemic robustness diagnostics. | `python scripts/run_training_iterations.py` | `experiments/*.csv`, `experiments/training_summary.md`, `figures/training_iteration_diagnostics.png`, `figures/game_response_matrix.png`, `figures/node_level_learning_advantage.png` |
 
 ## Runtime Notes
 
@@ -37,4 +37,4 @@ The code defaults to fixed `EnvConfig.dt` for readability.  In the notation of t
 |---|---|---|
 | `run_smoke_tests.sh` | installed dependencies from `requirements.txt` | exits with status 0 and unit-test summary |
 | `generate_figures.py` | working NumPy/Matplotlib environment | rewrites explanatory PNG files under `figures/`, including the `t_k` versus `tau_j` timing diagram |
-| `run_training_iterations.py` | working PyTorch/NumPy/Matplotlib environment | rewrites training CSVs, policy-comparison metrics, game-response metrics, node-level robustness metrics, summary markdown, and diagnostic PNGs |
+| `run_training_iterations.py` | working PyTorch/NumPy/Matplotlib environment | rewrites training CSVs, policy-comparison metrics, game-response metrics, node-level epidemic robustness metrics, summary markdown, and diagnostic PNGs |
