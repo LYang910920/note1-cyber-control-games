@@ -20,6 +20,7 @@ from node_level_robustness import (
     rollout_node_policy,
     summarize_node_rollout,
 )
+from scenario_profiles import describe_scenarios, describe_training_hyperparameters, get_scenario
 
 
 class CoreModelTests(unittest.TestCase):
@@ -99,6 +100,20 @@ class CoreModelTests(unittest.TestCase):
         self.assertGreaterEqual(rows["cumulative_compromised"], 0.0)
         self.assertEqual(rows["state_dimension"], 72)
         self.assertGreater(rows["node_pmp_unknown_proxy"], rows["state_dimension"])
+
+    def test_scenario_profiles_are_readable_extension_entries(self):
+        profile = get_scenario("paper-network-bridge")
+        cfg = profile.make_config()
+        rows = describe_scenarios()
+
+        self.assertGreater(cfg.horizon, 100)
+        self.assertIn("src/node_level_robustness.py", profile.first_files_to_edit)
+        self.assertTrue(any(row["name"] == "impulse-visible-defense" for row in rows))
+
+        hyper_rows = describe_training_hyperparameters()
+        ddqn = next(row for row in hyper_rows if row["name"] == "ddqn-defender")
+        self.assertIn("hidden width=64", ddqn["hyperparameters"])
+        self.assertIn("learning rate=1e-3", ddqn["hyperparameters"])
 
 
 if __name__ == "__main__":

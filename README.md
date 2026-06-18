@@ -32,7 +32,9 @@ python scripts/run_training_iterations.py
 | Short orientation | `START_HERE.md` |
 | Tutorial narrative | `docs/note1_game_learning_cyber_control.pdf` |
 | Continuous/impulse/MDP guide | `docs/MODEL_TO_MDP.md` |
+| Parameter and hyperparameter reference | `docs/PARAMETERS.md` |
 | Source-code map | `src/README.md` |
+| Student extension profiles | `src/scenario_profiles.py` |
 | Script and output map | `scripts/README.md` |
 | Training curves and CSVs | `experiments/README.md` |
 | Extensions and scaling | `docs/EXTENDING.md` |
@@ -123,9 +125,14 @@ The node-level epidemic-model robustness experiment shows a case where a low-dim
 
 These examples are teaching code, not benchmark implementations.  For research use, add multiple seeds, stronger baselines, full logging, and game-specific exploitability or unilateral-deviation checks.
 
-## Related Repository
+Before changing parameters or neural-training settings, read `docs/PARAMETERS.md`. To adapt the code to a paper-specific model, start with `python src/scenario_profiles.py`.  It lists named scenario profiles, the first files to edit, and the intended bridge from aggregate tutorial dynamics to larger network, impulse, or Markov-game settings.
 
-For the optimal-control and differential-game foundation behind the FBSM and hybrid-control pieces, see https://github.com/LYang910920/network-control-differential-games.
+## Related Tutorial Repositories
+
+| Repository | Use it for |
+|---|---|
+| https://github.com/LYang910920/network-control-differential-games | Optimal-control, differential-game, impulse/hybrid-control, and network-model foundations. |
+| https://github.com/LYang910920/note2-pinn-pidl-cyber-control | PINN/PIDL, inverse learning, neural control, and PMP-informed neural cyber-control examples. |
 
 ## License And Copyright
 

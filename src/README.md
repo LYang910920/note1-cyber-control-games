@@ -37,6 +37,7 @@ This teaching environment uses fixed `t_k = k * dt`.  The notes also support non
 |---|---|---|
 | `cyber_dynamics.py` | Shared dynamics and integration utilities. | `rk4_integrate`, `controlled_sir_rhs`, `hybrid_rhs` |
 | `cyber_hybrid_env.py` | Plain-Python reset/step environment for sampled hybrid cyber defense. | `HybridCyberDefenseEnv`, `EnvConfig`, `scripted_attacker` |
+| `scenario_profiles.py` | Student-facing scenario profiles for adapting the teaching code to paper-style settings. | `SCENARIOS`, `get_scenario`, `describe_scenarios` |
 | `evaluation_metrics.py` | Shared rollout, policy-comparison, and game-response metrics. | `evaluate_policy_suite`, `evaluate_game_response_matrix`, `summarize_rollout` |
 | `fbsm_malware_baseline.py` | Forward-backward sweep method for a PMP open-loop control baseline. | `solve_fbsm` |
 | `ddqn_cyber_defense.py` | DDQN defender for a scripted-attacker environment. | `train`, `evaluate`, CLI `--smoke` |
@@ -49,6 +50,7 @@ This teaching environment uses fixed `t_k = k * dt`.  The notes also support non
 |---|---|---|
 | Dynamics utilities | state vector, parameters, control/action intensities | next-state derivatives or RK4 trajectories |
 | Hybrid environment | defender action, attacker action, current state | next observation, defender/attacker rewards, diagnostics |
+| Scenario profiles | named question, state level, timing convention, control type | fresh `EnvConfig` plus the first files to edit |
 | Policy and game metrics | representative defender/attacker policies and common horizon | cumulative compromised exposure, peak/final compromised share, rewards, impulse counts, game-response rows |
 | FBSM baseline | horizon, cost weights, malware parameters | open-loop control, state/costate trajectories, objective, convergence history |
 | DDQN defender | environment, replay buffer, Q-network settings | trained Q-network and logged train/evaluation returns |
@@ -59,14 +61,26 @@ This teaching environment uses fixed `t_k = k * dt`.  The notes also support non
 
 1. `cyber_dynamics.py` defines continuous-time dynamics.
 2. `cyber_hybrid_env.py` wraps those dynamics into decision epochs.
-3. `evaluation_metrics.py` compares representative policies using the same timing and metrics.
-4. `fbsm_malware_baseline.py` solves a continuous-control reference problem.
-5. `ddqn_cyber_defense.py` learns a discrete defender policy against a scripted attacker.
-6. `madrl_ctde_hybrid_game.py` lets both attacker and defender learn with decentralized actors and centralized critics.
-7. `node_level_robustness.py` redeploys the learned aggregate feedback policy on a node-level S/I/R epidemic graph and compares it with a nominal open-loop FBSM schedule.
+3. `scenario_profiles.py` names concrete extension starting points.
+4. `evaluation_metrics.py` compares representative policies using the same timing and metrics.
+5. `fbsm_malware_baseline.py` solves a continuous-control reference problem.
+6. `ddqn_cyber_defense.py` learns a discrete defender policy against a scripted attacker.
+7. `madrl_ctde_hybrid_game.py` lets both attacker and defender learn with decentralized actors and centralized critics.
+8. `node_level_robustness.py` redeploys the learned aggregate feedback policy on a node-level S/I/R epidemic graph and compares it with a nominal open-loop FBSM schedule.
+
+## First Extension Step
+
+Run:
+
+```bash
+python src/scenario_profiles.py
+```
+
+Pick the closest profile, copy its `EnvConfig` into a new experiment script, and change only one contract at a time: state definition, jump map, continuous flow, reward/payoff, learner, or diagnostics.
 
 ## Teaching-Code Boundaries
 
 The files prioritize transparency over benchmark performance.  For research-grade experiments, add multiple seeds, richer logging, replay/checkpoint management, and stronger game diagnostics.
 
 For network-scale extensions, read `docs/EXTENDING.md` before changing code.
+For visible parameter and neural-training settings, read `docs/PARAMETERS.md` or run `python src/scenario_profiles.py`.

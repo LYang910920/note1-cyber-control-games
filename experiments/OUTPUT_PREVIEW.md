@@ -26,7 +26,7 @@ Open `figures/training_iteration_diagnostics.png`.
 
 | Policy | Cumulative compromised | Defender cost | Peak compromised | Impulse events |
 |---|---:|---:|---:|---:|
-| DDQN learned defender (greedy) | 1.386 | 21.66 | 0.151 | 6 |
+| DDQN learned defender (greedy) | 1.454 | 22.19 | 0.151 | 6 |
 | Best non-learning baseline: Fixed high clean | 4.200 | 50.50 | 0.302 | 0 |
 
 ## 4. Game Response
@@ -37,7 +37,7 @@ Best cell in this deterministic response matrix:
 
 | Defender policy | Attacker strategy | Cumulative compromised |
 |---|---|---:|
-| DDQN learned defender (greedy) | Scripted scan -> exploit -> lateral attacker | 1.235 |
+| DDQN learned defender (greedy) | Scripted scan -> exploit -> lateral attacker | 1.267 |
 
 ## 5. Node-Level Epidemic Model Robustness
 
@@ -47,7 +47,7 @@ In this section, **node-level** means each graph node carries a local S/I/R epid
 
 | Method deployed on the node-level epidemic model | Mean cumulative infected-node exposure |
 |---|---:|
-| Node-level epidemic model: DDQN aggregate feedback | 1.325 |
+| Node-level epidemic model: DDQN aggregate feedback | 1.328 |
 | Node-level epidemic model: nominal-beta FBSM open-loop patching | 16.111 |
 
 ## 6. Files To Open First
