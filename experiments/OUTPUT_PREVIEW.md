@@ -7,7 +7,7 @@ Use this page as the first stop after running `python scripts/run_training_itera
 | Item | Value |
 |---|---|
 | Model | Hybrid malware/deception `[S,I,R,z]` |
-| Decision interval | `Delta t = 1.00` |
+| Default decision interval | `Delta t = 1.00` in this run; nonuniform `Delta t_k` is also valid |
 | Solver substeps | `10` RK4 substeps per decision interval |
 | Observation convention | policy sees pre-jump `x(t_k^-)`; next observation is `x(t_{k+1}^-)` |
 
@@ -39,7 +39,16 @@ Best cell in this deterministic response matrix:
 |---|---|---:|
 | DDQN learned defender (greedy) | Scripted scan -> exploit -> lateral attacker | 1.235 |
 
-## 5. Files To Open First
+## 5. Node-Level Robustness
+
+Open `figures/node_level_learning_advantage.png` and `experiments/node_level_robustness_metrics.csv`.
+
+| Method | Mean cumulative compromised |
+|---|---:|
+| DDQN aggregate feedback on node graph | 1.325 |
+| FBSM open-loop patch, nominal beta | 16.111 |
+
+## 6. Files To Open First
 
 | Category | File |
 |---|---|
@@ -47,4 +56,5 @@ Best cell in this deterministic response matrix:
 | Learning curves | `figures/training_iteration_diagnostics.png` |
 | Policy comparison CSV | `experiments/policy_comparison_metrics.csv` |
 | Game matrix CSV | `experiments/game_response_metrics.csv` |
-| Timing explanation | `docs/MODEL_TO_MDP.md` |
+| Node-level robustness CSV | `experiments/node_level_robustness_metrics.csv` |
+| Timing diagram and explanation | `figures/timing_semantics.png`, `docs/MODEL_TO_MDP.md` |

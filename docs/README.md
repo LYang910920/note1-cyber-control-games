@@ -5,7 +5,7 @@ Start with `note1_game_learning_cyber_control.pdf`.  It explains how continuous-
 Recommended order:
 
 1. Read the modeling setup: cyber state variables, ODE flow, jump maps, and hybrid actions.
-2. Read `MODEL_TO_MDP.md` to fix the timing convention: observation point, impulse point, ODE flow interval, next observation.
+2. Read `MODEL_TO_MDP.md` to fix the timing convention: action point `t_k`, original impulse point `tau_j`, ODE flow interval, next observation.
 3. Read the PMP/FBSM sections to understand the continuous-control baseline.
 4. Move to the sampled-data RL sections, where continuous dynamics become an MDP.
 5. Read the DDQN section before the CTDE/MADRL section.
@@ -27,5 +27,6 @@ The runnable code mirrors this lecture order:
 | PMP/FBSM baseline | `src/fbsm_malware_baseline.py` |
 | DDQN sampled-data defender | `src/ddqn_cyber_defense.py` |
 | CTDE/MADRL attacker-defender game | `src/madrl_ctde_hybrid_game.py` |
+| Node-level robustness stress test | `src/node_level_robustness.py`, `figures/node_level_learning_advantage.png` |
 
 For extension and cross-repository guidance, read `EXTENDING.md`.

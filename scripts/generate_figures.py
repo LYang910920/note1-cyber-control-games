@@ -204,6 +204,54 @@ def plot_neural_architectures(output_dir: Path) -> None:
     plt.close(fig)
 
 
+def plot_timing_semantics(output_dir: Path) -> None:
+    """Show the difference between action points and model impulse points."""
+    fig, ax = plt.subplots(figsize=(11, 3.8))
+    action_times = np.array([0.0, 1.15, 2.75, 4.0, 5.35])
+    impulse_times = np.array([0.55, 2.75, 4.75])
+
+    ax.hlines(0, action_times[0] - 0.2, action_times[-1] + 0.35, color="#333333", linewidth=1.6)
+    ax.annotate("", xy=(action_times[-1] + 0.42, 0), xytext=(action_times[-1] + 0.12, 0),
+                arrowprops={"arrowstyle": "->", "lw": 1.6, "color": "#333333"})
+
+    for idx, t in enumerate(action_times):
+        ax.vlines(t, -0.22, 0.22, color="#4c78a8", linewidth=2.4)
+        ax.scatter([t], [0], s=60, color="#4c78a8", zorder=3)
+        ax.text(t, -0.42, f"$t_{idx}$", ha="center", va="top", fontsize=11, color="#234f7f")
+        ax.text(t, 0.38, "observe\nchoose action", ha="center", va="bottom", fontsize=8.5)
+
+    for idx in range(len(action_times) - 1):
+        left, right = action_times[idx], action_times[idx + 1]
+        ax.annotate("", xy=(right - 0.08, -0.68), xytext=(left + 0.08, -0.68),
+                    arrowprops={"arrowstyle": "<->", "lw": 1.1, "color": "#666666"})
+        ax.text((left + right) / 2, -0.86, f"$\\Delta t_{idx}$", ha="center", va="top", fontsize=10)
+        ax.text((left + right) / 2, 0.08, "ODE flow", ha="center", va="bottom", fontsize=8.5, color="#666666")
+
+    for j, tau in enumerate(impulse_times, start=1):
+        ax.vlines(tau, -0.05, 0.72, color="#e45756", linewidth=2.0, linestyles="--")
+        ax.scatter([tau], [0.72], marker="v", s=80, color="#e45756", zorder=4)
+        label = f"$\\tau_{j}$"
+        if np.any(np.isclose(tau, action_times)):
+            label += " = action point"
+        else:
+            label += " inside transition"
+        ax.text(tau, 0.88, label, ha="center", va="bottom", fontsize=9.5, color="#a83232")
+
+    ax.text(action_times[0] - 0.1, 1.28, "$t_k$: MDP/MG action or observation points", color="#234f7f", fontsize=10)
+    ax.text(action_times[0] - 0.1, 1.08, "$\\tau_j$: original model impulse or event points", color="#a83232", fontsize=10)
+    ax.text(action_times[0] - 0.1, -1.22,
+            "Action intervals may be nonuniform. Zero-order hold is common, but the action map can also be event-triggered or continuously evaluated.",
+            fontsize=9.2, color="#333333")
+
+    ax.set_title("Timing semantics: action points $t_k$ versus original impulse points $\\tau_j$")
+    ax.set_xlim(action_times[0] - 0.35, action_times[-1] + 0.55)
+    ax.set_ylim(-1.45, 1.55)
+    ax.axis("off")
+    fig.tight_layout()
+    fig.savefig(output_dir / "timing_semantics.png", dpi=180)
+    plt.close(fig)
+
+
 def main() -> None:
     output_dir = ROOT / "figures"
     output_dir.mkdir(exist_ok=True)
@@ -211,6 +259,7 @@ def main() -> None:
     plot_hybrid_rollout(output_dir)
     plot_hybrid_policy_comparison(output_dir)
     plot_neural_architectures(output_dir)
+    plot_timing_semantics(output_dir)
     print(f"Wrote figures to {output_dir}")
 
 

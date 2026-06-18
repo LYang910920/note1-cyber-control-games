@@ -10,8 +10,10 @@ model to an MDP:
 
     observe x(t_k^-) -> choose a_k -> jump/ODE transition -> reward -> replay
 
-The MDP time step is the environment decision interval `EnvConfig.dt`.  RK4
-substeps inside `env.step` are only numerical integration points.
+The checked-in MDP uses the fixed decision interval `EnvConfig.dt`.  More
+general experiments can use nonuniform action intervals if the environment
+records each `Delta t_k`.  RK4 substeps inside `env.step` are only numerical
+integration points.
 """
 from __future__ import annotations
 

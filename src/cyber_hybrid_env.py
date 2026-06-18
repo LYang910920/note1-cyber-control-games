@@ -17,6 +17,9 @@ Timing convention
 At epoch k, policies observe x(t_k^-), choose actions, optional impulses create
 x(t_k^+), the ODE is integrated over [t_k,t_{k+1}), and the next observation is
 x(t_{k+1}^-).  RK4 substeps are internal solver points, not extra decisions.
+Here t_k denotes learning action/observation points.  If the original model has
+its own impulse/event points, denote them by tau_j and decide whether they
+coincide with, sit inside, or are chosen separately from the learning grid.
 """
 from __future__ import annotations
 
@@ -30,8 +33,10 @@ Action = Union[int, Tuple[int, float]]
 
 @dataclass
 class EnvConfig:
-    # dt is the sampled-data decision interval Delta t. Policies observe and
-    # act once per interval, at t_k = k * dt.
+    # dt is the fixed sampled-data decision interval used by this teaching
+    # environment: t_k = k * dt.  The lecture also discusses nonuniform
+    # intervals Delta t_k = t_{k+1} - t_k; those require carrying the next
+    # action time in the environment state or scheduler.
     dt: float = 1.0
     # substeps are internal RK4 solver steps inside one environment transition.
     # They improve integration accuracy but do not create extra replay items.

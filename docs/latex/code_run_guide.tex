@@ -5,6 +5,7 @@
 \lecturetitle{Code Running Guide}{How to Run and Extend the Note 1 Python Examples}{Installation, smoke tests, training diagnostics, outputs, and troubleshooting}{Companion to the cyber control and game-learning lecture note}
 \tableofcontents
 \newpage
+\lhead{\small Note 1 Code Running Guide}
 
 \section{What This Guide Covers}
 This guide is a standalone manual for the Python examples. It explains how to set up the environment, run smoke tests, run longer examples, interpret outputs, and extend the code to more complex cyber models.
@@ -26,13 +27,17 @@ The repository is organized around one readable path from model to experiment:
     fbsm_malware_baseline.py
     ddqn_cyber_defense.py
     madrl_ctde_hybrid_game.py
+    node_level_robustness.py
     evaluation_metrics.py
   experiments/
     OUTPUT_PREVIEW.md
     training_summary.md
     policy_comparison_metrics.csv
     game_response_metrics.csv
+    node_level_robustness_metrics.csv
   figures/
+    timing_semantics.png
+    node_level_learning_advantage.png
 \end{verbatim}
 
 \section{Installation}
@@ -75,7 +80,7 @@ Expected output: defender and attacker episode returns. This file is a compact C
 \begin{lstlisting}[style=pythonstyle]
 python scripts/generate_figures.py
 \end{lstlisting}
-Expected output: refreshed PNG figures under \texttt{figures/}, including neural architecture, FBSM, hybrid rollout, and policy-comparison plots.
+Expected output: refreshed PNG figures under \texttt{figures/}, including neural architecture, timing-semantics, FBSM, hybrid rollout, and policy-comparison plots.
 
 \subsection{Longer training diagnostics}
 \begin{lstlisting}[style=pythonstyle]
@@ -85,7 +90,7 @@ Expected output:
 \begin{itemize}
 \item CSV histories under \texttt{experiments/};
 \item \texttt{OUTPUT\_PREVIEW.md} and \texttt{training\_summary.md};
-\item the training-diagnostics and game-response PNG figures.
+\item the training-diagnostics, game-response, and node-level robustness PNG figures.
 \end{itemize}
 
 \section{How to Interpret Outputs}
@@ -100,6 +105,7 @@ Area under $I(t)$ & Total compromise burden over time; often more informative th
 Defender cost & Negative cumulative defender reward; lower is better when exposure is also controlled. \\
 Impulse events & How often immediate jump actions, such as isolation, were used. \\
 Game response matrix & Defender-policy performance against several attacker strategies. \\
+Node-level robustness plot & Parameter-mismatch stress test: nominal FBSM open-loop schedule versus DDQN aggregate feedback on a stochastic graph. \\
 \bottomrule
 \end{longtable}
 
@@ -125,7 +131,7 @@ Start with \texttt{ddqn\_cyber\_defense.py}. Replace the scripted attacker with 
 Use \texttt{evaluation\_metrics.py} to add attacker policies, then rerun the training-diagnostics script.  The output \texttt{game\_response\_metrics.csv} is the first step toward cross-play and exploitability analysis.
 
 \subsection{From tabular response to larger games}
-For larger games, keep the environment contract fixed: observe at $t_k$, apply jumps only when intended, integrate over the decision interval, and report cyber metrics alongside rewards. Then add opponent pools, multiple random seeds, and unilateral-deviation checks.
+For larger games, keep the environment contract explicit: observe at action point $t_k$, apply jumps only when intended, integrate over $[t_k,t_{k+1})$, and report cyber metrics alongside rewards. A fixed interval is convenient, but a nonuniform action schedule is valid if it is recorded and used consistently. Then add opponent pools, multiple random seeds, and unilateral-deviation checks.
 
 \section{Troubleshooting}
 \begin{itemize}
@@ -142,7 +148,7 @@ For every experiment, record:
 \item model equations and parameter values;
 \item random seed and initial states;
 \item action space and reward formula;
-\item ODE solver and step size;
+\item ODE solver, action schedule, and solver step size;
 \item network architecture and optimizer;
 \item number of episodes or iterations;
 \item all baselines and attacker strategies used for comparison;

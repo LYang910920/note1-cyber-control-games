@@ -5,8 +5,8 @@ Scripts are grouped by purpose: quick validation, figure generation, and longer 
 | Script | Purpose | Typical command | Outputs |
 |---|---|---|---|
 | `run_smoke_tests.sh` | Fast confidence check for every executable component. | `bash scripts/run_smoke_tests.sh` | Console output only |
-| `generate_figures.py` | Rebuild static explanatory figures used by the README. | `python scripts/generate_figures.py` | `figures/*.png` |
-| `run_training_iterations.py` | Run longer FBSM, DDQN, CTDE/MADRL, policy-comparison, and game-response diagnostics. | `python scripts/run_training_iterations.py` | `experiments/*.csv`, `experiments/training_summary.md`, `figures/training_iteration_diagnostics.png`, `figures/game_response_matrix.png` |
+| `generate_figures.py` | Rebuild static explanatory figures used by the README. | `python scripts/generate_figures.py` | `figures/*.png`, including `timing_semantics.png` |
+| `run_training_iterations.py` | Run longer FBSM, DDQN, CTDE/MADRL, policy-comparison, game-response, and node-level robustness diagnostics. | `python scripts/run_training_iterations.py` | `experiments/*.csv`, `experiments/training_summary.md`, `figures/training_iteration_diagnostics.png`, `figures/game_response_matrix.png`, `figures/node_level_learning_advantage.png` |
 
 ## Runtime Notes
 
@@ -29,10 +29,12 @@ The checked-in CSV files and figures are examples from one deterministic teachin
 | `--episodes` | `run_training_iterations.py` | training episodes for DDQN and CTDE/MADRL diagnostics |
 | `horizon` | script defaults and CSV summaries | number of decision epochs in a rollout |
 
+The code defaults to fixed `EnvConfig.dt` for readability.  In the notation of the notes, a more general environment can use nonuniform `Delta t_k`; it should record the current `t_k`, next action time, and interval length in the transition diagnostics.
+
 ## What Each Script Needs
 
 | Script | Needs | Expected result |
 |---|---|---|
 | `run_smoke_tests.sh` | installed dependencies from `requirements.txt` | exits with status 0 and unit-test summary |
-| `generate_figures.py` | working NumPy/Matplotlib environment | rewrites the PNG files under `figures/` |
-| `run_training_iterations.py` | working PyTorch/NumPy/Matplotlib environment | rewrites training CSVs, policy-comparison metrics, game-response metrics, summary markdown, and diagnostic PNGs |
+| `generate_figures.py` | working NumPy/Matplotlib environment | rewrites explanatory PNG files under `figures/`, including the `t_k` versus `tau_j` timing diagram |
+| `run_training_iterations.py` | working PyTorch/NumPy/Matplotlib environment | rewrites training CSVs, policy-comparison metrics, game-response metrics, node-level robustness metrics, summary markdown, and diagnostic PNGs |

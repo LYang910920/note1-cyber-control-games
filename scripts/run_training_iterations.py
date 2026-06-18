@@ -37,6 +37,14 @@ from evaluation_metrics import (
 )
 from fbsm_malware_baseline import solve_fbsm
 from madrl_ctde_hybrid_game import train as train_madrl
+from node_level_robustness import (
+    NodeSimConfig,
+    action_from_defender_mode,
+    fbsm_open_loop_policy,
+    no_defense_node_policy,
+    rollout_node_policy,
+    summarize_node_rollout,
+)
 
 
 def write_csv(path: Path, rows: list[dict]) -> None:
@@ -122,6 +130,46 @@ def run_game_response(qnet) -> list[dict]:
     return evaluate_game_response_matrix(defender_policies=defender_policies, horizon=40, seed=17)
 
 
+def make_ddqn_node_policy(qnet):
+    """Deploy the aggregate DDQN policy on a node-level simulator."""
+    def policy(k: int, obs: np.ndarray):
+        with torch.no_grad():
+            obs_t = torch.tensor(obs, dtype=torch.float32).unsqueeze(0)
+            mode = int(qnet(obs_t).argmax(1).item())
+        return action_from_defender_mode(mode)
+
+    return policy
+
+
+def run_node_level_robustness(qnet):
+    """Compare feedback learning with an open-loop FBSM policy under mismatch."""
+    cfg = NodeSimConfig()
+    beta_assumed = 0.45
+    _, _, u_nominal, _, _ = solve_fbsm(
+        T=float(cfg.horizon),
+        n=cfg.horizon,
+        beta=beta_assumed,
+        gamma=0.15,
+        A=6.0,
+        B=6.0,
+        A_terminal=12.0,
+        max_iter=45,
+    )
+    policies = [
+        ("No defense on node graph", no_defense_node_policy),
+        ("FBSM open-loop patch, nominal beta", fbsm_open_loop_policy(u_nominal)),
+        ("DDQN aggregate feedback on node graph", make_ddqn_node_policy(qnet)),
+    ]
+    rollouts = []
+    rows = []
+    for seed in range(21, 29):
+        for label, policy in policies:
+            rollout = rollout_node_policy(label, policy, seed=seed, cfg=cfg)
+            rollouts.append(rollout)
+            rows.append(summarize_node_rollout(rollout, beta_assumed=beta_assumed))
+    return rollouts, rows
+
+
 def rolling_mean(values: list[float], window: int = 5) -> list[float]:
     out = []
     for idx in range(len(values)):
@@ -139,6 +187,7 @@ def write_summary(
     madrl: list[dict],
     policy_metrics: list[dict],
     game_metrics: list[dict],
+    node_metrics: list[dict],
     episodes: int,
 ) -> None:
     fbsm_ratio = fbsm[-1]["max_control_change"] / max(fbsm[0]["max_control_change"], 1e-12)
@@ -158,6 +207,17 @@ def write_summary(
     ]
     best_fixed = min(non_learning_rows, key=lambda row: row["cumulative_compromised"])
     game_best = min(game_metrics, key=lambda row: row["cumulative_compromised"])
+    node_learning = [
+        row for row in node_metrics
+        if row["policy"] == "DDQN aggregate feedback on node graph"
+    ]
+    node_fbsm = [
+        row for row in node_metrics
+        if row["policy"] == "FBSM open-loop patch, nominal beta"
+    ]
+    node_ddqn_mean = float(np.mean([row["cumulative_compromised"] for row in node_learning]))
+    node_fbsm_mean = float(np.mean([row["cumulative_compromised"] for row in node_fbsm]))
+    node_example = node_metrics[0]
     text = f"""# Training Summary
 
 These runs are intentionally small enough for a laptop, but long enough to show the main convergence or stabilization signals.
@@ -167,7 +227,7 @@ These runs are intentionally small enough for a laptop, but long enough to show 
 | Item | Setting |
 |---|---|
 | Model | Hybrid malware/deception state `[S,I,R,z]` |
-| Decision timing | observe at `t_k`, apply impulse jump if selected, integrate ODE to `t_{{k+1}}` |
+| Decision timing | observe at action point `t_k`, apply any impulse jump, integrate ODE to `t_{{k+1}}` |
 | Defender actions | none, patch, clean, deceive, isolate |
 | Attacker actions | scan, exploit, lateral, stealth |
 | DDQN setting | {episodes} episodes, horizon 24, hidden width 64, learning rate 1e-3, gamma 0.99 |
@@ -177,7 +237,7 @@ These runs are intentionally small enough for a laptop, but long enough to show 
 
 | Parameter | Value | Meaning |
 |---|---:|---|
-| Decision interval `Delta t` | {timing["decision_dt"]:.2f} | Policies observe and act once per interval. |
+| Default interval `Delta t` | {timing["decision_dt"]:.2f} | This run uses a fixed interval; the model-to-MDP conversion also permits nonuniform `Delta t_k`. |
 | RK4 substeps per interval | {timing["rk4_substeps"]} | Internal ODE solver steps, not extra MDP/MG decisions. |
 | Policy-comparison horizon | {timing["decision_epochs"]} | Number of sampled decision epochs in each rollout. |
 
@@ -201,12 +261,21 @@ The learned DDQN policy has cumulative compromised exposure {ddqn_policy["cumula
 
 `game_response_metrics.csv` evaluates defender policies against several attacker strategies.  The lowest cumulative compromised exposure in the matrix is {game_best["cumulative_compromised"]:.3f}, achieved by `{game_best["defender_policy"]}` against `{game_best["attacker_policy"]}`.
 
+## Node-Level Robustness Snapshot
+
+`node_level_robustness_metrics.csv` evaluates the same idea on a {node_example["nodes"]}-node random graph.  FBSM is solved as a low-dimensional open-loop control using nominal beta {node_example["beta_assumed_by_fbsm"]:.2f}, while the node simulator uses beta {node_example["beta_true_base"]:.2f} with burst multiplier {node_example["burst_multiplier"]:.2f}.  Mean cumulative compromised exposure is {node_ddqn_mean:.3f} for DDQN aggregate feedback versus {node_fbsm_mean:.3f} for the nominal FBSM open-loop schedule.  This is the intended teaching case for why feedback learning can be easier to use when node-level dynamics or parameters are not accurately known.  The point is not that DDQN always beats FBSM; it is that a feedback policy can react to a state that an offline open-loop baseline did not predict.
+
 For longer research runs, increase `--episodes`, run multiple seeds, and compare against no-defense and rule-based baselines.
 """
     path.write_text(text)
 
 
-def write_output_preview(path: Path, policy_metrics: list[dict], game_metrics: list[dict]) -> None:
+def write_output_preview(
+    path: Path,
+    policy_metrics: list[dict],
+    game_metrics: list[dict],
+    node_metrics: list[dict],
+) -> None:
     """Write a categorized preview of the main generated outputs."""
     ddqn_policy = next(row for row in policy_metrics if row["policy"].startswith("DDQN"))
     non_learning_rows = [
@@ -214,6 +283,16 @@ def write_output_preview(path: Path, policy_metrics: list[dict], game_metrics: l
     ]
     best_fixed = min(non_learning_rows, key=lambda row: row["cumulative_compromised"])
     game_best = min(game_metrics, key=lambda row: row["cumulative_compromised"])
+    node_learning = [
+        row for row in node_metrics
+        if row["policy"] == "DDQN aggregate feedback on node graph"
+    ]
+    node_fbsm = [
+        row for row in node_metrics
+        if row["policy"] == "FBSM open-loop patch, nominal beta"
+    ]
+    node_ddqn_mean = float(np.mean([row["cumulative_compromised"] for row in node_learning]))
+    node_fbsm_mean = float(np.mean([row["cumulative_compromised"] for row in node_fbsm]))
     text = f"""# Output Preview
 
 Use this page as the first stop after running `python scripts/run_training_iterations.py`.
@@ -223,7 +302,7 @@ Use this page as the first stop after running `python scripts/run_training_itera
 | Item | Value |
 |---|---|
 | Model | Hybrid malware/deception `[S,I,R,z]` |
-| Decision interval | `Delta t = {policy_metrics[0]["decision_dt"]:.2f}` |
+| Default decision interval | `Delta t = {policy_metrics[0]["decision_dt"]:.2f}` in this run; nonuniform `Delta t_k` is also valid |
 | Solver substeps | `{policy_metrics[0]["rk4_substeps"]}` RK4 substeps per decision interval |
 | Observation convention | policy sees pre-jump `x(t_k^-)`; next observation is `x(t_{{k+1}}^-)` |
 
@@ -255,7 +334,16 @@ Best cell in this deterministic response matrix:
 |---|---|---:|
 | {game_best["defender_policy"]} | {game_best["attacker_policy"]} | {game_best["cumulative_compromised"]:.3f} |
 
-## 5. Files To Open First
+## 5. Node-Level Robustness
+
+Open `figures/node_level_learning_advantage.png` and `experiments/node_level_robustness_metrics.csv`.
+
+| Method | Mean cumulative compromised |
+|---|---:|
+| DDQN aggregate feedback on node graph | {node_ddqn_mean:.3f} |
+| FBSM open-loop patch, nominal beta | {node_fbsm_mean:.3f} |
+
+## 6. Files To Open First
 
 | Category | File |
 |---|---|
@@ -263,7 +351,8 @@ Best cell in this deterministic response matrix:
 | Learning curves | `figures/training_iteration_diagnostics.png` |
 | Policy comparison CSV | `experiments/policy_comparison_metrics.csv` |
 | Game matrix CSV | `experiments/game_response_metrics.csv` |
-| Timing explanation | `docs/MODEL_TO_MDP.md` |
+| Node-level robustness CSV | `experiments/node_level_robustness_metrics.csv` |
+| Timing diagram and explanation | `figures/timing_semantics.png`, `docs/MODEL_TO_MDP.md` |
 """
     path.write_text(text)
 
@@ -343,6 +432,74 @@ def plot_game_response_matrix(output_path: Path, rows: list[dict]) -> None:
     plt.close(fig)
 
 
+def plot_node_level_advantage(output_path: Path, rollouts: list[dict], rows: list[dict]) -> None:
+    """Plot the node-level parameter-mismatch comparison."""
+    policies = list(dict.fromkeys(row["policy"] for row in rows))
+    colors = {
+        "No defense on node graph": "#9e9e9e",
+        "FBSM open-loop patch, nominal beta": "#f58518",
+        "DDQN aggregate feedback on node graph": "#4c78a8",
+    }
+    fig, axes = plt.subplots(2, 2, figsize=(12, 8.0))
+    axes = axes.ravel()
+
+    ax = axes[0]
+    for policy in policies:
+        matching = [r for r in rollouts if r["label"] == policy]
+        series = np.asarray([r["observations"][:, 1] for r in matching])
+        mean = series.mean(axis=0)
+        std = series.std(axis=0)
+        t = np.arange(len(mean))
+        ax.plot(t, mean, label=textwrap.fill(policy, width=22), color=colors.get(policy))
+        ax.fill_between(t, np.maximum(0.0, mean - std), mean + std, color=colors.get(policy), alpha=0.14)
+    ax.set_title("Node-level DDQN feedback vs nominal-beta FBSM")
+    ax.set_xlabel("Decision/action epoch k")
+    ax.set_ylabel("Compromised node share")
+    ax.grid(alpha=0.25)
+    ax.legend(fontsize=8)
+
+    def mean_metric(policy: str, key: str) -> tuple[float, float]:
+        vals = np.asarray([row[key] for row in rows if row["policy"] == policy], dtype=float)
+        return float(vals.mean()), float(vals.std())
+
+    labels = [textwrap.fill(p, width=18) for p in policies]
+    x = np.arange(len(policies))
+    cumulative = [mean_metric(p, "cumulative_compromised") for p in policies]
+    ax = axes[1]
+    ax.bar(x, [v[0] for v in cumulative], yerr=[v[1] for v in cumulative],
+           color=[colors.get(p, "#4c78a8") for p in policies], alpha=0.85, capsize=4)
+    ax.set_xticks(x, labels, rotation=18, ha="right")
+    ax.set_ylabel("Mean cumulative compromised")
+    ax.set_title("Lower exposure is better")
+    ax.grid(axis="y", alpha=0.25)
+
+    peak = [mean_metric(p, "peak_compromised") for p in policies]
+    ax = axes[2]
+    ax.bar(x, [v[0] for v in peak], yerr=[v[1] for v in peak],
+           color=[colors.get(p, "#4c78a8") for p in policies], alpha=0.85, capsize=4)
+    ax.set_xticks(x, labels, rotation=18, ha="right")
+    ax.set_ylabel("Mean peak compromised")
+    ax.set_title("Feedback reacts to bursts")
+    ax.grid(axis="y", alpha=0.25)
+
+    ax = axes[3]
+    horizon = int(rows[0]["horizon"])
+    sizes = np.asarray([50, 160, 500, 1000, 2500])
+    unknowns = 2 * (3 * sizes) * (horizon + 1)
+    ax.plot(sizes, unknowns, marker="o", color="black")
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    ax.set_xlabel("Nodes")
+    ax.set_ylabel("State+costate unknown proxy")
+    ax.set_title("Node-level FBSM scaling burden")
+    ax.grid(alpha=0.25, which="both")
+
+    fig.tight_layout()
+    output_path.parent.mkdir(exist_ok=True)
+    fig.savefig(output_path, dpi=180)
+    plt.close(fig)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run training-iteration experiments for Note 1.")
     parser.add_argument("--episodes", type=int, default=180, help="Episode count for DDQN and MADRL diagnostics.")
@@ -355,20 +512,24 @@ def main() -> None:
     madrl = run_madrl(args.episodes)
     policy_metrics = run_policy_comparison(qnet)
     game_metrics = run_game_response(qnet)
+    node_rollouts, node_metrics = run_node_level_robustness(qnet)
 
     write_csv(exp_dir / "fbsm_iteration_history.csv", fbsm)
     write_csv(exp_dir / "ddqn_training_history.csv", ddqn)
     write_csv(exp_dir / "madrl_training_history.csv", madrl)
     write_csv(exp_dir / "policy_comparison_metrics.csv", policy_metrics)
     write_csv(exp_dir / "game_response_metrics.csv", game_metrics)
-    write_summary(exp_dir / "training_summary.md", fbsm, ddqn, madrl, policy_metrics, game_metrics, args.episodes)
-    write_output_preview(exp_dir / "OUTPUT_PREVIEW.md", policy_metrics, game_metrics)
+    write_csv(exp_dir / "node_level_robustness_metrics.csv", node_metrics)
+    write_summary(exp_dir / "training_summary.md", fbsm, ddqn, madrl, policy_metrics, game_metrics, node_metrics, args.episodes)
+    write_output_preview(exp_dir / "OUTPUT_PREVIEW.md", policy_metrics, game_metrics, node_metrics)
     plot_training_diagnostics(fig_dir / "training_iteration_diagnostics.png", fbsm, ddqn, madrl, policy_metrics)
     plot_game_response_matrix(fig_dir / "game_response_matrix.png", game_metrics)
+    plot_node_level_advantage(fig_dir / "node_level_learning_advantage.png", node_rollouts, node_metrics)
 
     print(f"Wrote experiment CSV files to {exp_dir}")
     print(f"Wrote training diagnostic figure to {fig_dir / 'training_iteration_diagnostics.png'}")
     print(f"Wrote game response matrix figure to {fig_dir / 'game_response_matrix.png'}")
+    print(f"Wrote node-level robustness figure to {fig_dir / 'node_level_learning_advantage.png'}")
 
 
 if __name__ == "__main__":

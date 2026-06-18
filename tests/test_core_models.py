@@ -14,6 +14,12 @@ from cyber_dynamics import MalwareParams, controlled_sir_rhs, project_simplex3, 
 from cyber_hybrid_env import HybridCyberDefenseEnv, scripted_attacker
 from evaluation_metrics import evaluate_game_response_matrix, evaluate_policy_suite
 from fbsm_malware_baseline import solve_fbsm
+from node_level_robustness import (
+    NodeSimConfig,
+    action_from_defender_mode,
+    rollout_node_policy,
+    summarize_node_rollout,
+)
 
 
 class CoreModelTests(unittest.TestCase):
@@ -78,6 +84,21 @@ class CoreModelTests(unittest.TestCase):
             self.assertIn("defender_policy", row)
             self.assertIn("attacker_policy", row)
             self.assertIn("cumulative_compromised", row)
+
+    def test_node_level_robustness_rollout_contract(self):
+        cfg = NodeSimConfig(nodes=24, horizon=4, mean_degree=4.0)
+
+        def patch_policy(k, obs):
+            return action_from_defender_mode(1)
+
+        rollout = rollout_node_policy("unit-test patch policy", patch_policy, seed=5, cfg=cfg)
+        rows = summarize_node_rollout(rollout, beta_assumed=0.5)
+
+        self.assertEqual(rollout["observations"].shape, (5, 4))
+        self.assertEqual(len(rollout["costs"]), 4)
+        self.assertGreaterEqual(rows["cumulative_compromised"], 0.0)
+        self.assertEqual(rows["state_dimension"], 72)
+        self.assertGreater(rows["node_pmp_unknown_proxy"], rows["state_dimension"])
 
 
 if __name__ == "__main__":

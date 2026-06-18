@@ -7,7 +7,7 @@ This page is the compact map. You can ignore most files at first.
 ```text
 lecture note
   -> continuous-time cyber dynamics
-  -> impulse points and sampled decision points
+  -> original impulse points tau_j and sampled action points t_k
   -> FBSM baseline, DDQN, CTDE/MADRL
   -> figures and training diagnostics
 ```
@@ -16,8 +16,9 @@ lecture note
 
 ```text
 FBSM: continuous control u(t) on an ODE time grid
-DDQN: observe at t_k, act once, jump/flow to t_{k+1}
+DDQN: observe at action point t_k, act once, jump/flow to t_{k+1}
 MADRL: both players observe at t_k, choose joint actions, jump/flow to t_{k+1}
+Impulses: original model events use tau_j; they may or may not coincide with t_k
 ```
 
 Read `docs/MODEL_TO_MDP.md` if the difference between continuous time, impulse jumps, and MDP/MG decision epochs is the main question.
@@ -50,5 +51,6 @@ Read `docs/MODEL_TO_MDP.md` if the difference between continuous time, impulse j
 4. `src/fbsm_malware_baseline.py`: continuous-control PMP/FBSM baseline.
 5. `src/ddqn_cyber_defense.py`: single-agent sampled-data MDP learning.
 6. `src/madrl_ctde_hybrid_game.py`: attacker-defender sampled-data Markov-game loop.
+7. `src/node_level_robustness.py`: node-graph parameter-mismatch experiment.
 
 For command details, use `scripts/README.md`. For module details, use `src/README.md`.

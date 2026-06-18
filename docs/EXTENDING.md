@@ -9,7 +9,7 @@ state -> dynamics -> environment step -> reward/payoff -> baseline or learner ->
 ## Extension Path
 
 1. **Change the state.** Add new compartments, budget variables, node features, or uncertainty states. Update projection or clipping logic so the state remains physically meaningful.
-2. **Decide the timing.** State whether each action changes ODE rates, creates an impulse jump, or does both. Keep the observation point `x(t_k^-)` and next observation `x(t_{k+1}^-)` consistent.
+2. **Decide the timing.** State whether each action changes ODE rates, creates an impulse jump, or does both. Use `t_k` for learning action/observation points and `tau_j` for original model impulse/event points. Fixed `Delta t` is convenient, but nonuniform `Delta t_k` is valid if the simulator records it.
 3. **Change the dynamics.** Replace `controlled_sir_rhs` or `hybrid_rhs` with a new `f(x,u,a,t)`. Keep the function signature simple and write a short smoke test before adding learning.
 4. **Change the reward.** Decide which quantities should be minimized by the defender and maximized by the attacker. Add clear weights to `EnvConfig`.
 5. **Add baselines before learning.** Compare no-defense, constant-defense, threshold, and FBSM-style policies before training DDQN or MARL.
@@ -21,6 +21,8 @@ state -> dynamics -> environment step -> reward/payoff -> baseline or learner ->
 For larger models, move from compartment states to degree-level arrays, node-level vectors, graph features, or event-driven jump maps. Keep the first version small and testable before adding a large RL/MARL framework.
 
 For network-scale impulse models, record whether a jump is node-local, edge-local, or global. For example, isolating one subnet may create an immediate node-state jump, while patching campaigns may change vulnerability rates over the following interval.
+
+Use `src/node_level_robustness.py` as a small bridge from compartment states to node graphs. It demonstrates a useful stress test: compare a nominal-parameter FBSM open-loop schedule with a feedback policy when the true graph dynamics and propagation parameters differ from the baseline model.
 
 ## Related Learning Path
 

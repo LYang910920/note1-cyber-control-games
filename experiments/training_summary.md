@@ -7,7 +7,7 @@ These runs are intentionally small enough for a laptop, but long enough to show 
 | Item | Setting |
 |---|---|
 | Model | Hybrid malware/deception state `[S,I,R,z]` |
-| Decision timing | observe at `t_k`, apply impulse jump if selected, integrate ODE to `t_{k+1}` |
+| Decision timing | observe at action point `t_k`, apply any impulse jump, integrate ODE to `t_{k+1}` |
 | Defender actions | none, patch, clean, deceive, isolate |
 | Attacker actions | scan, exploit, lateral, stealth |
 | DDQN setting | 180 episodes, horizon 24, hidden width 64, learning rate 1e-3, gamma 0.99 |
@@ -17,7 +17,7 @@ These runs are intentionally small enough for a laptop, but long enough to show 
 
 | Parameter | Value | Meaning |
 |---|---:|---|
-| Decision interval `Delta t` | 1.00 | Policies observe and act once per interval. |
+| Default interval `Delta t` | 1.00 | This run uses a fixed interval; the model-to-MDP conversion also permits nonuniform `Delta t_k`. |
 | RK4 substeps per interval | 10 | Internal ODE solver steps, not extra MDP/MG decisions. |
 | Policy-comparison horizon | 50 | Number of sampled decision epochs in each rollout. |
 
@@ -44,5 +44,9 @@ The learned DDQN policy has cumulative compromised exposure 1.386, compared with
 ## Game Response Snapshot
 
 `game_response_metrics.csv` evaluates defender policies against several attacker strategies.  The lowest cumulative compromised exposure in the matrix is 1.235, achieved by `DDQN learned defender (greedy)` against `Scripted scan -> exploit -> lateral attacker`.
+
+## Node-Level Robustness Snapshot
+
+`node_level_robustness_metrics.csv` evaluates the same idea on a 160-node random graph.  FBSM is solved as a low-dimensional open-loop control using nominal beta 0.45, while the node simulator uses beta 1.25 with burst multiplier 1.35.  Mean cumulative compromised exposure is 1.325 for DDQN aggregate feedback versus 16.111 for the nominal FBSM open-loop schedule.  This is the intended teaching case for why feedback learning can be easier to use when node-level dynamics or parameters are not accurately known.  The point is not that DDQN always beats FBSM; it is that a feedback policy can react to a state that an offline open-loop baseline did not predict.
 
 For longer research runs, increase `--episodes`, run multiple seeds, and compare against no-defense and rule-based baselines.

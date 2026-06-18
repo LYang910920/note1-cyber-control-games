@@ -64,6 +64,10 @@ observe x(t_k^-)
 
 FBSM solves a continuous-time optimal-control problem on a numerical mesh; it does **not** create an MDP.  DDQN and CTDE/MADRL convert the simulator into a sampled-data MDP or Markov game, where `EnvConfig.dt` is the decision interval and RK4 `substeps` are only internal integration steps.  See `docs/MODEL_TO_MDP.md` for the full mapping.
 
+In the notation used here, `t_k` means a learning action/observation point after converting the model into an MDP or Markov game.  `tau_j` means an impulse or event point already present in the original model.  The code uses a fixed `Delta t` for readability, but the method can also use nonuniform action intervals `Delta t_k`.
+
+![Timing semantics](figures/timing_semantics.png)
+
 ## What You Learn
 
 | Topic | In this repo |
@@ -92,18 +96,25 @@ The game response matrix compares defender policies against several attacker str
 
 ![Attacker-defender response matrix](figures/game_response_matrix.png)
 
+The node-level robustness experiment shows a case where a low-dimensional open-loop FBSM schedule is computed with an underestimated propagation parameter, then deployed on a stochastic node graph.  The DDQN aggregate feedback policy observes the current compromised share and reacts to bursts, so the figure is a concrete example of when feedback learning can be more practical than an offline baseline.
+
+![Node-level learning advantage](figures/node_level_learning_advantage.png)
+
 ## Main Outputs
 
 | Output | Purpose |
 |---|---|
+| `figures/timing_semantics.png` | nonuniform action points `t_k` versus original impulse points `tau_j` |
 | `figures/fbsm_malware_control.png` | FBSM state and patching-control baseline |
 | `figures/hybrid_policy_comparison.png` | no-defense, fixed-defense, and rule-based hybrid-policy comparison |
 | `figures/hybrid_policy_rollout.png` | one hybrid rollout with defender and attacker actions |
 | `figures/training_iteration_diagnostics.png` | longer FBSM, DDQN, and CTDE/MADRL diagnostics |
 | `figures/game_response_matrix.png` | defender-policy performance against several attacker strategies |
+| `figures/node_level_learning_advantage.png` | node-level parameter-mismatch comparison: DDQN feedback versus nominal-beta FBSM |
 | `experiments/OUTPUT_PREVIEW.md` | categorized first-stop summary after longer experiment runs |
 | `experiments/policy_comparison_metrics.csv` | multi-metric comparison of representative defense policies |
 | `experiments/game_response_metrics.csv` | game-style attacker-defender response metrics |
+| `experiments/node_level_robustness_metrics.csv` | node-level robustness metrics over multiple random graph seeds |
 | `experiments/*.csv` | logged histories behind the training plot |
 
 ## Validation
