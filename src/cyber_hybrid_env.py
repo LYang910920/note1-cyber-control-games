@@ -4,7 +4,7 @@ Licensed under the MIT License. See LICENSE in the repository root.
 
 Hybrid cyber-defense environment for ODE-RL, DDQN, PPO, SAC, and MADRL examples.
 
-The environment illustrates the three control types used in the lecture notes:
+The environment illustrates the three control types used in the tutorial notes:
   * continuous flow control: selected action changes ODE rates over an interval;
   * impulsive control: selected action causes an immediate jump x(t_k+) = G(x(t_k-),a_k);
   * hybrid action: a discrete mode plus a continuous intensity in [0,1].
@@ -34,7 +34,7 @@ Action = Union[int, Tuple[int, float]]
 @dataclass
 class EnvConfig:
     # dt is the fixed sampled-data decision interval used by this teaching
-    # environment: t_k = k * dt.  The lecture also discusses nonuniform
+    # environment: t_k = k * dt.  The tutorial also discusses nonuniform
     # intervals Delta t_k = t_{k+1} - t_k; those require carrying the next
     # action time in the environment state or scheduler.
     dt: float = 1.0

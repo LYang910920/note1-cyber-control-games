@@ -17,11 +17,11 @@ baseline but is no longer the best operational controller:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable, Dict, List
+from typing import Callable, Dict, List, Union
 import numpy as np
 
 
-ActionDict = Dict[str, float | str]
+ActionDict = Dict[str, Union[float, str]]
 NodePolicy = Callable[[int, np.ndarray], ActionDict]
 
 

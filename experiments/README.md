@@ -23,7 +23,7 @@ The companion plots are saved as `figures/training_iteration_diagnostics.png`, `
 
 FBSM should show the clearest convergence. DDQN is stochastic, so inspect the rolling evaluation-return curve rather than one episode. CTDE/MADRL is a compact stability diagnostic, not a claim of Nash convergence.
 
-The policy-comparison and game-response CSV files use the same sampled-data timing as the environment: observe at action point `t_k`, apply any jump, integrate over `[t_k,t_{k+1})`, then measure the next observation.  The checked-in experiments use fixed `Delta t`; the notation in the lecture also allows nonuniform intervals `Delta t_k`.
+The policy-comparison and game-response CSV files use the same sampled-data timing as the environment: observe at action point `t_k`, apply any jump, integrate over `[t_k,t_{k+1})`, then measure the next observation.  The checked-in experiments use fixed `Delta t`; the notation in the tutorial also allows nonuniform intervals `Delta t_k`.
 
 ## How To Read The CSV Files
 

@@ -5,7 +5,7 @@ This page is the compact map. You can ignore most files at first.
 ## Big Picture
 
 ```text
-lecture note
+tutorial note
   -> continuous-time cyber dynamics
   -> original impulse points tau_j and sampled action points t_k
   -> FBSM baseline, DDQN, CTDE/MADRL
@@ -25,7 +25,7 @@ Read `docs/MODEL_TO_MDP.md` if the difference between continuous time, impulse j
 
 ## Five-Minute Path
 
-1. Open `docs/note1_game_learning_cyber_control.pdf` for the lecture narrative.
+1. Open `docs/note1_game_learning_cyber_control.pdf` for the tutorial narrative.
 2. Read `docs/MODEL_TO_MDP.md` for the continuous/impulse/MDP timing convention.
 3. Run `bash scripts/run_smoke_tests.sh` to check the environment.
 4. Run `python scripts/generate_figures.py` to recreate the figures.
@@ -36,7 +36,7 @@ Read `docs/MODEL_TO_MDP.md` if the difference between continuous time, impulse j
 
 | Path | Purpose |
 |---|---|
-| `docs/` | lecture note, model-to-MDP guide, implementation notes, extension guide |
+| `docs/` | tutorial note, model-to-MDP guide, implementation notes, extension guide |
 | `src/` | executable models and learning algorithms |
 | `scripts/` | commands for figures, smoke tests, and diagnostics |
 | `experiments/` | CSV histories and training summary |

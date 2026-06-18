@@ -1,6 +1,6 @@
 # Source Code Guide
 
-The `src/` folder mirrors the lecture sequence.  Each file is intentionally small enough to read directly.
+The `src/` folder mirrors the tutorial sequence.  Each file is intentionally small enough to read directly.
 
 ## State Convention
 

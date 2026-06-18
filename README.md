@@ -30,7 +30,7 @@ python scripts/run_training_iterations.py
 | Need | Open |
 |---|---|
 | Short orientation | `START_HERE.md` |
-| Lecture narrative | `docs/note1_game_learning_cyber_control.pdf` |
+| Tutorial narrative | `docs/note1_game_learning_cyber_control.pdf` |
 | Continuous/impulse/MDP guide | `docs/MODEL_TO_MDP.md` |
 | Source-code map | `src/README.md` |
 | Script and output map | `scripts/README.md` |
