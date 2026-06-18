@@ -80,7 +80,7 @@ The FBSM example gives a classical control baseline: the state trajectory and pa
 
 ![FBSM malware-control baseline](figures/fbsm_malware_control.png)
 
-The hybrid policy comparison rolls out the same cyber scenario under no defense, fixed defense, and adaptive defense.  It compares multiple metrics, including compromised trajectory, cumulative compromised exposure, peak/final compromised share, defender reward, and impulse usage.
+The hybrid policy comparison rolls out the same cyber scenario under no defense, fixed defenses, a named rule-based hybrid policy, and the learned DDQN policy in the training diagnostics.  It compares multiple metrics, including compromised trajectory, cumulative compromised exposure, peak/final compromised share, defender cost, and impulse usage.
 
 ![Hybrid policy comparison](figures/hybrid_policy_comparison.png)
 
@@ -88,15 +88,22 @@ The training diagnostics plot summarizes longer teaching runs.  FBSM should show
 
 ![Training iteration diagnostics](figures/training_iteration_diagnostics.png)
 
+The game response matrix compares defender policies against several attacker strategies.  Each cell reports cumulative compromised exposure, so lower values are better.
+
+![Attacker-defender response matrix](figures/game_response_matrix.png)
+
 ## Main Outputs
 
 | Output | Purpose |
 |---|---|
 | `figures/fbsm_malware_control.png` | FBSM state and patching-control baseline |
-| `figures/hybrid_policy_comparison.png` | no-defense, fixed-defense, and adaptive-policy comparison |
+| `figures/hybrid_policy_comparison.png` | no-defense, fixed-defense, and rule-based hybrid-policy comparison |
 | `figures/hybrid_policy_rollout.png` | one hybrid rollout with defender and attacker actions |
 | `figures/training_iteration_diagnostics.png` | longer FBSM, DDQN, and CTDE/MADRL diagnostics |
+| `figures/game_response_matrix.png` | defender-policy performance against several attacker strategies |
+| `experiments/OUTPUT_PREVIEW.md` | categorized first-stop summary after longer experiment runs |
 | `experiments/policy_comparison_metrics.csv` | multi-metric comparison of representative defense policies |
+| `experiments/game_response_metrics.csv` | game-style attacker-defender response metrics |
 | `experiments/*.csv` | logged histories behind the training plot |
 
 ## Validation

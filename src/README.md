@@ -35,7 +35,7 @@ s_k = x(t_k^-)
 |---|---|---|
 | `cyber_dynamics.py` | Shared dynamics and integration utilities. | `rk4_integrate`, `controlled_sir_rhs`, `hybrid_rhs` |
 | `cyber_hybrid_env.py` | Plain-Python reset/step environment for sampled hybrid cyber defense. | `HybridCyberDefenseEnv`, `EnvConfig`, `scripted_attacker` |
-| `evaluation_metrics.py` | Shared rollout and policy-comparison metrics. | `evaluate_policy_suite`, `summarize_rollout` |
+| `evaluation_metrics.py` | Shared rollout, policy-comparison, and game-response metrics. | `evaluate_policy_suite`, `evaluate_game_response_matrix`, `summarize_rollout` |
 | `fbsm_malware_baseline.py` | Forward-backward sweep method for a PMP open-loop control baseline. | `solve_fbsm` |
 | `ddqn_cyber_defense.py` | DDQN defender for a scripted-attacker environment. | `train`, `evaluate`, CLI `--smoke` |
 | `madrl_ctde_hybrid_game.py` | Compact CTDE/MADRL attacker-defender game loop. | `train`, `rollout`, `Actor`, `CentralCritic` |
@@ -46,7 +46,7 @@ s_k = x(t_k^-)
 |---|---|---|
 | Dynamics utilities | state vector, parameters, control/action intensities | next-state derivatives or RK4 trajectories |
 | Hybrid environment | defender action, attacker action, current state | next observation, defender/attacker rewards, diagnostics |
-| Policy metrics | representative policies and common horizon | cumulative compromised exposure, peak/final compromised share, rewards, impulse counts |
+| Policy and game metrics | representative defender/attacker policies and common horizon | cumulative compromised exposure, peak/final compromised share, rewards, impulse counts, game-response rows |
 | FBSM baseline | horizon, cost weights, malware parameters | open-loop control, state/costate trajectories, objective, convergence history |
 | DDQN defender | environment, replay buffer, Q-network settings | trained Q-network and logged train/evaluation returns |
 | CTDE/MADRL game | environment, defender/attacker actors, centralized critics | trained actors and logged loss/return diagnostics |

@@ -38,6 +38,30 @@ There are two different grids.  They should not be confused.
 
 FBSM does not convert the original process into an MDP.  It solves a continuous-time optimal-control problem on a numerical mesh.  DDQN and CTDE/MADRL do convert the continuous/hybrid simulator into a sampled-data MDP or Markov game by exposing only the decision grid to the learning algorithm.
 
+## Does Learning Always Require Discretization?
+
+Not always in the same sense.  Model-free RL/MARL usually needs sampled transitions `(s_k, a_k, r_k, s_{k+1})`, so the simulator must expose decision epochs.  PINN/PIDL and Neural ODE methods may train on sampled or collocation points while still representing a continuous-time residual.  FBSM uses a numerical mesh for computation, but it is not an MDP conversion.
+
+Zero-order hold is the simplest sampled-data convention:
+
+```text
+choose a_k at t_k
+apply the corresponding control over [t_k, t_{k+1})
+```
+
+That makes the applied control piecewise constant.  It is common, but not mandatory.  Alternatives include piecewise-linear controls, event-triggered impulses, continuous actor outputs inside a differentiable ODE solver, or a feedback law evaluated continuously.
+
+## Original Impulse Times And Learning Decision Times
+
+Some models already have impulse times before learning is introduced.  Keep those times separate from the learning decision grid.
+
+| Relationship | Meaning | Implementation |
+|---|---|---|
+| original impulse times equal decision times | every learning action may create a jump | standard hybrid MDP or Markov game |
+| original impulse times are a subset of decision times | only some epochs allow impulse actions | action mask or time-dependent action set |
+| original impulse times are denser than decision times | simulator has events the learner does not choose | include those events inside the transition |
+| policy chooses impulse timing | timing itself is part of the action | semi-MDP or event-triggered policy |
+
 ## MDP Conversion
 
 For the single-defender DDQN example, the induced MDP is:

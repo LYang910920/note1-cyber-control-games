@@ -6,7 +6,7 @@ Scripts are grouped by purpose: quick validation, figure generation, and longer 
 |---|---|---|---|
 | `run_smoke_tests.sh` | Fast confidence check for every executable component. | `bash scripts/run_smoke_tests.sh` | Console output only |
 | `generate_figures.py` | Rebuild static explanatory figures used by the README. | `python scripts/generate_figures.py` | `figures/*.png` |
-| `run_training_iterations.py` | Run longer FBSM, DDQN, CTDE/MADRL, and policy-comparison diagnostics. | `python scripts/run_training_iterations.py` | `experiments/*.csv`, `experiments/training_summary.md`, `figures/training_iteration_diagnostics.png` |
+| `run_training_iterations.py` | Run longer FBSM, DDQN, CTDE/MADRL, policy-comparison, and game-response diagnostics. | `python scripts/run_training_iterations.py` | `experiments/*.csv`, `experiments/training_summary.md`, `figures/training_iteration_diagnostics.png`, `figures/game_response_matrix.png` |
 
 ## Runtime Notes
 
@@ -35,4 +35,4 @@ The checked-in CSV files and figures are examples from one deterministic teachin
 |---|---|---|
 | `run_smoke_tests.sh` | installed dependencies from `requirements.txt` | exits with status 0 and unit-test summary |
 | `generate_figures.py` | working NumPy/Matplotlib environment | rewrites the PNG files under `figures/` |
-| `run_training_iterations.py` | working PyTorch/NumPy/Matplotlib environment | rewrites training CSVs, policy-comparison metrics, summary markdown, and the diagnostic PNG |
+| `run_training_iterations.py` | working PyTorch/NumPy/Matplotlib environment | rewrites training CSVs, policy-comparison metrics, game-response metrics, summary markdown, and diagnostic PNGs |

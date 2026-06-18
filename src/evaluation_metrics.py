@@ -16,6 +16,7 @@ import numpy as np
 from cyber_hybrid_env import Action, EnvConfig, HybridCyberDefenseEnv, scripted_attacker
 
 PolicyFn = Callable[[HybridCyberDefenseEnv, int, np.ndarray], Action]
+AttackerFn = Callable[[HybridCyberDefenseEnv, int, np.ndarray], Action]
 
 
 def no_defense_policy(env: HybridCyberDefenseEnv, k: int, obs: np.ndarray) -> Action:
@@ -31,7 +32,7 @@ def always_clean_policy(env: HybridCyberDefenseEnv, k: int, obs: np.ndarray) -> 
 
 
 def adaptive_hybrid_policy(env: HybridCyberDefenseEnv, k: int, obs: np.ndarray) -> Action:
-    """Simple readable baseline using rate controls and an impulse action."""
+    """Threshold rule using deception, patching, and isolate impulses."""
     if obs[1] > 0.20:
         return env.DEF_ISOLATE, 0.8
     if k < 20:
@@ -39,13 +40,44 @@ def adaptive_hybrid_policy(env: HybridCyberDefenseEnv, k: int, obs: np.ndarray) 
     return env.DEF_PATCH, 0.7
 
 
+def scripted_attacker_policy(env: HybridCyberDefenseEnv, k: int, obs: np.ndarray) -> Action:
+    """Scenario attacker used in the single-defender teaching experiments."""
+    return scripted_attacker(env, k)
+
+
+def fixed_scan_attacker(env: HybridCyberDefenseEnv, k: int, obs: np.ndarray) -> Action:
+    return env.ATK_SCAN
+
+
+def fixed_exploit_attacker(env: HybridCyberDefenseEnv, k: int, obs: np.ndarray) -> Action:
+    return env.ATK_EXPLOIT
+
+
+def fixed_lateral_attacker(env: HybridCyberDefenseEnv, k: int, obs: np.ndarray) -> Action:
+    return env.ATK_LATERAL
+
+
+def fixed_stealth_attacker(env: HybridCyberDefenseEnv, k: int, obs: np.ndarray) -> Action:
+    return env.ATK_STEALTH
+
+
 def policy_suite() -> List[Tuple[str, PolicyFn]]:
     """Return deterministic comparison policies used by figures and CSVs."""
     return [
         ("No defense", no_defense_policy),
-        ("Always patch", always_patch_policy),
-        ("Always clean", always_clean_policy),
-        ("Adaptive hybrid", adaptive_hybrid_policy),
+        ("Fixed high patch", always_patch_policy),
+        ("Fixed high clean", always_clean_policy),
+        ("Rule threshold isolate/deceive/patch", adaptive_hybrid_policy),
+    ]
+
+
+def attacker_suite() -> List[Tuple[str, AttackerFn]]:
+    """Return attacker policies for game-style response matrices."""
+    return [
+        ("Scripted scan -> exploit -> lateral attacker", scripted_attacker_policy),
+        ("Fixed exploit attacker", fixed_exploit_attacker),
+        ("Fixed lateral attacker", fixed_lateral_attacker),
+        ("Fixed stealth attacker", fixed_stealth_attacker),
     ]
 
 
@@ -55,10 +87,13 @@ def rollout_policy(
     horizon: int = 50,
     seed: int = 7,
     config: EnvConfig | None = None,
+    attacker_policy: AttackerFn | None = None,
 ) -> Dict[str, object]:
     """Roll out one policy and retain states, rewards, actions, and timing."""
     env = HybridCyberDefenseEnv(config=config, seed=seed) if config else HybridCyberDefenseEnv(seed=seed)
     env.cfg.horizon = horizon
+    if attacker_policy is None:
+        attacker_policy = scripted_attacker_policy
     obs = env.reset()
     states = [obs.copy()]
     defender_modes: List[int] = []
@@ -70,7 +105,7 @@ def rollout_policy(
 
     for k in range(horizon):
         defender_action = policy(env, k, obs)
-        attacker_action = scripted_attacker(env, k)
+        attacker_action = attacker_policy(env, k, obs)
         next_obs, rewards, done, info = env.step(defender_action, attacker_action)
         defender_mode, _ = env.decode_action(defender_action)
         attacker_mode, _ = env.decode_action(attacker_action)
@@ -135,3 +170,29 @@ def evaluate_policy_suite(horizon: int = 50, seed: int = 7) -> Tuple[List[Dict[s
     rollouts = [rollout_policy(label, policy, horizon=horizon, seed=seed) for label, policy in policy_suite()]
     rows = [summarize_rollout(rollout) for rollout in rollouts]
     return rollouts, rows
+
+
+def evaluate_game_response_matrix(
+    defender_policies: List[Tuple[str, PolicyFn]] | None = None,
+    attacker_policies: List[Tuple[str, AttackerFn]] | None = None,
+    horizon: int = 40,
+    seed: int = 17,
+) -> List[Dict[str, float | int | str]]:
+    """Evaluate defender policies against several attacker strategies."""
+    defender_policies = defender_policies or policy_suite()
+    attacker_policies = attacker_policies or attacker_suite()
+    rows: List[Dict[str, float | int | str]] = []
+    for defender_label, defender_policy in defender_policies:
+        for attacker_label, attacker_policy in attacker_policies:
+            rollout = rollout_policy(
+                defender_label,
+                defender_policy,
+                horizon=horizon,
+                seed=seed,
+                attacker_policy=attacker_policy,
+            )
+            summary = summarize_rollout(rollout)
+            summary["defender_policy"] = defender_label
+            summary["attacker_policy"] = attacker_label
+            rows.append(summary)
+    return rows

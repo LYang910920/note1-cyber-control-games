@@ -2,7 +2,7 @@
 \input{lecture_style}
 
 \begin{document}
-\lecturetitle{Code Running Guide}{How to Run and Extend the Python Examples}{Installation, smoke tests, normal runs, outputs, and troubleshooting}{Companion to the cyber control and PINN/PIDL lecture notes}
+\lecturetitle{Code Running Guide}{How to Run and Extend the Note 1 Python Examples}{Installation, smoke tests, training diagnostics, outputs, and troubleshooting}{Companion to the cyber control and game-learning lecture note}
 \tableofcontents
 \newpage
 
@@ -10,21 +10,29 @@
 This guide is a standalone manual for the Python examples. It explains how to set up the environment, run smoke tests, run longer examples, interpret outputs, and extend the code to more complex cyber models.
 
 \section{Folder Structure}
-After unpacking the bundle, the relevant files are:
+The repository is organized around one readable path from model to experiment:
 \begin{verbatim}
-code/
+.
   requirements.txt
-  README_RUN_CODE.md
-  run_smoke_tests.sh
-  cyber_dynamics.py
-  cyber_hybrid_env.py
-  fbsm_malware_baseline.py
-  ddqn_cyber_defense.py
-  madrl_ctde_hybrid_game.py
-  inverse_pinn_sir_malware.py
-  pidl_unknown_mechanism.py
-  control_pinn_malware.py
-  pmp_informed_pinn_malware.py
+  README.md
+  START_HERE.md
+  scripts/
+    run_smoke_tests.sh
+    generate_figures.py
+    run_training_iterations.py
+  src/
+    cyber_dynamics.py
+    cyber_hybrid_env.py
+    fbsm_malware_baseline.py
+    ddqn_cyber_defense.py
+    madrl_ctde_hybrid_game.py
+    evaluation_metrics.py
+  experiments/
+    OUTPUT_PREVIEW.md
+    training_summary.md
+    policy_comparison_metrics.csv
+    game_response_metrics.csv
+  figures/
 \end{verbatim}
 
 \section{Installation}
@@ -40,53 +48,45 @@ The examples require only NumPy, PyTorch, and optionally Matplotlib. CUDA is opt
 \section{Quick Smoke Test}
 Run all scripts in quick mode:
 \begin{lstlisting}[style=pythonstyle]
-cd code
-./run_smoke_tests.sh
+bash scripts/run_smoke_tests.sh
 \end{lstlisting}
-A smoke test checks syntax and basic data flow. It does not train high-quality policies or high-accuracy PINNs.
+A smoke test checks syntax and basic data flow. It does not train high-quality policies or prove game-theoretic convergence.
 
 \section{Normal Runs}
 \subsection{Classical FBSM baseline}
 \begin{lstlisting}[style=pythonstyle]
-python fbsm_malware_baseline.py --max-iter 100
+python src/fbsm_malware_baseline.py --max-iter 100
 \end{lstlisting}
 Expected output: iteration logs, peak infection, objective value, final state, and mean control.
 
 \subsection{DDQN defender}
 \begin{lstlisting}[style=pythonstyle]
-python ddqn_cyber_defense.py --episodes 300
+python src/ddqn_cyber_defense.py --episodes 300
 \end{lstlisting}
 Expected output: training return, validation return, and exploration rate. Improvement is stochastic; run multiple seeds.
 
 \subsection{MADRL attacker-defender game}
 \begin{lstlisting}[style=pythonstyle]
-python madrl_ctde_hybrid_game.py --episodes 200
+python src/madrl_ctde_hybrid_game.py --episodes 200
 \end{lstlisting}
 Expected output: defender and attacker episode returns. This file is a compact CTDE teaching example. For research, extend it with MAPPO clipping, GAE, opponent pools, and cross-play evaluation.
 
-\subsection{Inverse PINN}
+\subsection{Static figure generation}
 \begin{lstlisting}[style=pythonstyle]
-python inverse_pinn_sir_malware.py --iters 5000
+python scripts/generate_figures.py
 \end{lstlisting}
-Expected output: loss, learned beta, learned gamma, data loss, and residual loss.
+Expected output: refreshed PNG figures under \texttt{figures/}, including neural architecture, FBSM, hybrid rollout, and policy-comparison plots.
 
-\subsection{PIDL missing mechanism}
+\subsection{Longer training diagnostics}
 \begin{lstlisting}[style=pythonstyle]
-python pidl_unknown_mechanism.py --iters 5000
+python scripts/run_training_iterations.py --episodes 180
 \end{lstlisting}
-Expected output: loss, known-model parameter estimates, and average learned correction magnitude.
-
-\subsection{Control PINN}
-\begin{lstlisting}[style=pythonstyle]
-python control_pinn_malware.py --iters 5000
-\end{lstlisting}
-Expected output: objective proxy, state residual, and mean control.
-
-\subsection{PMP-informed PINN}
-\begin{lstlisting}[style=pythonstyle]
-python pmp_informed_pinn_malware.py --iters 5000
-\end{lstlisting}
-Expected output: state residual, costate residual, stationarity residual, and boundary residual.
+Expected output:
+\begin{itemize}
+\item CSV histories under \texttt{experiments/};
+\item \texttt{OUTPUT\_PREVIEW.md} and \texttt{training\_summary.md};
+\item the training-diagnostics and game-response PNG figures.
+\end{itemize}
 
 \section{How to Interpret Outputs}
 \begin{longtable}{p{0.24\textwidth}p{0.66\textwidth}}
@@ -97,10 +97,9 @@ Training return & Cumulative reward during learning. It is noisy and should not 
 Validation return & Performance of the current policy without exploration against a fixed scenario. \\
 Peak infected & Maximum compromised population; useful cyber-risk metric. \\
 Area under $I(t)$ & Total compromise burden over time; often more informative than final infection. \\
-Data loss & How well PINN/PIDL fits observations. \\
-Residual loss & How well the learned trajectory satisfies the differential equation. \\
-Stationarity loss & How well PMP control optimality is satisfied. \\
-Correction magnitude & Whether PIDL is using the learned correction heavily or only mildly. \\
+Defender cost & Negative cumulative defender reward; lower is better when exposure is also controlled. \\
+Impulse events & How often immediate jump actions, such as isolation, were used. \\
+Game response matrix & Defender-policy performance against several attacker strategies. \\
 \bottomrule
 \end{longtable}
 
@@ -122,17 +121,19 @@ The infection pressure should use the degree-weighted infected probability.
 \subsection{From scripted attacker to learned attacker}
 Start with \texttt{ddqn\_cyber\_defense.py}. Replace the scripted attacker with an actor network. Then use \texttt{madrl\_ctde\_hybrid\_game.py} as the training template.
 
-\subsection{From open-loop to feedback control PINN}
-Change the control network input from $t$ to $[x,t]$. Train over multiple initial states. This produces a feedback-like neural control law rather than one open-loop trajectory.
+\subsection{From one attacker to a response matrix}
+Use \texttt{evaluation\_metrics.py} to add attacker policies, then rerun the training-diagnostics script.  The output \texttt{game\_response\_metrics.csv} is the first step toward cross-play and exploitability analysis.
+
+\subsection{From tabular response to larger games}
+For larger games, keep the environment contract fixed: observe at $t_k$, apply jumps only when intended, integrate over the decision interval, and report cyber metrics alongside rewards. Then add opponent pools, multiple random seeds, and unilateral-deviation checks.
 
 \section{Troubleshooting}
 \begin{itemize}
 \item If DDQN is unstable, reduce reward scale, reduce learning rate, enlarge replay buffer, and update target network less frequently.
 \item If MADRL cycles, freeze one agent for several updates, add opponent pools, and evaluate cross-play matrices.
-\item If PINN data loss is low but residual loss is high, increase residual weight or collocation points.
-\item If PINN residual loss is low but prediction is poor, the assumed model may be wrong or parameters may be unidentifiable.
-\item If PMP-informed PINN stationarity loss remains high, check control bounds and use projected/KKT residuals.
-\item If the correction network in PIDL dominates the known model, increase correction regularization.
+\item If a learned policy looks good in reward but bad in cyber metrics, inspect the reward formula and compare cumulative compromise, peak compromise, and defender cost.
+\item If an action label is unclear, rename it in \texttt{evaluation\_metrics.py}; figures and CSVs will then inherit the clearer label.
+\item If outputs are missing, run the workflow in order: smoke tests, static figure generation, then longer training diagnostics.
 \end{itemize}
 
 \section{Reproducibility Checklist}
@@ -143,9 +144,9 @@ For every experiment, record:
 \item action space and reward formula;
 \item ODE solver and step size;
 \item network architecture and optimizer;
-\item loss weights for PINN/PIDL;
 \item number of episodes or iterations;
-\item all baselines used for comparison.
+\item all baselines and attacker strategies used for comparison;
+\item output metrics: cumulative compromise, peak compromise, final compromise, defender cost, impulse count, and game-response table.
 \end{itemize}
 
 \end{document}

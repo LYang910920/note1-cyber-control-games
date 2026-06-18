@@ -12,6 +12,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from cyber_dynamics import MalwareParams, controlled_sir_rhs, project_simplex3, rk4_integrate
 from cyber_hybrid_env import HybridCyberDefenseEnv, scripted_attacker
+from evaluation_metrics import evaluate_game_response_matrix, evaluate_policy_suite
 from fbsm_malware_baseline import solve_fbsm
 
 
@@ -60,6 +61,23 @@ class CoreModelTests(unittest.TestCase):
         self.assertEqual(u.shape[0], 31)
         self.assertEqual(lam.shape, (31, 3))
         self.assertTrue(np.isfinite(objective))
+
+    def test_policy_and_game_metrics_are_labeled(self):
+        _, policy_rows = evaluate_policy_suite(horizon=5, seed=3)
+        labels = [row["policy"] for row in policy_rows]
+
+        self.assertIn("Rule threshold isolate/deceive/patch", labels)
+        self.assertNotIn("Adaptive hybrid", labels)
+        for row in policy_rows:
+            self.assertIn("cumulative_compromised", row)
+            self.assertIn("total_defender_cost", row)
+
+        game_rows = evaluate_game_response_matrix(horizon=4, seed=3)
+        self.assertEqual(len(game_rows), 16)
+        for row in game_rows:
+            self.assertIn("defender_policy", row)
+            self.assertIn("attacker_policy", row)
+            self.assertIn("cumulative_compromised", row)
 
 
 if __name__ == "__main__":

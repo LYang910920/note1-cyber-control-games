@@ -10,6 +10,7 @@ architecture diagrams used for orientation.
 
 from pathlib import Path
 import sys
+import textwrap
 
 import matplotlib
 matplotlib.use("Agg")
@@ -92,7 +93,7 @@ def plot_hybrid_policy_comparison(output_dir: Path) -> None:
     colors = ["#4c78a8", "#f58518", "#54a24b", "#b279a2"]
     linestyles = ["-", "--", "-.", ":"]
     markers = ["o", "s", "^", "D"]
-    labels = [row["policy"] for row in metrics]
+    labels = [textwrap.fill(row["policy"], width=18) for row in metrics]
     x = np.arange(len(labels))
 
     fig, axes = plt.subplots(2, 2, figsize=(11, 7.2))
@@ -104,7 +105,7 @@ def plot_hybrid_policy_comparison(output_dir: Path) -> None:
         ax.plot(
             t,
             states[:, 1],
-            label=rollout["label"],
+            label=textwrap.fill(rollout["label"], width=18),
             color=colors[idx],
             linestyle=linestyles[idx],
             marker=markers[idx],
