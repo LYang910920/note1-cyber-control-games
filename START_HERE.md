@@ -29,10 +29,11 @@ Read `docs/MODEL_TO_MDP.md` if the difference between continuous time, impulse j
 2. Read `docs/MODEL_TO_MDP.md` for the continuous/impulse/MDP timing convention.
 3. Run `python src/scenario_profiles.py` to see the student-facing scenario profiles.
 4. Open `docs/PARAMETERS.md` before changing model parameters or DDQN/MADRL hyperparameters.
-5. Run `bash scripts/run_smoke_tests.sh` to check the environment.
-6. Run `python scripts/generate_figures.py` to recreate the figures.
-7. Run `python scripts/run_training_iterations.py` for longer diagnostics.
-8. Read `docs/EXTENDING.md` when you want to scale the model.
+5. Read `docs/PAPER_WORKFLOW.md` when turning an example into a paper section.
+6. Run `bash scripts/run_smoke_tests.sh` to check the environment.
+7. Run `python scripts/generate_figures.py` to recreate the figures.
+8. Run `python scripts/run_training_iterations.py` for longer diagnostics.
+9. Read `docs/EXTENDING.md` when you want to scale the model.
 
 ## Folder Map
 
@@ -40,6 +41,7 @@ Read `docs/MODEL_TO_MDP.md` if the difference between continuous time, impulse j
 |---|---|
 | `docs/` | tutorial note, model-to-MDP guide, implementation notes, extension guide |
 | `docs/PARAMETERS.md` | model parameters, solver values, and neural-training hyperparameters |
+| `docs/PAPER_WORKFLOW.md` | paper workflow for FBSM, ODE-RL, DDQN, and CTDE/MADRL |
 | `src/` | executable models and learning algorithms |
 | `scripts/` | commands for figures, smoke tests, and diagnostics |
 | `experiments/` | CSV histories and training summary |
@@ -48,13 +50,14 @@ Read `docs/MODEL_TO_MDP.md` if the difference between continuous time, impulse j
 
 ## Code Reading Order
 
-1. `src/cyber_dynamics.py`: shared state conventions and ODE integration.
-2. `src/cyber_hybrid_env.py`: sampled decisions, ODE flow, jump maps, rewards.
-3. `src/scenario_profiles.py`: named starting points for adapting the code to paper-style scenarios.
-4. `src/evaluation_metrics.py`: policy rollouts and multi-metric comparison helpers.
-5. `src/fbsm_malware_baseline.py`: continuous-control PMP/FBSM baseline.
-6. `src/ddqn_cyber_defense.py`: single-agent sampled-data MDP learning.
-7. `src/madrl_ctde_hybrid_game.py`: attacker-defender sampled-data Markov-game loop.
-8. `src/node_level_robustness.py`: node-level epidemic-model parameter-mismatch experiment.
+1. `src/shared_setup.py`: local helper that finds the shared foundation package in a sibling workspace.
+2. `src/cyber_dynamics.py`: compatibility wrapper around shared `cybercontrol` dynamics and numerics.
+3. `src/cyber_hybrid_env.py`: sampled decisions, ODE flow, jump maps, rewards.
+4. `src/scenario_profiles.py`: named starting points for adapting the code to paper-style scenarios.
+5. `src/evaluation_metrics.py`: policy rollouts and multi-metric comparison helpers.
+6. `src/fbsm_malware_baseline.py`: continuous-control PMP/FBSM baseline.
+7. `src/ddqn_cyber_defense.py`: single-agent sampled-data MDP learning.
+8. `src/madrl_ctde_hybrid_game.py`: attacker-defender sampled-data Markov-game loop.
+9. `src/node_level_robustness.py`: node-level epidemic-model parameter-mismatch experiment.
 
 For command details, use `scripts/README.md`. For module details, use `src/README.md`.

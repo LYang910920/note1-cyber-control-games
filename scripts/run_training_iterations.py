@@ -11,7 +11,6 @@ direction over time?"
 from __future__ import annotations
 
 import argparse
-import csv
 import math
 import textwrap
 from pathlib import Path
@@ -27,6 +26,10 @@ import torch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
+from shared_setup import ensure_foundation_package
+
+ensure_foundation_package()
+from cybercontrol.io import write_csv
 from ddqn_cyber_defense import train as train_ddqn
 from evaluation_metrics import (
     evaluate_game_response_matrix,
@@ -49,16 +52,6 @@ from node_level_robustness import (
 NODE_NO_DEFENSE_LABEL = "Node-level epidemic model: no defense"
 NODE_FBSM_LABEL = "Node-level epidemic model: nominal-beta FBSM open-loop patching"
 NODE_DDQN_LABEL = "Node-level epidemic model: DDQN aggregate feedback"
-
-
-def write_csv(path: Path, rows: list[dict]) -> None:
-    path.parent.mkdir(exist_ok=True)
-    if not rows:
-        return
-    with path.open("w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=list(rows[0].keys()), lineterminator="\n")
-        writer.writeheader()
-        writer.writerows(rows)
 
 
 def run_fbsm() -> list[dict]:

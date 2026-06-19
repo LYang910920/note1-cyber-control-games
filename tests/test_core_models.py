@@ -59,6 +59,9 @@ class CoreModelTests(unittest.TestCase):
         self.assertTrue(info["jump_applied"])
         self.assertLess(info["post_jump"][1], info["pre_jump"][1])
         self.assertGreater(info["post_jump"][2], info["pre_jump"][2])
+        expected_impulse_cost = env.cfg.c_isolate * 0.8 ** 2 + env.cfg.usability_cost * info["removed_by_impulse"]
+        self.assertAlmostEqual(info["impulse_cost"], expected_impulse_cost)
+        self.assertGreater(info["impulse_cost"], 0.0)
 
     def test_fbsm_smoke_returns_finite_objective(self):
         t, x, u, lam, objective = solve_fbsm(n=30, max_iter=3)

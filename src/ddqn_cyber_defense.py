@@ -26,6 +26,10 @@ torch.set_num_threads(1)
 import torch.nn as nn
 import torch.optim as optim
 from cyber_hybrid_env import HybridCyberDefenseEnv, scripted_attacker
+from shared_setup import ensure_foundation_package
+
+ensure_foundation_package()
+from cybercontrol.torch_utils import MLP as SharedMLP
 
 Transition = namedtuple("Transition", "s a r sp done")
 
@@ -50,19 +54,11 @@ class ReplayBuffer:
         return len(self.data)
 
 
-class MLP(nn.Module):
-    def __init__(self, in_dim, out_dim, hidden=128, depth=2):
-        super().__init__()
-        layers = []
-        last = in_dim
-        for _ in range(depth):
-            layers += [nn.Linear(last, hidden), nn.ReLU()]
-            last = hidden
-        layers += [nn.Linear(last, out_dim)]
-        self.net = nn.Sequential(*layers)
+class MLP(SharedMLP):
+    """DDQN MLP wrapper using the shared implementation with ReLU activations."""
 
-    def forward(self, x):
-        return self.net(x)
+    def __init__(self, in_dim, out_dim, hidden=128, depth=2):
+        super().__init__(in_dim, out_dim, width=hidden, depth=depth, activation=nn.ReLU)
 
 
 def evaluate(qnet, episodes=5, seed=1000, horizon=None):

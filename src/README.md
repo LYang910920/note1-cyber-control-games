@@ -35,7 +35,8 @@ This teaching environment uses fixed `t_k = k * dt`.  The notes also support non
 
 | File | Main purpose | Useful entry points |
 |---|---|---|
-| `cyber_dynamics.py` | Shared dynamics and integration utilities. | `rk4_integrate`, `controlled_sir_rhs`, `hybrid_rhs` |
+| `shared_setup.py` | Finds the shared foundation package during local workspace runs. | `ensure_foundation_package` |
+| `cyber_dynamics.py` | Compatibility wrapper around shared `cybercontrol` dynamics and integration utilities. | `rk4_integrate`, `controlled_sir_rhs`, `hybrid_rhs` |
 | `cyber_hybrid_env.py` | Plain-Python reset/step environment for sampled hybrid cyber defense. | `HybridCyberDefenseEnv`, `EnvConfig`, `scripted_attacker` |
 | `scenario_profiles.py` | Student-facing scenario profiles for adapting the teaching code to paper-style settings. | `SCENARIOS`, `get_scenario`, `describe_scenarios` |
 | `evaluation_metrics.py` | Shared rollout, policy-comparison, and game-response metrics. | `evaluate_policy_suite`, `evaluate_game_response_matrix`, `summarize_rollout` |
@@ -59,7 +60,7 @@ This teaching environment uses fixed `t_k = k * dt`.  The notes also support non
 
 ## How The Pieces Fit
 
-1. `cyber_dynamics.py` defines continuous-time dynamics.
+1. `shared_setup.py` and `cyber_dynamics.py` connect this repo to the shared `cybercontrol` package.
 2. `cyber_hybrid_env.py` wraps those dynamics into decision epochs.
 3. `scenario_profiles.py` names concrete extension starting points.
 4. `evaluation_metrics.py` compares representative policies using the same timing and metrics.

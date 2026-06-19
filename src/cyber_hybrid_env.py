@@ -26,7 +26,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, Tuple, Union
 import numpy as np
-from cyber_dynamics import HybridParams, hybrid_rhs, project_simplex3, rk4_integrate
+from cyber_dynamics import HybridParams, hybrid_rhs, isolation_jump, project_simplex3, rk4_integrate
 
 Action = Union[int, Tuple[int, float]]
 
@@ -50,6 +50,8 @@ class EnvConfig:
     c_patch: float = 1.0
     c_clean: float = 1.0
     c_deceive: float = 1.5
+    # Isolation is an impulsive control.  Its cost is charged once at the jump,
+    # not multiplied by the continuous-flow interval dt.
     c_isolate: float = 2.0
     usability_cost: float = 2.5
     attack_costs: Tuple[float, float, float, float] = (0.05, 0.20, 0.30, 0.25)
@@ -161,9 +163,7 @@ class HybridCyberDefenseEnv:
         """
         y = x.copy()
         if dpar["mode"] == self.DEF_ISOLATE:
-            removed = min(dpar["isolate"] * y[1], y[1])
-            y[1] -= removed
-            y[2] += removed
+            y = isolation_jump(y, dpar["isolate"])
         return project_simplex3(y)
 
     def step(self, defender_action: Action, attacker_action: Action = ATK_EXPLOIT):
@@ -192,15 +192,20 @@ class HybridCyberDefenseEnv:
 
         I_mean = float(path[:, 1].mean())
         S_mean = float(path[:, 0].mean())
-        defense_cost = (
+        running_defense_cost = (
             self.cfg.w_I * I_mean + self.cfg.w_S * S_mean
             + self.cfg.c_patch * dpar["patch"] ** 2
             + self.cfg.c_clean * dpar["clean"] ** 2
             + self.cfg.c_deceive * dpar["deceive"] ** 2
-            + self.cfg.c_isolate * dpar["isolate"] ** 2
-            + self.cfg.usability_cost * dpar["isolate"] * I_mean
         )
-        defender_reward = -self.cfg.dt * defense_cost
+        removed_by_impulse = max(0.0, float(pre_jump[1] - post_jump[1]))
+        impulse_cost = 0.0
+        if dpar["mode"] == self.DEF_ISOLATE:
+            impulse_cost = (
+                self.cfg.c_isolate * dpar["intensity"] ** 2
+                + self.cfg.usability_cost * removed_by_impulse
+            )
+        defender_reward = -(self.cfg.dt * running_defense_cost + impulse_cost)
         attacker_reward = float(self.cfg.dt * (8.0 * I_mean + 1.0 * S_mean - 2.0 * next_state[3] - apar["cost"]))
         done = bool(self.t >= self.cfg.horizon or next_state[1] < 1e-5 or next_state[1] > 0.95)
         info = {
@@ -215,6 +220,9 @@ class HybridCyberDefenseEnv:
             "observation_state": "pre_jump_state_at_t_k_minus",
             "next_observation_state": "state_at_t_k_plus_1_minus",
             "jump_applied": bool(np.linalg.norm(post_jump - pre_jump, ord=1) > 1e-12),
+            "running_defense_cost": running_defense_cost,
+            "impulse_cost": impulse_cost,
+            "removed_by_impulse": removed_by_impulse,
             "pre_jump": pre_jump,
             "post_jump": post_jump,
             "path": path,

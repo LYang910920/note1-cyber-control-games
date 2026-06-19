@@ -6,3 +6,9 @@ __pycache__/
 .mypy_cache/
 outputs/
 *.log
+*.aux
+*.fdb_latexmk
+*.fls
+*.out
+*.toc
+docs/latex/*.pdf

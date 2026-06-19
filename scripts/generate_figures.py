@@ -20,6 +20,10 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
+from shared_setup import ensure_foundation_package
+
+ensure_foundation_package()
+from cybercontrol.plotting import add_arrow, add_box
 from cyber_hybrid_env import HybridCyberDefenseEnv, scripted_attacker
 from evaluation_metrics import evaluate_policy_suite
 from fbsm_malware_baseline import solve_fbsm
@@ -151,49 +155,38 @@ def plot_hybrid_policy_comparison(output_dir: Path) -> None:
     plt.close(fig)
 
 
-def _box(ax, xy, text, width=1.8, height=0.55, fc="#f7f7f7", ec="#333333", fontsize=8.5):
-    rect = plt.Rectangle(xy, width, height, facecolor=fc, edgecolor=ec, linewidth=1.4)
-    ax.add_patch(rect)
-    ax.text(xy[0] + width / 2, xy[1] + height / 2, text, ha="center", va="center", fontsize=fontsize)
-    return rect
-
-
-def _arrow(ax, start, end):
-    ax.annotate("", xy=end, xytext=start, arrowprops={"arrowstyle": "->", "lw": 1.4, "color": "#333333"})
-
-
 def plot_neural_architectures(output_dir: Path) -> None:
     fig, axes = plt.subplots(1, 2, figsize=(11, 4.8))
 
     ax = axes[0]
-    _box(ax, (0.1, 2.8), "state x(t_k)\n+ time/context", fc="#e8f1ff")
-    _box(ax, (2.4, 2.8), "Q-network\nMLP", fc="#fff4df")
-    _box(ax, (4.7, 2.8), "Q-values\nfor actions", fc="#e9f7ef")
-    _box(ax, (7.0, 2.8), "argmax\nor epsilon", fc="#f4ecff")
-    _box(ax, (2.4, 1.55), "target\nQ-network", fc="#fff4df")
-    _box(ax, (4.7, 1.55), "DDQN target\nr + gamma Q'", width=2.1, fc="#ffecec")
-    _arrow(ax, (1.9, 3.08), (2.4, 3.08))
-    _arrow(ax, (4.2, 3.08), (4.7, 3.08))
-    _arrow(ax, (6.5, 3.08), (7.0, 3.08))
-    _arrow(ax, (5.75, 2.8), (5.75, 2.1))
-    _arrow(ax, (4.2, 1.82), (4.7, 1.82))
+    add_box(ax, (0.1, 2.8), "state x(t_k)\n+ time/context", fc="#e8f1ff")
+    add_box(ax, (2.4, 2.8), "Q-network\nMLP", fc="#fff4df")
+    add_box(ax, (4.7, 2.8), "Q-values\nfor actions", fc="#e9f7ef")
+    add_box(ax, (7.0, 2.8), "argmax\nor epsilon", fc="#f4ecff")
+    add_box(ax, (2.4, 1.55), "target\nQ-network", fc="#fff4df")
+    add_box(ax, (4.7, 1.55), "DDQN target\nr + gamma Q'", width=2.1, fc="#ffecec")
+    add_arrow(ax, (1.9, 3.08), (2.4, 3.08))
+    add_arrow(ax, (4.2, 3.08), (4.7, 3.08))
+    add_arrow(ax, (6.5, 3.08), (7.0, 3.08))
+    add_arrow(ax, (5.75, 2.8), (5.75, 2.1))
+    add_arrow(ax, (4.2, 1.82), (4.7, 1.82))
     ax.set_title("DDQN defender")
     ax.set_xlim(0, 9.2)
     ax.set_ylim(0.8, 4.0)
     ax.axis("off")
 
     ax = axes[1]
-    _box(ax, (0.1, 2.9), "defender obs", fc="#e8f1ff")
-    _box(ax, (0.1, 1.75), "attacker obs", fc="#ffecec")
-    _box(ax, (2.3, 2.9), "defender actor\npi_D(a_D|o_D)", fc="#fff4df")
-    _box(ax, (2.3, 1.75), "attacker actor\npi_A(a_A|o_A)", fc="#fff4df")
-    _box(ax, (4.8, 2.25), "central critic\nQ(s, a_D, a_A)", width=2.1, fc="#e9f7ef")
-    _box(ax, (7.4, 2.25), "policy-gradient\nupdates", fc="#f4ecff")
-    _arrow(ax, (1.9, 3.18), (2.3, 3.18))
-    _arrow(ax, (1.9, 2.03), (2.3, 2.03))
-    _arrow(ax, (4.1, 3.18), (4.8, 2.8))
-    _arrow(ax, (4.1, 2.03), (4.8, 2.45))
-    _arrow(ax, (6.9, 2.53), (7.4, 2.53))
+    add_box(ax, (0.1, 2.9), "defender obs", fc="#e8f1ff")
+    add_box(ax, (0.1, 1.75), "attacker obs", fc="#ffecec")
+    add_box(ax, (2.3, 2.9), "defender actor\npi_D(a_D|o_D)", fc="#fff4df")
+    add_box(ax, (2.3, 1.75), "attacker actor\npi_A(a_A|o_A)", fc="#fff4df")
+    add_box(ax, (4.8, 2.25), "central critic\nQ(s, a_D, a_A)", width=2.1, fc="#e9f7ef")
+    add_box(ax, (7.4, 2.25), "policy-gradient\nupdates", fc="#f4ecff")
+    add_arrow(ax, (1.9, 3.18), (2.3, 3.18))
+    add_arrow(ax, (1.9, 2.03), (2.3, 2.03))
+    add_arrow(ax, (4.1, 3.18), (4.8, 2.8))
+    add_arrow(ax, (4.1, 2.03), (4.8, 2.45))
+    add_arrow(ax, (6.9, 2.53), (7.4, 2.53))
     ax.set_title("CTDE attacker-defender learning")
     ax.set_xlim(0, 9.5)
     ax.set_ylim(0.8, 4.0)

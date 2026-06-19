@@ -14,9 +14,16 @@ If this is your first visit, start with `START_HERE.md`.
 python -m venv .venv
 source .venv/bin/activate
 pip install --upgrade pip
+pip install -e ../network-control-differential-games
 pip install -r requirements.txt
 bash scripts/run_smoke_tests.sh
 python scripts/generate_figures.py
+```
+
+If this repository is cloned by itself, install the shared foundation package from GitHub before running the examples:
+
+```bash
+pip install "git+https://github.com/LYang910920/network-control-differential-games.git"
 ```
 
 For longer convergence/stability diagnostics:
@@ -33,6 +40,7 @@ python scripts/run_training_iterations.py
 | Tutorial narrative | `docs/note1_game_learning_cyber_control.pdf` |
 | Continuous/impulse/MDP guide | `docs/MODEL_TO_MDP.md` |
 | Parameter and hyperparameter reference | `docs/PARAMETERS.md` |
+| Paper-writing workflow | `docs/PAPER_WORKFLOW.md` |
 | Source-code map | `src/README.md` |
 | Student extension profiles | `src/scenario_profiles.py` |
 | Script and output map | `scripts/README.md` |
@@ -125,7 +133,9 @@ The node-level epidemic-model robustness experiment shows a case where a low-dim
 
 These examples are teaching code, not benchmark implementations.  For research use, add multiple seeds, stronger baselines, full logging, and game-specific exploitability or unilateral-deviation checks.
 
-Before changing parameters or neural-training settings, read `docs/PARAMETERS.md`. To adapt the code to a paper-specific model, start with `python src/scenario_profiles.py`.  It lists named scenario profiles, the first files to edit, and the intended bridge from aggregate tutorial dynamics to larger network, impulse, or Markov-game settings.
+Before changing parameters or neural-training settings, read `docs/PARAMETERS.md`. To adapt the code to a paper-specific model, start with `python src/scenario_profiles.py`.  It lists named scenario profiles, the first files to edit, and the intended bridge from aggregate tutorial dynamics to larger network, impulse, or Markov-game settings. For paper structure and baseline planning, read `docs/PAPER_WORKFLOW.md`.
+
+The reusable numerical/model helpers are imported from the foundation package `cybercontrol`, especially RK4 integration, simplex projection, SIR/hybrid RHS functions, jump maps, plotting helpers, and CSV writing.
 
 ## Related Tutorial Repositories
 
