@@ -33,8 +33,6 @@ Impulses: original model events use tau_j; they may or may not coincide with t_k
 
 Read `docs/MODEL_TO_MDP.md` if the difference between continuous time, impulse jumps, and MDP/MG decision epochs is the main question.
 
-For a slide-based overview of the full three-repository path, open the student onboarding deck in the foundation repository: <https://github.com/LYang910920/network-control-differential-games/tree/main/docs/slides/three_repo_student_onboarding>.
-
 ## Five-Minute Path
 
 1. Open `docs/note1_game_learning_cyber_control.pdf` for the tutorial narrative.
