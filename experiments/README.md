@@ -6,7 +6,7 @@ Run:
 python scripts/run_training_iterations.py
 ```
 
-The script performs longer, CPU-friendly teaching runs and writes:
+The script performs longer, CPU-friendly tutorial runs and writes:
 
 | File | Meaning |
 |---|---|

@@ -4,7 +4,7 @@ Copyright (c) 2026 Luxing Yang.
 Licensed under the MIT License. See LICENSE in the repository root.
 
 This script is separate from smoke tests.  Smoke tests answer "does the code
-run?" while this script answers "do the teaching metrics move in a sensible
+run?" while this script answers "do the tutorial metrics move in a sensible
 direction over time?"
 """
 
@@ -292,7 +292,7 @@ def write_summary(
     node_example = node_metrics[0]
     text = f"""# Training Summary
 
-These runs use the `{profile["name"]}` profile. The teaching profile is intentionally small enough for a laptop; the GPU profile increases neural width/depth, batch size, replay capacity, horizon, and episodes for a more demanding local run.
+These runs use the `{profile["name"]}` profile. The default profile is small enough for a laptop; the GPU profile increases neural width/depth, batch size, replay capacity, horizon, and episodes for a more demanding local run.
 
 ## Experiment Configuration
 
@@ -335,7 +335,7 @@ The learned DDQN policy has cumulative compromised exposure {ddqn_policy["cumula
 
 ## Node-Level Epidemic-Model Robustness Snapshot
 
-`node_level_robustness_metrics.csv` evaluates the same idea on a {node_example["nodes"]}-node random graph.  Here **node-level** means that each graph node has a local S/I/R epidemic state, while the plotted trajectory is the aggregate infected-node share observed at learning action epochs.  FBSM is solved as a low-dimensional open-loop control using nominal beta {node_example["beta_assumed_by_fbsm"]:.2f}, then deployed on the node-level epidemic simulator, whose true beta is {node_example["beta_true_base"]:.2f} with burst multiplier {node_example["burst_multiplier"]:.2f}.  Mean cumulative infected-node exposure is {node_ddqn_mean:.3f} for DDQN aggregate feedback versus {node_fbsm_mean:.3f} for the nominal FBSM open-loop schedule.  This is the intended teaching case for why feedback learning can be easier to use when node-level dynamics or parameters are not accurately known.  The point is not that DDQN always beats FBSM; it is that a feedback policy can react to a state that an offline open-loop baseline did not predict.
+`node_level_robustness_metrics.csv` evaluates the same idea on a {node_example["nodes"]}-node random graph.  Here **node-level** means that each graph node has a local S/I/R epidemic state, while the plotted trajectory is the aggregate infected-node share observed at learning action epochs.  FBSM is solved as a low-dimensional open-loop control using nominal beta {node_example["beta_assumed_by_fbsm"]:.2f}, then deployed on the node-level epidemic simulator, whose true beta is {node_example["beta_true_base"]:.2f} with burst multiplier {node_example["burst_multiplier"]:.2f}.  Mean cumulative infected-node exposure is {node_ddqn_mean:.3f} for DDQN aggregate feedback versus {node_fbsm_mean:.3f} for the nominal FBSM open-loop schedule.  This is the tutorial case for why feedback learning can be easier to use when node-level dynamics or parameters are not accurately known.  The point is not that DDQN always beats FBSM; it is that a feedback policy can react to a state that an offline open-loop baseline did not predict.
 
 For longer research runs, increase `--episodes`, run multiple seeds, and compare against no-defense and rule-based baselines.
 """

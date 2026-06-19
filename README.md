@@ -1,6 +1,6 @@
 # Cyber Control and Game Learning, Note 1
 
-Executable companion for **Note 1: Game Learning for Cyber Control**.  The repo keeps the teaching path small: continuous-time cyber dynamics, an FBSM optimal-control baseline, DDQN defense learning, and a compact attacker-defender CTDE/MADRL example.
+Executable companion for **Note 1: Game Learning for Cyber Control**.  The repo keeps the path focused: continuous-time cyber dynamics, an FBSM optimal-control baseline, DDQN defense learning, and a compact attacker-defender CTDE/MADRL example.
 
 The main goal is to show how one cyber propagation model can be studied from three angles: classical optimal control, sampled-data reinforcement learning, and multi-agent game learning.  Each example is short enough to read directly, but still produces figures and logs that make the numerical behavior visible.
 
@@ -98,7 +98,7 @@ The hybrid policy comparison rolls out the same cyber scenario under no defense,
 
 ![Hybrid policy comparison](figures/hybrid_policy_comparison.png)
 
-The training diagnostics plot summarizes longer teaching runs.  FBSM should show the clearest convergence; DDQN and CTDE/MADRL should be read as stochastic learning/stability diagnostics rather than formal equilibrium proofs.
+The training diagnostics plot summarizes longer tutorial runs.  FBSM should show the clearest convergence; DDQN and CTDE/MADRL should be read as stochastic learning/stability diagnostics rather than formal equilibrium proofs.
 
 ![Training iteration diagnostics](figures/training_iteration_diagnostics.png)
 
@@ -131,7 +131,7 @@ The node-level epidemic-model robustness experiment shows a case where a low-dim
 
 `bash scripts/run_smoke_tests.sh` runs the fast local check.  GitHub Actions repeats the smoke tests and regenerates figures on each push or pull request.
 
-These examples are teaching code, not benchmark implementations.  For research use, add multiple seeds, stronger baselines, full logging, and game-specific exploitability or unilateral-deviation checks.
+These tutorial examples are not benchmark implementations.  For research use, add multiple seeds, stronger baselines, full logging, and game-specific exploitability or unilateral-deviation checks.
 
 Before changing parameters or neural-training settings, read `docs/PARAMETERS.md`. To adapt the code to a paper-specific model, start with `python src/scenario_profiles.py`.  It lists named scenario profiles, the first files to edit, and the intended bridge from aggregate tutorial dynamics to larger network, impulse, or Markov-game settings. For paper structure and baseline planning, read `docs/PAPER_WORKFLOW.md`.
 

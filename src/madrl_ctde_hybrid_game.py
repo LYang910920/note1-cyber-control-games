@@ -104,7 +104,7 @@ def train(args):
     """Train compact decentralized actors with centralized critics.
 
     The function returns defender and attacker actors.  When
-    `return_history=True`, it also returns per-episode diagnostics for teaching
+    `return_history=True`, it also returns per-episode diagnostics for tutorial
     plots.  This is a readable CTDE skeleton, not a full MAPPO implementation.
     """
     torch.manual_seed(args.seed); np.random.seed(args.seed)

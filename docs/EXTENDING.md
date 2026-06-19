@@ -1,6 +1,6 @@
 # Extending Note 1
 
-Keep the same contracts while replacing the small teaching model:
+Keep the same contracts while replacing the small tutorial model:
 
 ```text
 state -> dynamics -> environment step -> reward/payoff -> baseline or learner -> diagnostics
@@ -34,7 +34,7 @@ Use `src/node_level_robustness.py` as a small bridge from compartment states to 
 
 ## From Tutorial Code To Paper Models
 
-| Paper-model ingredient | First teaching hook | What to preserve while extending |
+| Paper-model ingredient | First tutorial hook | What to preserve while extending |
 |---|---|---|
 | More cyber compartments or assets | `src/cyber_dynamics.py` | nonnegative state projection and clear state labels |
 | Event-triggered or scheduled impulses | `HybridCyberDefenseEnv.jump_map` | explicit pre-jump and post-jump diagnostics |
@@ -57,7 +57,7 @@ Companion repository: https://github.com/LYang910920/network-control-differentia
 
 ## Research-Grade Checklist
 
-Before treating a run as evidence rather than a teaching demo:
+Before treating a run as evidence rather than a tutorial run:
 
 1. Run at least 5 to 10 random seeds.
 2. Compare against no-defense, constant-defense, rule-based, and optimal-control baselines.

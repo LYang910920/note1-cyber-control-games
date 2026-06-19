@@ -1,6 +1,6 @@
 # Source Code Guide
 
-The `src/` folder mirrors the tutorial sequence.  Each file is intentionally small enough to read directly.
+The `src/` folder mirrors the tutorial sequence.  Each file is kept small enough to read directly.
 
 ## State Convention
 
@@ -29,7 +29,7 @@ s_k = x(t_k^-)
 
 `EnvConfig.dt` is the decision interval. `EnvConfig.substeps` is only the number of RK4 solver steps inside one transition.  DDQN sees one replay item per decision interval; CTDE/MADRL sees one joint transition per decision interval.
 
-This teaching environment uses fixed `t_k = k * dt`.  The notes also support nonuniform action intervals `Delta t_k = t_{k+1} - t_k`.  If the original model already has impulse/event points, call them `tau_j`; do not reuse `t_k` for those model-intrinsic times unless they are intentionally the same points.
+This tutorial environment uses fixed `t_k = k * dt`.  The notes also support nonuniform action intervals `Delta t_k = t_{k+1} - t_k`.  If the original model already has impulse/event points, call them `tau_j`; do not reuse `t_k` for those model-intrinsic times unless they are deliberately the same points.
 
 ## Module Map
 
@@ -38,7 +38,7 @@ This teaching environment uses fixed `t_k = k * dt`.  The notes also support non
 | `shared_setup.py` | Finds the shared foundation package during local workspace runs. | `ensure_foundation_package` |
 | `cyber_dynamics.py` | Compatibility wrapper around shared `cybercontrol` dynamics and integration utilities. | `rk4_integrate`, `controlled_sir_rhs`, `hybrid_rhs` |
 | `cyber_hybrid_env.py` | Plain-Python reset/step environment for sampled hybrid cyber defense. | `HybridCyberDefenseEnv`, `EnvConfig`, `scripted_attacker` |
-| `scenario_profiles.py` | Student-facing scenario profiles for adapting the teaching code to paper-style settings. | `SCENARIOS`, `get_scenario`, `describe_scenarios` |
+| `scenario_profiles.py` | Student-facing scenario profiles for adapting the tutorial code to paper-style settings. | `SCENARIOS`, `get_scenario`, `describe_scenarios` |
 | `evaluation_metrics.py` | Shared rollout, policy-comparison, and game-response metrics. | `evaluate_policy_suite`, `evaluate_game_response_matrix`, `summarize_rollout` |
 | `fbsm_malware_baseline.py` | Forward-backward sweep method for a PMP open-loop control baseline. | `solve_fbsm` |
 | `ddqn_cyber_defense.py` | DDQN defender for a scripted-attacker environment. | `train`, `evaluate`, CLI `--smoke` |
@@ -79,7 +79,7 @@ python src/scenario_profiles.py
 
 Pick the closest profile, copy its `EnvConfig` into a new experiment script, and change only one contract at a time: state definition, jump map, continuous flow, reward/payoff, learner, or diagnostics.
 
-## Teaching-Code Boundaries
+## Tutorial Boundaries
 
 The files prioritize transparency over benchmark performance.  For research-grade experiments, add multiple seeds, richer logging, replay/checkpoint management, and stronger game diagnostics.
 

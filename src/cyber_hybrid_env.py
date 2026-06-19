@@ -9,7 +9,7 @@ The environment illustrates the three control types used in the tutorial notes:
   * impulsive control: selected action causes an immediate jump x(t_k+) = G(x(t_k-),a_k);
   * hybrid action: a discrete mode plus a continuous intensity in [0,1].
 
-The code intentionally avoids gym/gymnasium dependencies so that it can be read
+The code avoids gym/gymnasium dependencies so that it can be read
 as plain Python.  It still follows the familiar reset/step interface.
 
 Timing convention
@@ -33,7 +33,7 @@ Action = Union[int, Tuple[int, float]]
 
 @dataclass
 class EnvConfig:
-    # dt is the fixed sampled-data decision interval used by this teaching
+    # dt is the fixed sampled-data decision interval used by this tutorial
     # environment: t_k = k * dt.  The tutorial also discusses nonuniform
     # intervals Delta t_k = t_{k+1} - t_k; those require carrying the next
     # action time in the environment state or scheduler.

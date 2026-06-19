@@ -1,4 +1,4 @@
-"""Helpers for importing the shared foundation package during local teaching runs."""
+"""Helpers for importing the shared foundation package during local tutorial runs."""
 
 from __future__ import annotations
 

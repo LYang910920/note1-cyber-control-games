@@ -41,7 +41,7 @@ def adaptive_hybrid_policy(env: HybridCyberDefenseEnv, k: int, obs: np.ndarray) 
 
 
 def scripted_attacker_policy(env: HybridCyberDefenseEnv, k: int, obs: np.ndarray) -> Action:
-    """Scenario attacker used in the single-defender teaching experiments."""
+    """Scenario attacker used in the single-defender tutorial experiments."""
     return scripted_attacker(env, k)
 
 

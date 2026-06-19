@@ -1,6 +1,6 @@
 # Training Summary
 
-These runs use the `teaching` profile. The teaching profile is intentionally small enough for a laptop; the GPU profile increases neural width/depth, batch size, replay capacity, horizon, and episodes for a more demanding local run.
+These runs use the `teaching` profile. This default profile is small enough for a laptop; the GPU profile increases neural width/depth, batch size, replay capacity, horizon, and episodes for a more demanding local run.
 
 ## Experiment Configuration
 
@@ -47,6 +47,6 @@ The learned DDQN policy has cumulative compromised exposure 1.749, compared with
 
 ## Node-Level Epidemic-Model Robustness Snapshot
 
-`node_level_robustness_metrics.csv` evaluates the same idea on a 160-node random graph.  Here **node-level** means that each graph node has a local S/I/R epidemic state, while the plotted trajectory is the aggregate infected-node share observed at learning action epochs.  FBSM is solved as a low-dimensional open-loop control using nominal beta 0.45, then deployed on the node-level epidemic simulator, whose true beta is 1.25 with burst multiplier 1.35.  Mean cumulative infected-node exposure is 1.481 for DDQN aggregate feedback versus 16.111 for the nominal FBSM open-loop schedule.  This is the intended teaching case for why feedback learning can be easier to use when node-level dynamics or parameters are not accurately known.  The point is not that DDQN always beats FBSM; it is that a feedback policy can react to a state that an offline open-loop baseline did not predict.
+`node_level_robustness_metrics.csv` evaluates the same idea on a 160-node random graph.  Here **node-level** means that each graph node has a local S/I/R epidemic state, while the plotted trajectory is the aggregate infected-node share observed at learning action epochs.  FBSM is solved as a low-dimensional open-loop control using nominal beta 0.45, then deployed on the node-level epidemic simulator, whose true beta is 1.25 with burst multiplier 1.35.  Mean cumulative infected-node exposure is 1.481 for DDQN aggregate feedback versus 16.111 for the nominal FBSM open-loop schedule.  This is the tutorial case for why feedback learning can be easier to use when node-level dynamics or parameters are not accurately known.  The point is not that DDQN always beats FBSM; it is that a feedback policy can react to a state that an offline open-loop baseline did not predict.
 
 For longer research runs, increase `--episodes`, run multiple seeds, and compare against no-defense and rule-based baselines.

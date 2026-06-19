@@ -1,6 +1,6 @@
 # Script Guide
 
-Scripts are grouped by purpose: quick validation, figure generation, and longer teaching diagnostics.
+Scripts are grouped by purpose: quick validation, figure generation, and longer tutorial diagnostics.
 
 | Script | Purpose | Typical command | Outputs |
 |---|---|---|---|
@@ -18,7 +18,7 @@ PYTHON=../.venv/bin/python bash scripts/run_smoke_tests.sh
 
 `run_training_iterations.py` takes longer because it is meant to produce readable convergence or stabilization curves.
 
-Use `--episodes` to change the length of the DDQN and MADRL teaching runs:
+Use `--episodes` to change the length of the DDQN and MADRL tutorial runs:
 
 ```bash
 python scripts/run_training_iterations.py --episodes 300
@@ -32,7 +32,7 @@ python scripts/run_training_iterations.py --profile gpu --device auto
 
 The GPU-oriented profile increases DDQN width/depth, batch size, replay capacity, horizon, and episode count; it also increases the CTDE/MADRL hidden width and horizon. If CUDA is unavailable, `--device auto` falls back to CPU.
 
-The checked-in CSV files and figures are examples from one deterministic teaching run.  For research claims, rerun with multiple seeds and report uncertainty.
+The checked-in CSV files and figures are examples from one deterministic tutorial run.  For research claims, rerun with multiple seeds and report uncertainty.
 
 ## Timing Parameters To Notice
 

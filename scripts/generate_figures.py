@@ -1,9 +1,9 @@
-"""Generate static figures for the Note 1 README and teaching notes.
+"""Generate static figures for the Note 1 README and tutorial notes.
 
 Copyright (c) 2026 Luxing Yang.
 Licensed under the MIT License. See LICENSE in the repository root.
 
-The script is intentionally deterministic and lightweight.  It does not train
+The script is deterministic and lightweight.  It does not train
 neural policies; it visualizes model behavior, hand-coded policies, and the
 architecture diagrams used for orientation.
 """

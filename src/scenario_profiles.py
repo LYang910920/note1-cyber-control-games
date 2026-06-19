@@ -61,7 +61,7 @@ def tutorial_hybrid_small() -> EnvConfig:
 
 
 def impulse_visible_defense() -> EnvConfig:
-    """Scenario where isolation jumps are intentionally easy to see."""
+    """Scenario where isolation jumps are easy to see."""
     return EnvConfig(
         dt=1.0,
         substeps=12,
@@ -110,7 +110,7 @@ SCENARIOS: dict[str, CyberScenarioProfile] = {
     ),
     "paper-network-bridge": CyberScenarioProfile(
         name="paper-network-bridge",
-        question="How should I prepare the teaching environment for a larger paper-style model?",
+        question="How should I prepare the tutorial environment for a larger paper-style model?",
         state_level="aggregate state now; transition point toward node-level graph states",
         timing="shorter decision interval with more policy steps",
         control_type="hybrid control with stochastic initial states",

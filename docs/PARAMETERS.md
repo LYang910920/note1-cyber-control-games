@@ -36,8 +36,8 @@ Use this page before changing the model, reward, or learner. It separates physic
 | CTDE/MADRL game | `episodes=180`, `horizon=18`, `hidden=48`, `lr=5e-4`, `gamma=0.97`, `entropy_coef=0.02`, `seed=13` | `scripts/run_training_iterations.py::run_madrl` |
 | DDQN GPU-oriented profile | `episodes=600`, `horizon=48`, `eval_episodes=8`, `batch_size=256`, `hidden=256`, `depth=3`, `lr=5e-4`, `gamma=0.995`, `buffer_size=100000`, `target_update=200`, epsilon decay `4000`, `device=auto` | `python scripts/run_training_iterations.py --profile gpu --device auto` |
 | CTDE/MADRL GPU-oriented profile | `episodes=600`, `horizon=32`, `hidden=192`, `lr=3e-4`, `gamma=0.99`, `entropy_coef=0.015` | `python scripts/run_training_iterations.py --profile gpu` |
-| DDQN smoke | `--smoke` keeps the run intentionally tiny for execution checks | `src/ddqn_cyber_defense.py` |
-| MADRL smoke | `--smoke` keeps the run intentionally tiny for execution checks | `src/madrl_ctde_hybrid_game.py` |
+| DDQN smoke | `--smoke` keeps the run short for execution checks | `src/ddqn_cyber_defense.py` |
+| MADRL smoke | `--smoke` keeps the run short for execution checks | `src/madrl_ctde_hybrid_game.py` |
 
 ## Node-Level Robustness Parameters
 
