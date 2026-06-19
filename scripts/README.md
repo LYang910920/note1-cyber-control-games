@@ -10,7 +10,13 @@ Scripts are grouped by purpose: quick validation, figure generation, and longer 
 
 ## Runtime Notes
 
-`run_smoke_tests.sh` should finish quickly and is what GitHub Actions runs.  `run_training_iterations.py` takes longer because it is meant to produce readable convergence or stabilization curves.
+`run_smoke_tests.sh` should finish quickly and is what GitHub Actions runs. If the virtual environment is not activated, pass the interpreter explicitly:
+
+```bash
+PYTHON=../.venv/bin/python bash scripts/run_smoke_tests.sh
+```
+
+`run_training_iterations.py` takes longer because it is meant to produce readable convergence or stabilization curves.
 
 Use `--episodes` to change the length of the DDQN and MADRL teaching runs:
 
