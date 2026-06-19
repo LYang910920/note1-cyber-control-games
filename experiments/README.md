@@ -26,6 +26,17 @@ FBSM should show the clearest convergence. DDQN is stochastic, so inspect the ro
 
 The policy-comparison and game-response CSV files use the same sampled-data timing as the environment: observe at action point `t_k`, apply any jump, integrate over `[t_k,t_{k+1})`, then measure the next observation.  The checked-in experiments use fixed `Delta t`; the notation in the tutorial also allows nonuniform intervals `Delta t_k`.
 
+## Key Terms In The Result Files
+
+| Term or column | How to read it |
+|---|---|
+| `rollout` | One complete forward simulation of a policy over the listed horizon. It is the object summarized into cumulative exposure, peak compromise, cost, and action counts. |
+| `cumulative_compromised` | Time-summed infected or compromised share. Lower is better when comparing policies on the same model and horizon. |
+| `nominal-beta FBSM` | An open-loop FBSM schedule computed using an assumed propagation rate, then deployed without re-solving when the node-level simulator uses a different true rate. |
+| `beta_assumed_by_fbsm` | The nominal beta used to compute the FBSM schedule. It is deliberately lower than the true simulator beta in the robustness stress test. |
+| `node_pmp_unknown_proxy` | Approximate state-plus-costate variable count for full node-level PMP/FBSM, used to explain scaling pressure. It is not a loss, reward, or measured runtime. |
+| `robustness` | In this folder, robustness means behavior under parameter mismatch, random graph seeds, and burst infection pressure, not formal adversarial robustness. |
+
 ## How To Read The CSV Files
 
 Each row is a logged checkpoint rather than every optimizer step.  Use the first and last rows for a quick sanity check, then inspect the full curve in `figures/training_iteration_diagnostics.png`.

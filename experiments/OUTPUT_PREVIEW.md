@@ -43,7 +43,7 @@ Best cell in this deterministic response matrix:
 
 Open `figures/node_level_learning_advantage.png` and `experiments/node_level_robustness_metrics.csv`.
 
-In this section, **node-level** means each graph node carries a local S/I/R epidemic state.  The metric is aggregate infected-node exposure over action epochs, averaged over random graph seeds.
+In this section, **node-level** means each graph node carries a local S/I/R epidemic state.  The metric is aggregate infected-node exposure over action epochs, averaged over random graph seeds.  **Robustness** means behavior under nominal-vs-true beta mismatch and burst infection pressure.  `node_pmp_unknown_proxy` is only an approximate full-node PMP/FBSM variable count, not a reward or measured runtime.
 
 | Method deployed on the node-level epidemic model | Mean cumulative infected-node exposure |
 |---|---:|

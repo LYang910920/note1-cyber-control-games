@@ -12,6 +12,10 @@ baseline but is no longer the best operational controller:
 * the FBSM policy is open-loop and solved with a nominal, underestimated beta;
 * the feedback policy observes the current aggregate state and can react with
   patch, clean, deceive, or isolate actions.
+
+Here "robustness" means performance under this parameter mismatch and burst
+disturbance.  It is measured by cumulative/peak/final infected-node share across
+random graph seeds, not by a formal adversarial-robustness certificate.
 """
 
 from __future__ import annotations
@@ -163,7 +167,12 @@ def rollout_node_policy(
     seed: int,
     cfg: NodeSimConfig | None = None,
 ) -> Dict[str, object]:
-    """Roll out a node-level policy and return states and diagnostics."""
+    """Roll out one node-level policy.
+
+    A rollout is one forward simulation on one random graph seed.  The returned
+    observations are aggregate S/I/R/z summaries over the node states at each
+    action epoch.
+    """
     cfg = cfg or NodeSimConfig()
     rng = np.random.default_rng(seed)
     graph = build_erdos_graph(cfg.nodes, cfg.mean_degree, rng)
@@ -198,7 +207,12 @@ def rollout_node_policy(
 
 
 def summarize_node_rollout(rollout: Dict[str, object], beta_assumed: float) -> Dict[str, float | int | str]:
-    """Return compact metrics for a node-level rollout."""
+    """Return compact metrics for a node-level rollout.
+
+    ``node_pmp_unknown_proxy`` is a scale indicator for full node-level FBSM:
+    it counts state and costate variables over the time grid.  It is not a
+    measured runtime or a learned loss.
+    """
     cfg: NodeSimConfig = rollout["cfg"]  # type: ignore[assignment]
     observations = rollout["observations"]
     infected = observations[:, 1]

@@ -38,7 +38,7 @@ Read `docs/MODEL_TO_MDP.md` if the difference between continuous time, impulse j
 1. Open `docs/note1_game_learning_cyber_control.pdf` for the tutorial narrative.
 2. Read `docs/MODEL_TO_MDP.md` for the continuous/impulse/MDP timing convention.
 3. Run `python src/scenario_profiles.py` to see the student-facing scenario profiles.
-4. Open `docs/PARAMETERS.md` before changing model parameters, DDQN hyperparameters, compact CTDE settings, or MAPPO hyperparameters.
+4. Open `docs/PARAMETERS.md` before changing model parameters, DDQN hyperparameters, compact CTDE settings, or MAPPO hyperparameters. It also defines rollout, nominal beta, robustness, and `node_pmp_unknown_proxy`.
 5. Run `python src/node_siprs_mappo.py --smoke --device cpu` for the canonical node-SIPRS community MAPPO smoke check.
 6. For a heavier local/GPU diagnostic, run `python scripts/run_training_iterations.py --profile gpu --device auto` after the smoke tests pass.
 7. Read `docs/PAPER_WORKFLOW.md` when turning an example into a paper section.

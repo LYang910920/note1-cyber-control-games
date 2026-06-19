@@ -13,6 +13,17 @@ Use this page before changing the model, reward, or learner. It separates physic
 | Run node-SIPRS MAPPO smoke | `python src/node_siprs_mappo.py --smoke --device cpu` |
 | Run heavier GPU-oriented diagnostics | `python scripts/run_training_iterations.py --profile gpu --device auto` |
 
+## Terms Used In This Repo
+
+| Term | Meaning in Note 1 |
+|---|---|
+| `rollout` | One forward simulation under a fixed policy or learned policy: start from an initial state, apply actions at decision epochs `t_k`, integrate or jump to the next state, and record states, rewards, costs, and actions. |
+| `episode` | One training rollout used by a learner such as DDQN or compact CTDE. In the code, an episode contains `horizon` sampled decision epochs. |
+| `baseline` | A comparison method for the same model and metric, such as no defense, fixed defense, a rule policy, or an FBSM open-loop schedule. It is not a generic claim of optimality. |
+| `nominal` | The parameter value assumed when designing a baseline. For the node-level robustness test, nominal beta is the underestimated `beta_assumed_by_fbsm=0.45`; the deployed simulator uses the larger true beta and bursts. |
+| `robustness` | Performance under mismatch or disturbance. Here it means low infected-node exposure when the graph process has stochastic seeds, true propagation differs from the nominal FBSM design value, and a burst multiplier increases infection pressure. |
+| `node_pmp_unknown_proxy` | A rough scale indicator for solving full node-level PMP/FBSM: `2 * (3 * nodes) * (horizon + 1)` counts state plus costate variables across the time grid. It is a teaching proxy, not a measured runtime. |
+
 ## Scenario Parameters
 
 | Scenario | State level | Control type | Horizon | `Delta t` | Main dynamics |
@@ -55,6 +66,8 @@ Use this page before changing the model, reward, or learner. It separates physic
 
 ## Node-Level Robustness Parameters
 
+This table defines the parameter-mismatch stress test. The FBSM baseline is solved with the nominal value below, then deployed on the stochastic node-level simulator with the true value and burst interval below.
+
 | Parameter | Value |
 |---|---:|
 | nodes | `160` |
@@ -66,6 +79,8 @@ Use this page before changing the model, reward, or learner. It separates physic
 | burst interval | `k=14` to `k=30` |
 | burst multiplier | `1.35` |
 | graph seeds | `21` to `28` |
+| nominal beta used by FBSM | `0.45` |
+| robustness metric | cumulative infected-node exposure, peak infected-node share, and final infected-node share over graph seeds |
 
 ## What To Change First
 

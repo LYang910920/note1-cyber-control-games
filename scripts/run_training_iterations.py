@@ -335,7 +335,7 @@ The learned DDQN policy has cumulative compromised exposure {ddqn_policy["cumula
 
 ## Node-Level Epidemic-Model Robustness Snapshot
 
-`node_level_robustness_metrics.csv` evaluates the same idea on a {node_example["nodes"]}-node random graph.  Here **node-level** means that each graph node has a local S/I/R epidemic state, while the plotted trajectory is the aggregate infected-node share observed at learning action epochs.  FBSM is solved as a low-dimensional open-loop control using nominal beta {node_example["beta_assumed_by_fbsm"]:.2f}, then deployed on the node-level epidemic simulator, whose true beta is {node_example["beta_true_base"]:.2f} with burst multiplier {node_example["burst_multiplier"]:.2f}.  Mean cumulative infected-node exposure is {node_ddqn_mean:.3f} for DDQN aggregate feedback versus {node_fbsm_mean:.3f} for the nominal FBSM open-loop schedule.  This is the tutorial case for why feedback learning can be easier to use when node-level dynamics or parameters are not accurately known.  The point is not that DDQN always beats FBSM; it is that a feedback policy can react to a state that an offline open-loop baseline did not predict.
+`node_level_robustness_metrics.csv` evaluates the same idea on a {node_example["nodes"]}-node random graph.  Here **node-level** means that each graph node has a local S/I/R epidemic state, while the plotted trajectory is the aggregate infected-node share observed at learning action epochs.  FBSM is solved as a low-dimensional open-loop control using nominal beta {node_example["beta_assumed_by_fbsm"]:.2f}, then deployed on the node-level epidemic simulator, whose true beta is {node_example["beta_true_base"]:.2f} with burst multiplier {node_example["burst_multiplier"]:.2f}.  In this repo, **robustness** means lower infected-node exposure under this parameter mismatch and burst disturbance.  Mean cumulative infected-node exposure is {node_ddqn_mean:.3f} for DDQN aggregate feedback versus {node_fbsm_mean:.3f} for the nominal FBSM open-loop schedule.  This is the tutorial case for why feedback learning can be easier to use when node-level dynamics or parameters are not accurately known.  The point is not that DDQN always beats FBSM; it is that a feedback policy can react to a state that an offline open-loop baseline did not predict.  The column `node_pmp_unknown_proxy` is only a scale proxy for full node-level PMP/FBSM, not a reward or runtime.
 
 For longer research runs, increase `--episodes`, run multiple seeds, and compare against no-defense and rule-based baselines.
 """
@@ -410,7 +410,7 @@ Best cell in this deterministic response matrix:
 
 Open `figures/node_level_learning_advantage.png` and `experiments/node_level_robustness_metrics.csv`.
 
-In this section, **node-level** means each graph node carries a local S/I/R epidemic state.  The metric is aggregate infected-node exposure over action epochs, averaged over random graph seeds.
+In this section, **node-level** means each graph node carries a local S/I/R epidemic state.  The metric is aggregate infected-node exposure over action epochs, averaged over random graph seeds.  **Robustness** means behavior under nominal-vs-true beta mismatch and burst infection pressure.  `node_pmp_unknown_proxy` is only an approximate full-node PMP/FBSM variable count, not a reward or measured runtime.
 
 | Method deployed on the node-level epidemic model | Mean cumulative infected-node exposure |
 |---|---:|
@@ -569,7 +569,7 @@ def plot_node_level_advantage(output_path: Path, rollouts: list[dict], rows: lis
     ax.set_xscale("log")
     ax.set_yscale("log")
     ax.set_xlabel("Nodes")
-    ax.set_ylabel("State+costate unknown count proxy")
+    ax.set_ylabel("Approx. state+costate variables")
     ax.set_title("Why full node-level PMP/FBSM becomes expensive")
     ax.grid(alpha=0.25, which="both")
 
@@ -580,7 +580,8 @@ def plot_node_level_advantage(output_path: Path, rollouts: list[dict], rows: lis
         0.5,
         0.025,
         "Caption: node-level epidemic model means each graph node is S, I, or R; curves show aggregate infected-node share over 8 random graph seeds. "
-        f"The FBSM schedule uses nominal beta={beta_assumed:.2f}; the deployed simulator uses true beta={beta_true:.2f} and burst multiplier={burst:.2f}.",
+        f"Robustness here means exposure under mismatch: the FBSM schedule uses nominal beta={beta_assumed:.2f}, while the deployed simulator uses true beta={beta_true:.2f} and burst multiplier={burst:.2f}. "
+        "The lower-right panel is an unknown-count proxy for full node-level PMP/FBSM, not a measured runtime.",
         ha="center",
         va="bottom",
         fontsize=9,

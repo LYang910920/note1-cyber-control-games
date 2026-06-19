@@ -118,7 +118,7 @@ The game response matrix compares defender policies against several attacker str
 
 ![Attacker-defender response matrix](figures/game_response_matrix.png)
 
-The node-level epidemic-model robustness experiment shows a case where a low-dimensional open-loop FBSM schedule is computed with an underestimated propagation parameter, then deployed on a stochastic graph.  Here **node-level** means every graph node has a local S/I/R epidemic state; the plotted curve is the aggregate infected-node share over action epochs.  The DDQN aggregate feedback policy observes the current infected-node share and reacts to bursts, so the figure is a concrete example of when feedback learning can be more practical than an offline baseline.
+The node-level epidemic-model robustness experiment shows a case where a low-dimensional open-loop FBSM schedule is computed with a nominal, underestimated propagation parameter, then deployed on a stochastic graph whose true infection pressure is stronger and includes a burst interval.  Here **robustness** means lower infected-node exposure under that mismatch, not a formal guarantee.  The plotted curve is the aggregate infected-node share over action epochs; the DDQN feedback policy observes the current infected-node share and can react to bursts.
 
 ![Node-level epidemic model robustness](figures/node_level_learning_advantage.png)
 
@@ -146,7 +146,7 @@ The node-level epidemic-model robustness experiment shows a case where a low-dim
 
 These tutorial examples are not benchmark implementations.  For research use, add multiple seeds, stronger baselines, full logging, and game-specific exploitability or unilateral-deviation checks.
 
-Before changing parameters or neural-training settings, read `docs/PARAMETERS.md`. To adapt the code to a paper-specific model, start with `python src/scenario_profiles.py`.  It lists named scenario profiles, the first files to edit, and the intended bridge from aggregate tutorial dynamics to larger network, impulse, or Markov-game settings. For paper structure and baseline planning, read `docs/PAPER_WORKFLOW.md`.
+Before changing parameters or neural-training settings, read `docs/PARAMETERS.md`; it also defines terms such as rollout, nominal beta, robustness, and `node_pmp_unknown_proxy`. To adapt the code to a paper-specific model, start with `python src/scenario_profiles.py`.  It lists named scenario profiles, the first files to edit, and the intended bridge from aggregate tutorial dynamics to larger network, impulse, or Markov-game settings. For paper structure and baseline planning, read `docs/PAPER_WORKFLOW.md`.
 
 For a heavier local/GPU diagnostic after the smoke tests pass, use:
 
