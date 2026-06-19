@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "note1-cyber-control-games"
+version = "0.1.0"
+description = "Tutorial code for cyber optimal control, sampled-data RL, and hybrid attacker-defender games."
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+authors = [{name = "Luxing Yang"}]
+dependencies = [
+    "numpy",
+    "scipy",
+    "pandas",
+    "matplotlib",
+    "networkx",
+    "torch",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff"]
+
+[tool.setuptools]
+py-modules = [
+    "cyber_dynamics",
+    "cyber_hybrid_env",
+    "ddqn_cyber_defense",
+    "evaluation_metrics",
+    "fbsm_malware_baseline",
+    "madrl_ctde_hybrid_game",
+    "node_level_robustness",
+    "node_siprs_mappo",
+    "scenario_profiles",
+    "shared_setup",
+]
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests", "scripts"]

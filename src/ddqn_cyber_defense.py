@@ -22,7 +22,6 @@ import random
 from collections import deque, namedtuple
 import numpy as np
 import torch
-torch.set_num_threads(1)
 import torch.nn as nn
 import torch.optim as optim
 from cyber_hybrid_env import HybridCyberDefenseEnv, scripted_attacker
@@ -30,6 +29,7 @@ from shared_setup import ensure_foundation_package
 
 ensure_foundation_package()
 from cybercontrol.torch_utils import MLP as SharedMLP
+from cybercontrol.torch_utils import configure_torch
 
 Transition = namedtuple("Transition", "s a r sp done")
 
@@ -91,14 +91,13 @@ def train(args):
     pre-jump cyber observation at a decision epoch to Q-values for the five
     defender actions.
     """
-    random.seed(args.seed); np.random.seed(args.seed); torch.manual_seed(args.seed)
-    requested_device = getattr(args, "device", "auto")
-    if requested_device == "auto":
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    else:
-        if requested_device == "cuda" and not torch.cuda.is_available():
-            raise RuntimeError("CUDA was requested with --device cuda, but torch.cuda.is_available() is false.")
-        device = torch.device(requested_device)
+    random.seed(args.seed); np.random.seed(args.seed)
+    _, resolved_device, _ = configure_torch(
+        seed=args.seed,
+        device=getattr(args, "device", "auto"),
+        threads=getattr(args, "threads", 1),
+    )
+    device = torch.device(resolved_device)
     env = HybridCyberDefenseEnv(seed=args.seed)
     if args.smoke:
         env.cfg.horizon = 10
@@ -191,7 +190,8 @@ if __name__ == "__main__":
     parser.add_argument("--eps-decay", type=float, default=20000.0, help="Exponential epsilon-decay time constant.")
     parser.add_argument("--log-every", type=int, default=25, help="Episode interval for console logs and history rows.")
     parser.add_argument("--seed", type=int, default=0, help="Random seed.")
-    parser.add_argument("--device", choices=["auto", "cpu", "cuda"], default="auto", help="Training device.")
+    parser.add_argument("--device", choices=["auto", "cpu", "cuda", "mps"], default="auto", help="Training device.")
+    parser.add_argument("--threads", type=int, default=1, help="Torch CPU thread count; use 0 to leave unchanged.")
     args = parser.parse_args()
     if args.smoke:
         args.episodes = 2

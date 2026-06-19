@@ -3,7 +3,7 @@
 
 """Named scenario profiles for adapting Note 1 code.
 
-Students usually need two questions answered before editing a model:
+Before editing a model, answer two questions:
 
 1. Which file should I change first?
 2. Which parameters define the scenario I am trying to study?
@@ -267,7 +267,7 @@ def describe_training_hyperparameters() -> list[dict[str, str]]:
         {
             "name": profile.name,
             "method": profile.method,
-            "hyperparameters": "; ".join(f"{key}={value}" for key, value in profile.hyperparameters),
+            "hyperparameters": ", ".join(f"{key}={value}" for key, value in profile.hyperparameters),
             "source": profile.source,
         }
         for profile in TRAINING_HYPERPARAMETERS
@@ -278,10 +278,10 @@ if __name__ == "__main__":
     print("Scenario parameters:")
     for row in describe_scenarios():
         print(
-            f"{row['name']}: state={row['state_level']}; control={row['control_type']}; "
-            f"horizon={row['horizon']}; dt={row['dt']}; beta0={row['beta0']}; "
+            f"{row['name']}: state={row['state_level']}, control={row['control_type']}, "
+            f"horizon={row['horizon']}, dt={row['dt']}, beta0={row['beta0']}, "
             f"edit={row['first_files_to_edit']}"
         )
     print("\nTraining and neural hyperparameters:")
     for row in describe_training_hyperparameters():
-        print(f"{row['name']}: method={row['method']}; {row['hyperparameters']}; source={row['source']}")
+        print(f"{row['name']}: method={row['method']}, {row['hyperparameters']}, source={row['source']}")

@@ -4,7 +4,7 @@ Licensed under the MIT License. See LICENSE in the repository root.
 
 Node-level epidemic-model robustness experiment for Note 1.
 
-The experiment is deliberately small and deterministic enough for a laptop.  It
+The experiment is small and deterministic enough for a laptop. It
 illustrates a setting where a low-dimensional FBSM policy is a useful theory
 baseline but is no longer the best operational controller:
 

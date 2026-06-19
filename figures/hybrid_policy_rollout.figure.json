@@ -1,0 +1,20 @@
+{
+  "dpi": 600,
+  "files": [
+    "hybrid_policy_rollout.pdf",
+    "hybrid_policy_rollout.png"
+  ],
+  "formats": [
+    "pdf",
+    "png"
+  ],
+  "height_in": 4.8,
+  "metadata": {
+    "caption_hint": "Hybrid rollout under sampled defender actions.",
+    "control_type": "hybrid sampled continuous-plus-impulse policy",
+    "model": "hybrid malware/deception environment"
+  },
+  "primary_file_bytes": 24721,
+  "style": "publication",
+  "width_in": 7.16
+}

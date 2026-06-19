@@ -16,13 +16,8 @@ import argparse
 import csv
 from dataclasses import dataclass
 from pathlib import Path
-import sys
 
 import numpy as np
-
-ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
 
 from shared_setup import ensure_foundation_package
 

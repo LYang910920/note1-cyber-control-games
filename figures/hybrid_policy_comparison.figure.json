@@ -1,0 +1,20 @@
+{
+  "dpi": 600,
+  "files": [
+    "hybrid_policy_comparison.pdf",
+    "hybrid_policy_comparison.png"
+  ],
+  "formats": [
+    "pdf",
+    "png"
+  ],
+  "height_in": 5.2,
+  "metadata": {
+    "caption_hint": "Same-model comparison of sampled hybrid defender policies.",
+    "control_type": "hybrid policy comparison",
+    "model": "hybrid malware/deception environment"
+  },
+  "primary_file_bytes": 29442,
+  "style": "publication",
+  "width_in": 7.16
+}

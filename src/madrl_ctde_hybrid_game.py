@@ -4,7 +4,7 @@ Licensed under the MIT License. See LICENSE in the repository root.
 
 Small CTDE policy-gradient baseline for an attacker-defender cyber Markov game.
 
-This is a deliberately compact CTDE baseline:
+This file keeps the CTDE baseline readable:
   * decentralized categorical actors for defender and attacker;
   * a centralized critic that sees the joint state and both actions;
   * episodic rollouts through the hybrid ODE environment;
@@ -15,21 +15,22 @@ actions, the environment applies any impulse jump, integrates the ODE until
 t_{k+1}, and returns the next observation and both rewards.
 
 For PPO-style cooperative defenders on node-level SIPRS dynamics, use
-``node_siprs_mappo.py``.  The value of this file is pedagogical: it makes the
-two-player interaction loop explicit without claiming to be full MAPPO.
+``node_siprs_mappo.py``.  This file focuses on the two-player interaction loop
+and does not claim to be a full MAPPO implementation.
 """
 from __future__ import annotations
 
 import argparse
 import numpy as np
 import torch
-torch.set_num_threads(1)
 import torch.nn as nn
 import torch.optim as optim
 from torch.distributions import Categorical
 from cyber_hybrid_env import HybridCyberDefenseEnv
+from shared_setup import ensure_foundation_package
 
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+ensure_foundation_package()
+from cybercontrol.torch_utils import configure_torch
 
 
 class Actor(nn.Module):
@@ -70,19 +71,19 @@ class CentralCritic(nn.Module):
         return self.net(x).squeeze(-1)
 
 
-def rollout(env, defender, attacker, critic, horizon):
+def rollout(env, defender, attacker, critic, horizon, device):
     """Collect one attacker-defender trajectory from the hybrid environment."""
     obs_np = env.reset()
     storage = []
     for k in range(horizon):
-        obs = torch.tensor(obs_np, dtype=torch.float32, device=DEVICE).unsqueeze(0)
+        obs = torch.tensor(obs_np, dtype=torch.float32, device=device).unsqueeze(0)
         a_def, logp_def, ent_def = defender.sample(obs)
         a_atk, logp_atk, ent_atk = attacker.sample(obs)
         value = critic(obs, a_def, a_atk)
         next_obs, rewards, done, _ = env.step(int(a_def.item()), int(a_atk.item()))
         # scale rewards to avoid large gradients
-        r_def = torch.tensor(rewards["defender"] / 10.0, dtype=torch.float32, device=DEVICE)
-        r_atk = torch.tensor(rewards["attacker"] / 10.0, dtype=torch.float32, device=DEVICE)
+        r_def = torch.tensor(rewards["defender"] / 10.0, dtype=torch.float32, device=device)
+        r_atk = torch.tensor(rewards["attacker"] / 10.0, dtype=torch.float32, device=device)
         storage.append((obs.squeeze(0), a_def.squeeze(0), a_atk.squeeze(0), logp_def.squeeze(0),
                         logp_atk.squeeze(0), ent_def.squeeze(0), ent_atk.squeeze(0), value.squeeze(0), r_def, r_atk))
         obs_np = next_obs
@@ -91,9 +92,9 @@ def rollout(env, defender, attacker, critic, horizon):
     return storage
 
 
-def discounted_returns(rewards, gamma=0.99):
+def discounted_returns(rewards, gamma=0.99, device="cpu"):
     out = []
-    G = torch.tensor(0.0, device=DEVICE)
+    G = torch.tensor(0.0, device=device)
     for r in reversed(rewards):
         G = r + gamma * G
         out.append(G)
@@ -107,29 +108,40 @@ def train(args):
     `return_history=True`, it also returns per-episode diagnostics for tutorial
     plots.  This is a readable CTDE skeleton, not a full MAPPO implementation.
     """
-    torch.manual_seed(args.seed); np.random.seed(args.seed)
+    _, resolved_device, _ = configure_torch(
+        seed=args.seed,
+        device=getattr(args, "device", "auto"),
+        threads=getattr(args, "threads", 1),
+    )
+    device = torch.device(resolved_device)
+    np.random.seed(args.seed)
     env = HybridCyberDefenseEnv(seed=args.seed)
     if args.smoke:
         env.cfg.horizon = 10
     if hasattr(args, "horizon") and args.horizon is not None:
         env.cfg.horizon = args.horizon
-    defender = Actor(env.obs_dim, env.n_defender_actions, args.hidden).to(DEVICE)
-    attacker = Actor(env.obs_dim, env.n_attacker_actions, args.hidden).to(DEVICE)
-    critic_d = CentralCritic(env.obs_dim, env.n_defender_actions, env.n_attacker_actions, args.hidden).to(DEVICE)
-    critic_a = CentralCritic(env.obs_dim, env.n_defender_actions, env.n_attacker_actions, args.hidden).to(DEVICE)
+    defender = Actor(env.obs_dim, env.n_defender_actions, args.hidden).to(device)
+    attacker = Actor(env.obs_dim, env.n_attacker_actions, args.hidden).to(device)
+    critic_d = CentralCritic(env.obs_dim, env.n_defender_actions, env.n_attacker_actions, args.hidden).to(device)
+    critic_a = CentralCritic(env.obs_dim, env.n_defender_actions, env.n_attacker_actions, args.hidden).to(device)
     opt = optim.Adam(list(defender.parameters()) + list(attacker.parameters()) +
                      list(critic_d.parameters()) + list(critic_a.parameters()), lr=args.lr)
     history = []
 
     for ep in range(args.episodes):
-        data = rollout(env, defender, attacker, critic_d, env.cfg.horizon)
+        data = rollout(env, defender, attacker, critic_d, env.cfg.horizon, device)
         obs, ad, aa, logpd, logpa, entd, enta, vd_old, rd, ra = zip(*data)
-        obs = torch.stack(obs); ad = torch.stack(ad); aa = torch.stack(aa)
-        logpd = torch.stack(logpd); logpa = torch.stack(logpa)
-        entd = torch.stack(entd); enta = torch.stack(enta)
-        rd = list(rd); ra = list(ra)
-        Gd = torch.stack(discounted_returns(rd, args.gamma)).detach()
-        Ga = torch.stack(discounted_returns(ra, args.gamma)).detach()
+        obs = torch.stack(obs)
+        ad = torch.stack(ad)
+        aa = torch.stack(aa)
+        logpd = torch.stack(logpd)
+        logpa = torch.stack(logpa)
+        entd = torch.stack(entd)
+        enta = torch.stack(enta)
+        rd = list(rd)
+        ra = list(ra)
+        Gd = torch.stack(discounted_returns(rd, args.gamma, device=device)).detach()
+        Ga = torch.stack(discounted_returns(ra, args.gamma, device=device)).detach()
         Vd = critic_d(obs, ad, aa)
         Va = critic_a(obs, ad, aa)
         adv_d = (Gd - Vd.detach())
@@ -171,6 +183,8 @@ if __name__ == "__main__":
     p.add_argument("--entropy-coef", type=float, default=0.01, help="Entropy bonus coefficient.")
     p.add_argument("--log-every", type=int, default=10, help="Episode interval for console logs and history rows.")
     p.add_argument("--seed", type=int, default=0, help="Random seed.")
+    p.add_argument("--device", choices=["auto", "cpu", "cuda", "mps"], default="auto", help="Training device.")
+    p.add_argument("--threads", type=int, default=1, help="Torch CPU thread count; use 0 to leave unchanged.")
     args = p.parse_args()
     if args.smoke:
         args.episodes = 3
