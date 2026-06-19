@@ -4,10 +4,12 @@
 
 set -euo pipefail
 
-python src/cyber_dynamics.py
-python src/cyber_hybrid_env.py
-python src/scenario_profiles.py
-python src/fbsm_malware_baseline.py --smoke
-python src/ddqn_cyber_defense.py --smoke
-python src/madrl_ctde_hybrid_game.py --smoke
-python -m unittest discover -s tests
+PYTHON_BIN="${PYTHON:-python}"
+
+"${PYTHON_BIN}" src/cyber_dynamics.py
+"${PYTHON_BIN}" src/cyber_hybrid_env.py
+"${PYTHON_BIN}" src/scenario_profiles.py
+"${PYTHON_BIN}" src/fbsm_malware_baseline.py --smoke
+"${PYTHON_BIN}" src/ddqn_cyber_defense.py --smoke
+"${PYTHON_BIN}" src/madrl_ctde_hybrid_game.py --smoke
+"${PYTHON_BIN}" -m unittest discover -s tests

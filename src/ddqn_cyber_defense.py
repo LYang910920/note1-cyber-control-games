@@ -54,11 +54,10 @@ class ReplayBuffer:
         return len(self.data)
 
 
-class MLP(SharedMLP):
-    """DDQN MLP wrapper using the shared implementation with ReLU activations."""
+def make_q_network(in_dim, out_dim, hidden=128, depth=2):
+    """Build the DDQN Q-network using the shared MLP implementation."""
 
-    def __init__(self, in_dim, out_dim, hidden=128, depth=2):
-        super().__init__(in_dim, out_dim, width=hidden, depth=depth, activation=nn.ReLU)
+    return SharedMLP(in_dim, out_dim, width=hidden, depth=depth, activation=nn.ReLU)
 
 
 def evaluate(qnet, episodes=5, seed=1000, horizon=None):
@@ -96,8 +95,8 @@ def train(args):
         env.cfg.horizon = 10
     if hasattr(args, "horizon") and args.horizon is not None:
         env.cfg.horizon = args.horizon
-    q = MLP(env.obs_dim, env.n_defender_actions, hidden=args.hidden)
-    target = MLP(env.obs_dim, env.n_defender_actions, hidden=args.hidden)
+    q = make_q_network(env.obs_dim, env.n_defender_actions, hidden=args.hidden)
+    target = make_q_network(env.obs_dim, env.n_defender_actions, hidden=args.hidden)
     target.load_state_dict(q.state_dict())
     opt = optim.Adam(q.parameters(), lr=args.lr)
     replay = ReplayBuffer(args.buffer_size)
