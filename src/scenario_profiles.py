@@ -152,6 +152,24 @@ TRAINING_HYPERPARAMETERS: tuple[TrainingHyperparameterProfile, ...] = (
         source="scripts/run_training_iterations.py::run_ddqn",
     ),
     TrainingHyperparameterProfile(
+        name="ddqn-defender-gpu-profile",
+        method="DDQN neural defender, heavier GPU-oriented profile",
+        hyperparameters=(
+            ("command", "python scripts/run_training_iterations.py --profile gpu --device auto"),
+            ("episodes", "600 by default"),
+            ("horizon/eval_horizon", "48 / 48"),
+            ("eval_episodes", "8"),
+            ("hidden width/depth", "256 / 3"),
+            ("batch_size", "256"),
+            ("learning rate", "5e-4"),
+            ("gamma", "0.995"),
+            ("replay buffer", "100000"),
+            ("target_update", "200"),
+            ("epsilon schedule", "1.0 -> 0.02, decay 4000"),
+        ),
+        source="scripts/run_training_iterations.py::TRAINING_PROFILES",
+    ),
+    TrainingHyperparameterProfile(
         name="ctde-madrl-game",
         method="compact CTDE/MADRL attacker-defender game",
         hyperparameters=(
@@ -164,6 +182,20 @@ TRAINING_HYPERPARAMETERS: tuple[TrainingHyperparameterProfile, ...] = (
             ("seed", "13"),
         ),
         source="scripts/run_training_iterations.py::run_madrl",
+    ),
+    TrainingHyperparameterProfile(
+        name="ctde-madrl-game-gpu-profile",
+        method="heavier CTDE/MADRL diagnostic profile",
+        hyperparameters=(
+            ("command", "python scripts/run_training_iterations.py --profile gpu"),
+            ("episodes", "600 by default"),
+            ("horizon", "32"),
+            ("hidden width", "192"),
+            ("learning rate", "3e-4"),
+            ("gamma", "0.99"),
+            ("entropy_coef", "0.015"),
+        ),
+        source="scripts/run_training_iterations.py::TRAINING_PROFILES",
     ),
     TrainingHyperparameterProfile(
         name="node-level-robustness",

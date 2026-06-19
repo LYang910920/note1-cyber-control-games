@@ -135,6 +135,12 @@ These examples are teaching code, not benchmark implementations.  For research u
 
 Before changing parameters or neural-training settings, read `docs/PARAMETERS.md`. To adapt the code to a paper-specific model, start with `python src/scenario_profiles.py`.  It lists named scenario profiles, the first files to edit, and the intended bridge from aggregate tutorial dynamics to larger network, impulse, or Markov-game settings. For paper structure and baseline planning, read `docs/PAPER_WORKFLOW.md`.
 
+For a heavier local/GPU diagnostic after the smoke tests pass, use:
+
+```bash
+python scripts/run_training_iterations.py --profile gpu --device auto
+```
+
 The reusable numerical/model helpers are imported from the foundation package `cybercontrol`, especially RK4 integration, simplex projection, SIR/hybrid RHS functions, jump maps, plotting helpers, and CSV writing.
 
 ## Related Tutorial Repositories

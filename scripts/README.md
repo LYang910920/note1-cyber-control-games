@@ -24,6 +24,14 @@ Use `--episodes` to change the length of the DDQN and MADRL teaching runs:
 python scripts/run_training_iterations.py --episodes 300
 ```
 
+Use the heavier profile when you want a larger neural run on the local machine:
+
+```bash
+python scripts/run_training_iterations.py --profile gpu --device auto
+```
+
+The GPU-oriented profile increases DDQN width/depth, batch size, replay capacity, horizon, and episode count; it also increases the CTDE/MADRL hidden width and horizon. If CUDA is unavailable, `--device auto` falls back to CPU.
+
 The checked-in CSV files and figures are examples from one deterministic teaching run.  For research claims, rerun with multiple seeds and report uncertainty.
 
 ## Timing Parameters To Notice

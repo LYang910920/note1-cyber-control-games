@@ -53,6 +53,68 @@ NODE_NO_DEFENSE_LABEL = "Node-level epidemic model: no defense"
 NODE_FBSM_LABEL = "Node-level epidemic model: nominal-beta FBSM open-loop patching"
 NODE_DDQN_LABEL = "Node-level epidemic model: DDQN aggregate feedback"
 
+TRAINING_PROFILES = {
+    "teaching": {
+        "episodes": 180,
+        "ddqn": {
+            "horizon": 24,
+            "eval_horizon": 24,
+            "eval_episodes": 4,
+            "batch_size": 32,
+            "hidden": 64,
+            "depth": 2,
+            "lr": 1e-3,
+            "gamma": 0.99,
+            "buffer_size": 10000,
+            "target_update": 80,
+            "eps_decay": 450.0,
+        },
+        "madrl": {
+            "horizon": 18,
+            "hidden": 48,
+            "lr": 5e-4,
+            "gamma": 0.97,
+            "entropy_coef": 0.02,
+        },
+    },
+    "gpu": {
+        "episodes": 600,
+        "ddqn": {
+            "horizon": 48,
+            "eval_horizon": 48,
+            "eval_episodes": 8,
+            "batch_size": 256,
+            "hidden": 256,
+            "depth": 3,
+            "lr": 5e-4,
+            "gamma": 0.995,
+            "buffer_size": 100000,
+            "target_update": 200,
+            "eps_decay": 4000.0,
+        },
+        "madrl": {
+            "horizon": 32,
+            "hidden": 192,
+            "lr": 3e-4,
+            "gamma": 0.99,
+            "entropy_coef": 0.015,
+        },
+    },
+}
+
+
+def resolve_training_profile(name: str, episodes_override: int | None) -> dict:
+    """Return one readable profile with an optional episode override."""
+    profile = {
+        "name": name,
+        "episodes": TRAINING_PROFILES[name]["episodes"],
+        "ddqn": dict(TRAINING_PROFILES[name]["ddqn"]),
+        "madrl": dict(TRAINING_PROFILES[name]["madrl"]),
+    }
+    if episodes_override is not None:
+        profile["episodes"] = episodes_override
+    return profile
+
 
 def run_fbsm() -> list[dict]:
     """Run enough FBSM iterations to expose the control-update decay curve."""
@@ -60,41 +122,47 @@ def run_fbsm() -> list[dict]:
     return history
 
 
-def run_ddqn(episodes: int):
+def run_ddqn(profile: dict, device: str):
     """Train the DDQN defender with small, stable settings for a laptop run."""
+    cfg = profile["ddqn"]
+    episodes = int(profile["episodes"])
     args = SimpleNamespace(
         smoke=False,
         episodes=episodes,
-        horizon=24,
-        eval_horizon=24,
-        eval_episodes=4,
-        batch_size=32,
-        hidden=64,
-        lr=1e-3,
-        gamma=0.99,
-        buffer_size=10000,
-        target_update=80,
+        horizon=cfg["horizon"],
+        eval_horizon=cfg["eval_horizon"],
+        eval_episodes=cfg["eval_episodes"],
+        batch_size=cfg["batch_size"],
+        hidden=cfg["hidden"],
+        depth=cfg["depth"],
+        lr=cfg["lr"],
+        gamma=cfg["gamma"],
+        buffer_size=cfg["buffer_size"],
+        target_update=cfg["target_update"],
         eps_start=1.0,
         eps_end=0.02,
-        eps_decay=450.0,
+        eps_decay=cfg["eps_decay"],
         log_every=max(1, episodes // 30),
         seed=11,
+        device=device,
         return_history=True,
     )
     qnet, history = train_ddqn(args)
     return qnet, history
 
 
-def run_madrl(episodes: int) -> list[dict]:
+def run_madrl(profile: dict) -> list[dict]:
     """Run a compact CTDE/MADRL stability diagnostic."""
+    cfg = profile["madrl"]
+    episodes = int(profile["episodes"])
     args = SimpleNamespace(
         smoke=False,
         episodes=episodes,
-        horizon=18,
-        hidden=48,
-        lr=5e-4,
-        gamma=0.97,
-        entropy_coef=0.02,
+        horizon=cfg["horizon"],
+        hidden=cfg["hidden"],
+        lr=cfg["lr"],
+        gamma=cfg["gamma"],
+        entropy_coef=cfg["entropy_coef"],
         log_every=max(1, episodes // 30),
         seed=13,
         return_history=True,
@@ -105,9 +173,11 @@ def run_madrl(episodes: int) -> list[dict]:
 
 def make_ddqn_policy(qnet):
     """Wrap a trained Q-network as a greedy policy function."""
+    device = next(qnet.parameters()).device
+
     def policy(env, k, obs):
         with torch.no_grad():
-            obs_t = torch.tensor(obs, dtype=torch.float32).unsqueeze(0)
+            obs_t = torch.tensor(obs, dtype=torch.float32, device=device).unsqueeze(0)
             return int(qnet(obs_t).argmax(1).item())
     return policy
 
@@ -129,9 +199,11 @@ def run_game_response(qnet) -> list[dict]:
 
 def make_ddqn_node_policy(qnet):
     """Deploy aggregate DDQN feedback on the node-level epidemic simulator."""
+    device = next(qnet.parameters()).device
+
     def policy(k: int, obs: np.ndarray):
         with torch.no_grad():
-            obs_t = torch.tensor(obs, dtype=torch.float32).unsqueeze(0)
+            obs_t = torch.tensor(obs, dtype=torch.float32, device=device).unsqueeze(0)
             mode = int(qnet(obs_t).argmax(1).item())
         return action_from_defender_mode(mode)
 
@@ -185,8 +257,11 @@ def write_summary(
     policy_metrics: list[dict],
     game_metrics: list[dict],
     node_metrics: list[dict],
-    episodes: int,
+    profile: dict,
 ) -> None:
+    episodes = int(profile["episodes"])
+    ddqn_cfg = profile["ddqn"]
+    madrl_cfg = profile["madrl"]
     fbsm_ratio = fbsm[-1]["max_control_change"] / max(fbsm[0]["max_control_change"], 1e-12)
     ddqn_eval = [r["evaluation_return"] for r in ddqn]
     madrl_loss = [r["loss"] for r in madrl]
@@ -217,7 +292,7 @@ def write_summary(
     node_example = node_metrics[0]
     text = f"""# Training Summary
 
-These runs are intentionally small enough for a laptop, but long enough to show the main convergence or stabilization signals.
+These runs use the `{profile["name"]}` profile. The teaching profile is intentionally small enough for a laptop; the GPU profile increases neural width/depth, batch size, replay capacity, horizon, and episodes for a more demanding local run.
 
 ## Experiment Configuration
 
@@ -227,8 +302,8 @@ These runs are intentionally small enough for a laptop, but long enough to show 
 | Decision timing | observe at action point `t_k`, apply any impulse jump, integrate ODE to `t_{{k+1}}^-` |
 | Defender actions | none, patch, clean, deceive, isolate |
 | Attacker actions | scan, exploit, lateral, stealth |
-| DDQN setting | {episodes} episodes, horizon 24, hidden width 64, learning rate 1e-3, gamma 0.99 |
-| CTDE/MADRL setting | {episodes} episodes, horizon 18, hidden width 48, learning rate 5e-4, gamma 0.97 |
+| DDQN setting | {episodes} episodes, horizon {ddqn_cfg["horizon"]}, hidden width {ddqn_cfg["hidden"]}, depth {ddqn_cfg["depth"]}, batch {ddqn_cfg["batch_size"]}, learning rate {ddqn_cfg["lr"]}, gamma {ddqn_cfg["gamma"]} |
+| CTDE/MADRL setting | {episodes} episodes, horizon {madrl_cfg["horizon"]}, hidden width {madrl_cfg["hidden"]}, learning rate {madrl_cfg["lr"]}, gamma {madrl_cfg["gamma"]} |
 
 ## Timing Parameters
 
@@ -520,14 +595,17 @@ def plot_node_level_advantage(output_path: Path, rollouts: list[dict], rows: lis
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run training-iteration experiments for Note 1.")
-    parser.add_argument("--episodes", type=int, default=180, help="Episode count for DDQN and MADRL diagnostics.")
+    parser.add_argument("--profile", choices=sorted(TRAINING_PROFILES), default="teaching", help="Named training profile.")
+    parser.add_argument("--episodes", type=int, default=None, help="Override episode count for DDQN and MADRL diagnostics.")
+    parser.add_argument("--device", choices=["auto", "cpu", "cuda"], default="auto", help="DDQN training device.")
     args = parser.parse_args()
+    profile = resolve_training_profile(args.profile, args.episodes)
 
     exp_dir = ROOT / "experiments"
     fig_dir = ROOT / "figures"
     fbsm = run_fbsm()
-    qnet, ddqn = run_ddqn(args.episodes)
-    madrl = run_madrl(args.episodes)
+    qnet, ddqn = run_ddqn(profile, args.device)
+    madrl = run_madrl(profile)
     policy_metrics = run_policy_comparison(qnet)
     game_metrics = run_game_response(qnet)
     node_rollouts, node_metrics = run_node_level_robustness(qnet)
@@ -538,7 +616,7 @@ def main() -> None:
     write_csv(exp_dir / "policy_comparison_metrics.csv", policy_metrics)
     write_csv(exp_dir / "game_response_metrics.csv", game_metrics)
     write_csv(exp_dir / "node_level_robustness_metrics.csv", node_metrics)
-    write_summary(exp_dir / "training_summary.md", fbsm, ddqn, madrl, policy_metrics, game_metrics, node_metrics, args.episodes)
+    write_summary(exp_dir / "training_summary.md", fbsm, ddqn, madrl, policy_metrics, game_metrics, node_metrics, profile)
     write_output_preview(exp_dir / "OUTPUT_PREVIEW.md", policy_metrics, game_metrics, node_metrics)
     plot_training_diagnostics(fig_dir / "training_iteration_diagnostics.png", fbsm, ddqn, madrl, policy_metrics)
     plot_game_response_matrix(fig_dir / "game_response_matrix.png", game_metrics)

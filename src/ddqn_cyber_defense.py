@@ -41,13 +41,13 @@ class ReplayBuffer:
     def push(self, *args):
         self.data.append(Transition(*args))
 
-    def sample(self, batch_size):
+    def sample(self, batch_size, device="cpu"):
         batch = random.sample(self.data, batch_size)
-        s = torch.tensor(np.stack([b.s for b in batch]), dtype=torch.float32)
-        a = torch.tensor([b.a for b in batch], dtype=torch.int64).unsqueeze(1)
-        r = torch.tensor([b.r for b in batch], dtype=torch.float32).unsqueeze(1)
-        sp = torch.tensor(np.stack([b.sp for b in batch]), dtype=torch.float32)
-        done = torch.tensor([b.done for b in batch], dtype=torch.float32).unsqueeze(1)
+        s = torch.tensor(np.stack([b.s for b in batch]), dtype=torch.float32, device=device)
+        a = torch.tensor([b.a for b in batch], dtype=torch.int64, device=device).unsqueeze(1)
+        r = torch.tensor([b.r for b in batch], dtype=torch.float32, device=device).unsqueeze(1)
+        sp = torch.tensor(np.stack([b.sp for b in batch]), dtype=torch.float32, device=device)
+        done = torch.tensor([b.done for b in batch], dtype=torch.float32, device=device).unsqueeze(1)
         return s, a, r, sp, done
 
     def __len__(self):
@@ -62,6 +62,7 @@ def make_q_network(in_dim, out_dim, hidden=128, depth=2):
 
 def evaluate(qnet, episodes=5, seed=1000, horizon=None):
     """Evaluate the greedy defender policy against the scripted attacker."""
+    device = next(qnet.parameters()).device
     env = HybridCyberDefenseEnv(seed=seed)
     if horizon is not None:
         env.cfg.horizon = horizon
@@ -71,7 +72,8 @@ def evaluate(qnet, episodes=5, seed=1000, horizon=None):
         total = 0.0
         for k in range(env.cfg.horizon):
             with torch.no_grad():
-                a = int(qnet(torch.tensor(s, dtype=torch.float32).unsqueeze(0)).argmax(1).item())
+                obs = torch.tensor(s, dtype=torch.float32, device=device).unsqueeze(0)
+                a = int(qnet(obs).argmax(1).item())
             sp, rewards, done, _ = env.step(a, scripted_attacker(env, k))
             total += rewards["defender"]
             s = sp
@@ -90,13 +92,21 @@ def train(args):
     defender actions.
     """
     random.seed(args.seed); np.random.seed(args.seed); torch.manual_seed(args.seed)
+    requested_device = getattr(args, "device", "auto")
+    if requested_device == "auto":
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    else:
+        if requested_device == "cuda" and not torch.cuda.is_available():
+            raise RuntimeError("CUDA was requested with --device cuda, but torch.cuda.is_available() is false.")
+        device = torch.device(requested_device)
     env = HybridCyberDefenseEnv(seed=args.seed)
     if args.smoke:
         env.cfg.horizon = 10
     if hasattr(args, "horizon") and args.horizon is not None:
         env.cfg.horizon = args.horizon
-    q = make_q_network(env.obs_dim, env.n_defender_actions, hidden=args.hidden)
-    target = make_q_network(env.obs_dim, env.n_defender_actions, hidden=args.hidden)
+    depth = getattr(args, "depth", 2)
+    q = make_q_network(env.obs_dim, env.n_defender_actions, hidden=args.hidden, depth=depth).to(device)
+    target = make_q_network(env.obs_dim, env.n_defender_actions, hidden=args.hidden, depth=depth).to(device)
     target.load_state_dict(q.state_dict())
     opt = optim.Adam(q.parameters(), lr=args.lr)
     replay = ReplayBuffer(args.buffer_size)
@@ -113,7 +123,8 @@ def train(args):
                 a = random.randrange(env.n_defender_actions)
             else:
                 with torch.no_grad():
-                    a = int(q(torch.tensor(s, dtype=torch.float32).unsqueeze(0)).argmax(1).item())
+                    obs = torch.tensor(s, dtype=torch.float32, device=device).unsqueeze(0)
+                    a = int(q(obs).argmax(1).item())
             sp, rewards, done, _ = env.step(a, scripted_attacker(env, k))
             r = rewards["defender"] / 10.0  # scale for stable Q values
             replay.push(s, a, r, sp, done)
@@ -122,7 +133,7 @@ def train(args):
             global_step += 1
 
             if len(replay) >= args.batch_size:
-                bs, ba, br, bsp, bd = replay.sample(args.batch_size)
+                bs, ba, br, bsp, bd = replay.sample(args.batch_size, device=device)
                 q_sa = q(bs).gather(1, ba)
                 with torch.no_grad():
                     next_a = q(bsp).argmax(1, keepdim=True)
@@ -149,6 +160,10 @@ def train(args):
                 "epsilon": float(eps),
                 "last_td_loss": last_loss,
                 "replay_size": len(replay),
+                "device": str(device),
+                "hidden": int(args.hidden),
+                "depth": int(depth),
+                "batch_size": int(args.batch_size),
             })
     if getattr(args, "return_history", False):
         return q, history
@@ -166,6 +181,7 @@ if __name__ == "__main__":
     parser.add_argument("--eval-episodes", type=int, default=2, help="Evaluation episodes per log point.")
     parser.add_argument("--batch-size", type=int, default=128, help="Replay minibatch size.")
     parser.add_argument("--hidden", type=int, default=128, help="Hidden width for the Q-network.")
+    parser.add_argument("--depth", type=int, default=2, help="Hidden-layer depth for the Q-network.")
     parser.add_argument("--lr", type=float, default=1e-3, help="Adam learning rate.")
     parser.add_argument("--gamma", type=float, default=0.99, help="Discount factor.")
     parser.add_argument("--buffer-size", type=int, default=50000, help="Replay-buffer capacity.")
@@ -175,6 +191,7 @@ if __name__ == "__main__":
     parser.add_argument("--eps-decay", type=float, default=20000.0, help="Exponential epsilon-decay time constant.")
     parser.add_argument("--log-every", type=int, default=25, help="Episode interval for console logs and history rows.")
     parser.add_argument("--seed", type=int, default=0, help="Random seed.")
+    parser.add_argument("--device", choices=["auto", "cpu", "cuda"], default="auto", help="Training device.")
     args = parser.parse_args()
     if args.smoke:
         args.episodes = 2

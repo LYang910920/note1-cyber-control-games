@@ -29,6 +29,7 @@ Read `docs/MODEL_TO_MDP.md` if the difference between continuous time, impulse j
 2. Read `docs/MODEL_TO_MDP.md` for the continuous/impulse/MDP timing convention.
 3. Run `python src/scenario_profiles.py` to see the student-facing scenario profiles.
 4. Open `docs/PARAMETERS.md` before changing model parameters or DDQN/MADRL hyperparameters.
+5. For a heavier local/GPU diagnostic, run `python scripts/run_training_iterations.py --profile gpu --device auto` after the smoke tests pass.
 5. Read `docs/PAPER_WORKFLOW.md` when turning an example into a paper section.
 6. Run `bash scripts/run_smoke_tests.sh` to check the environment.
 7. Run `python scripts/generate_figures.py` to recreate the figures.
