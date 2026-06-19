@@ -110,7 +110,7 @@ The hybrid policy comparison rolls out the same cyber scenario under no defense,
 
 ![Hybrid policy comparison](figures/hybrid_policy_comparison.png)
 
-The training diagnostics plot summarizes longer tutorial runs.  FBSM should show the clearest convergence; DDQN and compact CTDE should be read as stochastic learning/stability diagnostics rather than formal equilibrium proofs.
+The training diagnostics plot summarizes longer tutorial runs.  FBSM should show the clearest control-update convergence; DDQN and compact CTDE should be read as stochastic learning/stability diagnostics rather than formal equilibrium proofs.  The generated `experiments/training_diagnostic_glossary.md` defines terms such as episode, rollout, training return, evaluation return, rolling mean, and baseline comparison.
 
 ![Training iteration diagnostics](figures/training_iteration_diagnostics.png)
 
@@ -135,6 +135,7 @@ The node-level epidemic-model robustness experiment shows a case where a low-dim
 | `figures/node_level_learning_advantage.png` | node-level epidemic-model parameter-mismatch comparison: DDQN feedback versus nominal-beta FBSM |
 | `experiments/node_siprs_mappo_smoke.csv` | small cooperative MAPPO smoke history on canonical node-level SIPRS dynamics |
 | `experiments/OUTPUT_PREVIEW.md` | categorized first-stop summary after longer experiment runs |
+| `experiments/training_diagnostic_glossary.md` | short definitions for terms used in training figures and CSV histories |
 | `experiments/policy_comparison_metrics.csv` | multi-metric comparison of representative defense policies |
 | `experiments/game_response_metrics.csv` | game-style attacker-defender response metrics |
 | `experiments/node_level_robustness_metrics.csv` | node-level epidemic-model robustness metrics over multiple random graph seeds |

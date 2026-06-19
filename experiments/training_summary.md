@@ -2,6 +2,10 @@
 
 These runs use the `teaching` profile. The default profile is small enough for a laptop; the GPU profile increases neural width/depth, batch size, replay capacity, horizon, and episodes for a more demanding local run.
 
+## Training Diagnostic Terms
+
+Open `experiments/training_diagnostic_glossary.md` before reading the training plots.  In this repo, **iteration** is used for FBSM sweeps, **episode** is used for DDQN/CTDE learning, **return** is cumulative reward, and **rollout** is a forward simulation used for validation.
+
 ## Experiment Configuration
 
 | Item | Setting |

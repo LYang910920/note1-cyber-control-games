@@ -55,6 +55,7 @@ In this section, **node-level** means each graph node carries a local S/I/R epid
 | Category | File |
 |---|---|
 | Summary | `experiments/training_summary.md` |
+| Diagnostic glossary | `experiments/training_diagnostic_glossary.md` |
 | Learning curves | `figures/training_iteration_diagnostics.png` |
 | Policy comparison CSV | `experiments/policy_comparison_metrics.csv` |
 | Game matrix CSV | `experiments/game_response_metrics.csv` |

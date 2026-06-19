@@ -11,7 +11,6 @@ direction over time?"
 from __future__ import annotations
 
 import argparse
-import math
 import textwrap
 from pathlib import Path
 import sys
@@ -29,6 +28,7 @@ sys.path.insert(0, str(ROOT / "src"))
 from shared_setup import ensure_foundation_package
 
 ensure_foundation_package()
+from cybercontrol.diagnostics import add_caption, diagnostic_terms_for, rolling_mean, write_diagnostic_glossary
 from cybercontrol.io import write_csv
 from ddqn_cyber_defense import train as train_ddqn
 from evaluation_metrics import (
@@ -52,6 +52,19 @@ from node_level_robustness import (
 NODE_NO_DEFENSE_LABEL = "Node-level epidemic model: no defense"
 NODE_FBSM_LABEL = "Node-level epidemic model: nominal-beta FBSM open-loop patching"
 NODE_DDQN_LABEL = "Node-level epidemic model: DDQN aggregate feedback"
+NOTE1_DIAGNOSTIC_TERMS = diagnostic_terms_for(
+    [
+        "iteration",
+        "episode",
+        "rollout",
+        "control-update change",
+        "training return",
+        "evaluation return",
+        "loss",
+        "rolling mean",
+        "baseline comparison",
+    ]
+)
 
 TRAINING_PROFILES = {
     "teaching": {
@@ -239,16 +252,6 @@ def run_node_level_robustness(qnet):
     return rollouts, rows
 
 
-def rolling_mean(values: list[float], window: int = 5) -> list[float]:
-    out = []
-    for idx in range(len(values)):
-        start = max(0, idx - window + 1)
-        chunk = values[start:idx + 1]
-        finite = [x for x in chunk if not math.isnan(x)]
-        out.append(sum(finite) / len(finite) if finite else float("nan"))
-    return out
-
-
 def write_summary(
     path: Path,
     fbsm: list[dict],
@@ -293,6 +296,10 @@ def write_summary(
     text = f"""# Training Summary
 
 These runs use the `{profile["name"]}` profile. The default profile is small enough for a laptop; the GPU profile increases neural width/depth, batch size, replay capacity, horizon, and episodes for a more demanding local run.
+
+## Training Diagnostic Terms
+
+Open `experiments/training_diagnostic_glossary.md` before reading the training plots.  In this repo, **iteration** is used for FBSM sweeps, **episode** is used for DDQN/CTDE learning, **return** is cumulative reward, and **rollout** is a forward simulation used for validation.
 
 ## Experiment Configuration
 
@@ -422,6 +429,7 @@ In this section, **node-level** means each graph node carries a local S/I/R epid
 | Category | File |
 |---|---|
 | Summary | `experiments/training_summary.md` |
+| Diagnostic glossary | `experiments/training_diagnostic_glossary.md` |
 | Learning curves | `figures/training_iteration_diagnostics.png` |
 | Policy comparison CSV | `experiments/policy_comparison_metrics.csv` |
 | Game matrix CSV | `experiments/game_response_metrics.csv` |
@@ -436,28 +444,28 @@ def plot_training_diagnostics(output_path: Path, fbsm: list[dict], ddqn: list[di
     axes = axes.ravel()
 
     axes[0].semilogy([r["iteration"] for r in fbsm], [r["max_control_change"] for r in fbsm], color="black")
-    axes[0].set_title("FBSM baseline convergence: control-update decay")
+    axes[0].set_title("FBSM continuous-control baseline: update convergence")
     axes[0].set_xlabel("Iteration")
-    axes[0].set_ylabel("Max control change")
+    axes[0].set_ylabel("Max control-update change (log scale)")
     axes[0].grid(alpha=0.25)
 
     ddqn_episode = [r["episode"] for r in ddqn]
     ddqn_train = [r["training_return"] for r in ddqn]
     ddqn_eval = [r["evaluation_return"] for r in ddqn]
-    axes[1].plot(ddqn_episode, ddqn_train, alpha=0.35, label="train")
-    axes[1].plot(ddqn_episode, ddqn_eval, alpha=0.35, label="eval")
-    axes[1].plot(ddqn_episode, rolling_mean(ddqn_eval, window=5), color="black", linewidth=2, label="eval rolling mean")
-    axes[1].set_title("DDQN sampled-data defender: evaluation return")
+    axes[1].plot(ddqn_episode, ddqn_train, alpha=0.35, label="training return (with exploration)")
+    axes[1].plot(ddqn_episode, ddqn_eval, alpha=0.35, label="evaluation return (greedy)")
+    axes[1].plot(ddqn_episode, rolling_mean(ddqn_eval, window=5), color="black", linewidth=2, label="5-point evaluation rolling mean")
+    axes[1].set_title("DDQN sampled-data defender: return diagnostics")
     axes[1].set_xlabel("Episode")
-    axes[1].set_ylabel("Defender return")
+    axes[1].set_ylabel("Cumulative defender return")
     axes[1].grid(alpha=0.25)
     axes[1].legend()
 
     madrl_episode = [r["episode"] for r in madrl]
     madrl_loss = [r["loss"] for r in madrl]
     madrl_def = [r["defender_return"] for r in madrl]
-    axes[2].plot(madrl_episode, madrl_loss, alpha=0.35, label="joint loss")
-    axes[2].plot(madrl_episode, rolling_mean(madrl_loss, window=5), color="black", linewidth=2, label="loss rolling mean")
+    axes[2].plot(madrl_episode, madrl_loss, alpha=0.35, label="joint policy/critic loss")
+    axes[2].plot(madrl_episode, rolling_mean(madrl_loss, window=5), color="black", linewidth=2, label="5-point loss rolling mean")
     axes[2].plot(madrl_episode, madrl_def, alpha=0.35, label="defender return")
     axes[2].set_title("Compact CTDE attacker-defender training diagnostics")
     axes[2].set_xlabel("Episode")
@@ -469,11 +477,15 @@ def plot_training_diagnostics(output_path: Path, fbsm: list[dict], ddqn: list[di
     axes[3].barh(y, [row["cumulative_compromised"] for row in policy_metrics], color="#4c78a8", alpha=0.85)
     axes[3].set_yticks(y, labels)
     axes[3].invert_yaxis()
-    axes[3].set_title("Hybrid malware policy comparison")
+    axes[3].set_title("Same-model baseline rollout comparison")
     axes[3].set_xlabel("Cumulative compromised exposure (lower is better)")
     axes[3].grid(axis="x", alpha=0.25)
 
-    fig.tight_layout()
+    add_caption(
+        fig,
+        "Training diagnostics: FBSM uses solver iterations and reports control-update convergence; DDQN and compact CTDE use episodes and report reward/loss trends; the baseline panel uses the same hybrid malware model rolled forward under each policy.",
+    )
+    fig.tight_layout(rect=(0, 0.065, 1, 1))
     output_path.parent.mkdir(exist_ok=True)
     fig.savefig(output_path, dpi=180)
     plt.close(fig)
@@ -617,6 +629,11 @@ def main() -> None:
     write_csv(exp_dir / "policy_comparison_metrics.csv", policy_metrics)
     write_csv(exp_dir / "game_response_metrics.csv", game_metrics)
     write_csv(exp_dir / "node_level_robustness_metrics.csv", node_metrics)
+    write_diagnostic_glossary(
+        exp_dir / "training_diagnostic_glossary.md",
+        NOTE1_DIAGNOSTIC_TERMS,
+        title="Note 1 Training Diagnostic Glossary",
+    )
     write_summary(exp_dir / "training_summary.md", fbsm, ddqn, madrl, policy_metrics, game_metrics, node_metrics, profile)
     write_output_preview(exp_dir / "OUTPUT_PREVIEW.md", policy_metrics, game_metrics, node_metrics)
     plot_training_diagnostics(fig_dir / "training_iteration_diagnostics.png", fbsm, ddqn, madrl, policy_metrics)

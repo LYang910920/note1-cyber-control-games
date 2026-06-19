@@ -29,6 +29,11 @@ Use this page before changing the model, reward, or learner. It separates physic
 | `CTDE` | Centralized training, decentralized execution. Critics may see joint state/action information during training; actors use local observations at execution. |
 | `MAPPO` | Multi-agent PPO. In this repo it is a compact cooperative community-defense baseline on node-level SIPRS dynamics. |
 | `GAE` | Generalized advantage estimation, used by PPO/MAPPO to estimate lower-variance policy advantages from rollout rewards and value predictions. |
+| `training diagnostic` | A learning or solver-health check, such as FBSM control-update change, DDQN return, CTDE loss, or same-model rollout comparison. |
+| `training return` | Cumulative reward collected while a learner is exploring. It is noisy and should be read with evaluation return and cyber metrics. |
+| `evaluation return` | Cumulative reward from the current policy under a fixed evaluation setting, usually without exploration. |
+| `control-update change` | Maximum change between consecutive FBSM controls. It is a convergence diagnostic, not a cybersecurity metric. |
+| `rolling mean` | Moving average used to show a trend in noisy RL/MARL curves. It should not hide individual unstable episodes. |
 
 ## Scenario Parameters
 

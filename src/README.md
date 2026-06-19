@@ -59,6 +59,7 @@ This tutorial environment uses fixed `t_k = k * dt`.  The notes also support non
 | Compact CTDE game | environment, defender/attacker actors, centralized critics | trained actors and logged loss/return diagnostics |
 | Node-SIPRS MAPPO | community observations, canonical SIPRS ODE, sampled defender modes | clipped PPO/GAE training history and mass-conservation diagnostics |
 | Node-level epidemic robustness | trained aggregate DDQN policy, nominal FBSM schedule, random graph seed | aggregate infected-node trajectories, robustness metrics, scaling proxy |
+| Training diagnostics | histories from FBSM, DDQN, CTDE, and policy rollouts | standardized glossary, readable captions, and same-model comparison figures |
 
 ## How The Pieces Fit
 
