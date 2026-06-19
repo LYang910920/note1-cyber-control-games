@@ -1,6 +1,6 @@
 # Training Summary
 
-These runs use the `teaching` profile. This default profile is small enough for a laptop; the GPU profile increases neural width/depth, batch size, replay capacity, horizon, and episodes for a more demanding local run.
+These runs use the `teaching` profile. The default profile is small enough for a laptop; the GPU profile increases neural width/depth, batch size, replay capacity, horizon, and episodes for a more demanding local run.
 
 ## Experiment Configuration
 

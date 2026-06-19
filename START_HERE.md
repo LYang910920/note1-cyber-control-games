@@ -5,12 +5,22 @@ This page is the compact map. You can ignore most files at first.
 ## Big Picture
 
 ```text
-tutorial note
+Foundation repository
+  -> notation, ODE models, shared cybercontrol helpers
+Companion Note 1
   -> continuous-time cyber dynamics
   -> original impulse points tau_j and sampled action points t_k
   -> FBSM baseline, DDQN, CTDE/MADRL
   -> figures and training diagnostics
 ```
+
+## Three-Repository Order
+
+| Step | Repository | What to use it for |
+|---:|---|---|
+| 0 | `network-control-differential-games` | Foundation notation, shared package, continuous/impulse/hybrid worked examples, and degree-level/node-level scalability. |
+| 1 | `note1-cyber-control-games` | This note: PMP/FBSM, sampled-data MDPs, DDQN, CTDE/MADRL, and cyber game-learning diagnostics. |
+| 2 | `note2-pinn-pidl-cyber-control` | PINN/PIDL, inverse learning, neural control, and PMP-informed residual learning. |
 
 ## Timing In One Picture
 

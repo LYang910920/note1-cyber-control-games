@@ -1,12 +1,22 @@
-# Cyber Control and Game Learning, Note 1
+# Cyber Control and Game Learning: Companion Note 1
 
-Executable companion for **Note 1: Game Learning for Cyber Control**.  The repo keeps the path focused: continuous-time cyber dynamics, an FBSM optimal-control baseline, DDQN defense learning, and a compact attacker-defender CTDE/MADRL example.
+Executable companion for **Note 1: Game Learning for Cyber Control**. This is the second repository in the tutorial family: it builds on the foundation repository's notation and shared `cybercontrol` package, then moves from continuous-time cyber dynamics to an FBSM optimal-control baseline, DDQN defense learning, and a compact attacker-defender CTDE/MADRL example.
 
 The main goal is to show how one cyber propagation model can be studied from three angles: classical optimal control, sampled-data reinforcement learning, and multi-agent game learning.  Each example is short enough to read directly, but still produces figures and logs that make the numerical behavior visible.
 
 The repository is especially careful about timing: continuous flow happens between decision points, impulse actions can create immediate state jumps, and the DDQN/MADRL examples expose only the sampled decision points as MDP or Markov-game observations.
 
 If this is your first visit, start with `START_HERE.md`.
+
+## Repository Family
+
+The three repositories are meant to be read in order, but each remains runnable on its own.
+
+| Order | Repository | Role |
+|---:|---|---|
+| 0 | [network-control-differential-games](https://github.com/LYang910920/network-control-differential-games) | **Foundation.** Notation, shared `cybercontrol` package, continuous/impulse/hybrid examples, degree-level versus node-level FBS scalability, and reference smoke runs. |
+| 1 | `note1-cyber-control-games` | **This companion note.** PMP/FBSM baselines, sampled-data MDP conversion, DDQN defense learning, CTDE/MADRL attacker-defender learning, and robustness diagnostics. |
+| 2 | [note2-pinn-pidl-cyber-control](https://github.com/LYang910920/note2-pinn-pidl-cyber-control) | **Next companion note.** PINN/PIDL, inverse learning, neural control, and PMP-informed neural residuals. |
 
 ## Quick Start
 
@@ -147,8 +157,8 @@ The reusable numerical/model helpers are imported from the foundation package `c
 
 | Repository | Use it for |
 |---|---|
-| https://github.com/LYang910920/network-control-differential-games | Optimal-control, differential-game, impulse/hybrid-control, and network-model foundations. |
-| https://github.com/LYang910920/note2-pinn-pidl-cyber-control | PINN/PIDL, inverse learning, neural control, and PMP-informed neural cyber-control examples. |
+| https://github.com/LYang910920/network-control-differential-games | Start here for the foundation notation, shared package, and worked optimal-control/game examples. |
+| https://github.com/LYang910920/note2-pinn-pidl-cyber-control | Continue to PINN/PIDL, inverse learning, neural control, and PMP-informed neural cyber-control examples. |
 
 ## License And Copyright
 
