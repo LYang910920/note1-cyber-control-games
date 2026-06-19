@@ -23,6 +23,12 @@ Use this page before changing the model, reward, or learner. It separates physic
 | `nominal` | The parameter value assumed when designing a baseline. For the node-level robustness test, nominal beta is the underestimated `beta_assumed_by_fbsm=0.45`; the deployed simulator uses the larger true beta and bursts. |
 | `robustness` | Performance under mismatch or disturbance. Here it means low infected-node exposure when the graph process has stochastic seeds, true propagation differs from the nominal FBSM design value, and a burst multiplier increases infection pressure. |
 | `node_pmp_unknown_proxy` | A rough scale indicator for solving full node-level PMP/FBSM: `2 * (3 * nodes) * (horizon + 1)` counts state plus costate variables across the time grid. It is a teaching proxy, not a measured runtime. |
+| `PMP` | Pontryagin's maximum principle, used to derive continuous-time optimal-control necessary conditions. |
+| `FBSM` | Forward-backward sweep method, used here as a deterministic open-loop continuous-control baseline. |
+| `DDQN` | Double deep Q-network, a value-based sampled-data defender for discrete actions. |
+| `CTDE` | Centralized training, decentralized execution. Critics may see joint state/action information during training; actors use local observations at execution. |
+| `MAPPO` | Multi-agent PPO. In this repo it is a compact cooperative community-defense baseline on node-level SIPRS dynamics. |
+| `GAE` | Generalized advantage estimation, used by PPO/MAPPO to estimate lower-variance policy advantages from rollout rewards and value predictions. |
 
 ## Scenario Parameters
 

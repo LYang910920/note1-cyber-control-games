@@ -57,6 +57,16 @@ Use `src/node_level_robustness.py` as a separate stress-test route from aggregat
 | Larger RL/MARL algorithms | `HybridCyberDefenseEnv.step` | stable `reset/step` interface before adding external libraries |
 | Paper-specific reward/payoff | `EnvConfig` and `evaluation_metrics.py` | separate infected exposure, defender cost, attacker payoff, and impulse counts |
 
+## Paper-Level Extension Contract
+
+When adapting a paper model, keep these contracts visible in code and outputs:
+
+1. A named profile in `src/scenario_profiles.py` with the horizon, `Delta t`, propagation rates, reward weights, learner hyperparameters, and first files to edit.
+2. A runnable smoke command that finishes quickly and checks mass conservation, finite rewards, and output files.
+3. One baseline table for the same model: no-defense, fixed/rule policies, random policies when practical, and any FBSM/PMP candidate.
+4. One result figure per model, with captions stating whether curves are aggregate means, degree classes, nodes, communities, continuous controls, impulse actions, or hybrid actions.
+5. A short claim statement in `docs/PAPER_WORKFLOW.md`: what can be claimed from the current evidence, and what still needs multiple seeds, held-out graphs, or exploitability checks.
+
 ## Related Learning Path
 
 Use these repositories together:
