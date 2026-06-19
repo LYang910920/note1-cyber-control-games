@@ -51,6 +51,7 @@ python scripts/run_training_iterations.py
 | Continuous/impulse/MDP guide | `docs/MODEL_TO_MDP.md` |
 | Parameter and hyperparameter reference | `docs/PARAMETERS.md` |
 | Paper-writing workflow | `docs/PAPER_WORKFLOW.md` |
+| Three-repo student onboarding deck | [`network-control-differential-games/docs/slides/three_repo_student_onboarding`](https://github.com/LYang910920/network-control-differential-games/tree/main/docs/slides/three_repo_student_onboarding) |
 | Source-code map | `src/README.md` |
 | Student extension profiles | `src/scenario_profiles.py` |
 | Script and output map | `scripts/README.md` |
