@@ -46,10 +46,10 @@ There are two different grids.  They should not be confused.
 | Grid | Meaning | Used by | Is it an RL decision point? |
 |---|---|---|---|
 | Continuous-control integration grid | Numerical time mesh for solving ODE/PMP equations. | FBSM baseline | No |
-| Decision grid `0=t_0<...<t_K=T` | Times where policies observe the state and choose actions. Fixed `t_k=k Delta t` is only one case. | DDQN MDP, CTDE/MADRL Markov game | Yes |
+| Decision grid `0=t_0<...<t_K=T` | Times where policies observe the state and choose actions. Fixed `t_k=k Delta t` is only one case. | DDQN MDP, compact CTDE/MAPPO Markov game | Yes |
 | RK4 substeps inside one interval | Internal solver steps used to integrate from `t_k` to `t_{k+1}`. | Hybrid environment | No |
 
-FBSM does not convert the original process into an MDP.  It solves a continuous-time optimal-control problem on a numerical mesh.  DDQN and CTDE/MADRL do convert the continuous/hybrid simulator into a sampled-data MDP or Markov game by exposing only the decision grid to the learning algorithm.
+FBSM does not convert the original process into an MDP.  It solves a continuous-time optimal-control problem on a numerical mesh.  DDQN, compact CTDE, and MAPPO convert the continuous/hybrid simulator into a sampled-data MDP or Markov game by exposing only the decision grid to the learning algorithm.
 
 ## Does Learning Always Require Discretization?
 
@@ -105,7 +105,7 @@ r_A,k      = attacker reward
 s_{k+1}    = next simulator state
 ```
 
-The compact CTDE/MADRL script uses centralized critics that see the state and both actions during training.  The actors are decentralized policies that map observations to defender or attacker actions.
+The compact CTDE script uses centralized critics that see the state and both actions during training.  The actors are decentralized policies that map observations to defender or attacker actions.  The node-SIPRS MAPPO script uses the same decision-grid idea but trains cooperative community defenders with PPO-style clipped updates.
 
 ## Code Checklist
 

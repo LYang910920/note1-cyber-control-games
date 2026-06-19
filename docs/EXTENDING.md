@@ -21,7 +21,7 @@ That command prints the named student-facing profiles. Pick the closest one befo
 3. **Change the dynamics.** Replace `controlled_sir_rhs` or `hybrid_rhs` with a new `f(x,u,a,t)`. Keep the function signature simple and write a short smoke test before adding learning.
 4. **Change the reward.** Decide which quantities should be minimized by the defender and maximized by the attacker. Add clear weights to `EnvConfig`.
 5. **Add baselines before learning.** Compare no-defense, constant-defense, threshold, and FBSM-style policies before training DDQN or MARL.
-6. **Scale the learner.** Move from the compact DDQN/MADRL files to a stronger library only after the environment contract is stable.
+6. **Scale the learner.** Move from the compact DDQN/CTDE files to MAPPO or a stronger library only after the environment contract is stable.
 7. **Add diagnostics.** For stochastic policies, report multiple seeds, rolling means, confidence intervals, and baseline comparisons.
 
 ## Scaling To Network Models
@@ -30,7 +30,21 @@ For larger models, move from compartment states to degree-level arrays, node-lev
 
 For network-scale impulse models, record whether a jump is node-local, edge-local, or global. For example, isolating one subnet may create an immediate node-state jump, while patching campaigns may change vulnerability rates over the following interval.
 
-Use `src/node_level_robustness.py` as a small bridge from compartment states to node-level epidemic graphs. Each graph node has a local S/I/R state, while the feedback policy observes aggregate graph features. It demonstrates a useful stress test: compare a nominal-parameter FBSM open-loop schedule with a feedback policy when the true graph dynamics and propagation parameters differ from the baseline model.
+Use `src/node_siprs_mappo.py` as the first graph-scale route. It imports the canonical foundation SIPRS equations, keeps node states as `[S,I,P,R]`, and partitions the graph into regional defender communities. Each regional defender observes local means, boundary pressure, global infection, time-to-go, and previous action. The smoke MAPPO loop includes GAE, clipped policy ratios, minibatches, value loss, entropy, and gradient clipping.
+
+Use `src/node_level_robustness.py` as a separate stress-test route from aggregate feedback to stochastic node-level S/I/R graphs. It demonstrates a useful stress test: compare a nominal-parameter FBSM open-loop schedule with a feedback policy when the true graph dynamics and propagation parameters differ from the baseline model.
+
+## Node-SIPRS Community MARL Model Card
+
+| Item | Choice in the current code |
+|---|---|
+| State | node probabilities `x_i=[S_i,I_i,P_i,R_i]` |
+| Flow | canonical `cybercontrol.network_models.node_siprs_rhs_numpy` |
+| Actions | per-community sampled modes: none, patch `S -> P`, clean `I -> R` |
+| Reward | local infected share, global infected share, and action cost integrated over `Delta t` |
+| Baselines to add before claims | no action, uniform patch, local threshold clean, degree/community targeting |
+| MAPPO diagnostics | mean reward, final global infection, mass-conservation error, multi-seed stability |
+| Claim limit | empirical learned feedback, not global optimality or Nash equilibrium |
 
 ## From Tutorial Code To Paper Models
 
@@ -39,7 +53,7 @@ Use `src/node_level_robustness.py` as a small bridge from compartment states to 
 | More cyber compartments or assets | `src/cyber_dynamics.py` | nonnegative state projection and clear state labels |
 | Event-triggered or scheduled impulses | `HybridCyberDefenseEnv.jump_map` | explicit pre-jump and post-jump diagnostics |
 | Richer attacker behavior | `scripted_attacker`, `madrl_ctde_hybrid_game.py` | same observation/action/reward contract across baselines |
-| Node-level or graph-level state | `src/node_level_robustness.py` | aggregate metrics plus node-level stress-test outputs |
+| Node-level or graph-level state | `src/node_siprs_mappo.py`, then `src/node_level_robustness.py` | canonical SIPRS semantics, aggregate metrics plus node-level stress-test outputs |
 | Larger RL/MARL algorithms | `HybridCyberDefenseEnv.step` | stable `reset/step` interface before adding external libraries |
 | Paper-specific reward/payoff | `EnvConfig` and `evaluation_metrics.py` | separate infected exposure, defender cost, attacker payoff, and impulse counts |
 
@@ -50,7 +64,7 @@ Use these repositories together:
 | Step | Repository | Focus |
 |---|---|---|
 | 1 | `network-control-differential-games` | PMP, FBSM, degree/node-level network control, differential games |
-| 2 | `note1-cyber-control-games` | ODE-to-RL conversion, DDQN, CTDE/MADRL |
+| 2 | `note1-cyber-control-games` | ODE-to-RL conversion, DDQN, compact CTDE, node-SIPRS MAPPO |
 | 3 | `note2-pinn-pidl-cyber-control` | PINN/PIDL inverse learning and neural optimal control |
 
 Companion repository: https://github.com/LYang910920/network-control-differential-games

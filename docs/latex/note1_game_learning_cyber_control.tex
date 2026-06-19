@@ -1086,7 +1086,7 @@ PMP and FBSM provide theoretical structure, optimality conditions, and interpret
 
 
 \section{Python Implementation Map and Code Organization}
-The accompanying code is intentionally organized around the same methodological structure as this note.  The mathematical model is separated from the solvers so that FBSM, DDQN, CTDE/MADRL, and shared evaluation metrics can be compared on the same cyber-control timing convention.
+The accompanying code is intentionally organized around the same methodological structure as this note.  The mathematical model is separated from the solvers so that FBSM, DDQN, compact CTDE, node-SIPRS MAPPO, and shared evaluation metrics can be compared on the same cyber-control timing convention.
 
 \begin{longtable}{p{0.36\textwidth}p{0.54\textwidth}}
 \toprule
@@ -1097,7 +1097,7 @@ Python file & What it demonstrates \\
 {\footnotesize\texttt{evaluation\_metrics.py}} & Shared rollout metrics for policy comparison: cumulative compromise, peak/final compromise, defense cost, impulse count, and action switches. \\
 {\footnotesize\texttt{fbsm\_malware\_baseline.py}} & Classical PMP/FBSM baseline for continuous malware control. \\
 {\footnotesize\texttt{ddqn\_cyber\_defense.py}} & Discrete-action DDQN defender against a scripted attacker. \\
-{\footnotesize\texttt{madrl\_ctde\_hybrid\_game.py}} & A compact CTDE/MADRL attacker-defender Markov game. \\
+{\footnotesize\texttt{madrl\_ctde\_hybrid\_game.py}} & A compact CTDE attacker-defender Markov-game baseline. \\
 {\footnotesize\texttt{node\_level\_robustness.py}} & Node-level epidemic robustness experiment comparing DDQN aggregate feedback with nominal-parameter FBSM open-loop control. \\
 {\footnotesize\texttt{run\_training\_iterations.py}} & Produces convergence histories, policy-comparison metrics, game diagnostics, node-level epidemic robustness metrics, and training summaries. \\
 {\footnotesize\texttt{generate\_figures.py}} & Rebuilds the README figures, including neural-network and $t_k$ versus $\tau_j$ timing diagrams. \\
@@ -1106,7 +1106,7 @@ Python file & What it demonstrates \\
 
 \begin{boxednote}
 \textbf{Recommended implementation sequence.}
-First run the ODE environment and FBSM baseline. Then train DDQN against a scripted attacker. Only after these two parts are debugged should one move to simultaneous attacker-defender CTDE/MADRL or node-level epidemic robustness experiments. Use the metric and figure scripts to compare learned policies against fixed, rule-based, and nominal-parameter optimal-control baselines.
+First run the ODE environment and FBSM baseline. Then train DDQN against a scripted attacker. Only after these two parts are debugged should one move to compact CTDE, node-SIPRS MAPPO, or node-level epidemic robustness experiments. Use the metric and figure scripts to compare learned policies against fixed, rule-based, and nominal-parameter optimal-control baselines.
 \end{boxednote}
 
 \appendix

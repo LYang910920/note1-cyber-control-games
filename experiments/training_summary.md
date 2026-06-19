@@ -11,7 +11,7 @@ These runs use the `teaching` profile. The default profile is small enough for a
 | Defender actions | none, patch, clean, deceive, isolate |
 | Attacker actions | scan, exploit, lateral, stealth |
 | DDQN setting | 180 episodes, horizon 24, hidden width 64, depth 2, batch 32, learning rate 0.001, gamma 0.99 |
-| CTDE/MADRL setting | 180 episodes, horizon 18, hidden width 48, learning rate 0.0005, gamma 0.97 |
+| Compact CTDE setting | 180 episodes, horizon 18, hidden width 48, learning rate 0.0005, gamma 0.97 |
 
 ## Timing Parameters
 

@@ -27,7 +27,7 @@ s_k = x(t_k^-)
   -> s_{k+1}
 ```
 
-`EnvConfig.dt` is the decision interval. `EnvConfig.substeps` is only the number of RK4 solver steps inside one transition.  DDQN sees one replay item per decision interval; CTDE/MADRL sees one joint transition per decision interval.
+`EnvConfig.dt` is the decision interval. `EnvConfig.substeps` is only the number of RK4 solver steps inside one transition.  DDQN sees one replay item per decision interval; compact CTDE and MAPPO see one joint transition per decision interval.
 
 This tutorial environment uses fixed `t_k = k * dt`.  The notes also support nonuniform action intervals `Delta t_k = t_{k+1} - t_k`.  If the original model already has impulse/event points, call them `tau_j`; do not reuse `t_k` for those model-intrinsic times unless they are deliberately the same points.
 
@@ -42,7 +42,8 @@ This tutorial environment uses fixed `t_k = k * dt`.  The notes also support non
 | `evaluation_metrics.py` | Shared rollout, policy-comparison, and game-response metrics. | `evaluate_policy_suite`, `evaluate_game_response_matrix`, `summarize_rollout` |
 | `fbsm_malware_baseline.py` | Forward-backward sweep method for a PMP open-loop control baseline. | `solve_fbsm` |
 | `ddqn_cyber_defense.py` | DDQN defender for a scripted-attacker environment. | `train`, `evaluate`, CLI `--smoke` |
-| `madrl_ctde_hybrid_game.py` | Compact CTDE/MADRL attacker-defender game loop. | `train`, `rollout`, `Actor`, `CentralCritic` |
+| `madrl_ctde_hybrid_game.py` | Compact CTDE attacker-defender policy-gradient baseline. | `train`, `rollout`, `Actor`, `CentralCritic` |
+| `node_siprs_mappo.py` | Node-level SIPRS community-defense environment and compact MAPPO baseline. | `NodeSIPRSEnv`, `train_mappo`, CLI `--smoke` |
 | `node_level_robustness.py` | Stochastic node-level epidemic-model experiment for parameter-mismatch and scaling discussion. | `NodeSimConfig`, `rollout_node_policy`, `summarize_node_rollout` |
 
 ## Inputs And Outputs
@@ -55,7 +56,8 @@ This tutorial environment uses fixed `t_k = k * dt`.  The notes also support non
 | Policy and game metrics | representative defender/attacker policies and common horizon | cumulative compromised exposure, peak/final compromised share, rewards, impulse counts, game-response rows |
 | FBSM baseline | horizon, cost weights, malware parameters | open-loop control, state/costate trajectories, objective, convergence history |
 | DDQN defender | environment, replay buffer, Q-network settings | trained Q-network and logged train/evaluation returns |
-| CTDE/MADRL game | environment, defender/attacker actors, centralized critics | trained actors and logged loss/return diagnostics |
+| Compact CTDE game | environment, defender/attacker actors, centralized critics | trained actors and logged loss/return diagnostics |
+| Node-SIPRS MAPPO | community observations, canonical SIPRS ODE, sampled defender modes | clipped PPO/GAE training history and mass-conservation diagnostics |
 | Node-level epidemic robustness | trained aggregate DDQN policy, nominal FBSM schedule, random graph seed | aggregate infected-node trajectories, robustness metrics, scaling proxy |
 
 ## How The Pieces Fit
@@ -66,8 +68,9 @@ This tutorial environment uses fixed `t_k = k * dt`.  The notes also support non
 4. `evaluation_metrics.py` compares representative policies using the same timing and metrics.
 5. `fbsm_malware_baseline.py` solves a continuous-control reference problem.
 6. `ddqn_cyber_defense.py` learns a discrete defender policy against a scripted attacker.
-7. `madrl_ctde_hybrid_game.py` lets both attacker and defender learn with decentralized actors and centralized critics.
-8. `node_level_robustness.py` redeploys the learned aggregate feedback policy on a node-level S/I/R epidemic graph and compares it with a nominal open-loop FBSM schedule.
+7. `madrl_ctde_hybrid_game.py` lets both attacker and defender learn with decentralized actors and centralized critics; it is a compact CTDE baseline, not full MAPPO.
+8. `node_siprs_mappo.py` moves to canonical node-level SIPRS dynamics and uses cooperative community defenders with GAE, clipped PPO ratios, value loss, entropy, minibatches, and deterministic smoke evaluation.
+9. `node_level_robustness.py` redeploys the learned aggregate feedback policy on a node-level S/I/R epidemic graph and compares it with a nominal open-loop FBSM schedule.
 
 ## First Extension Step
 

@@ -171,7 +171,7 @@ TRAINING_HYPERPARAMETERS: tuple[TrainingHyperparameterProfile, ...] = (
     ),
     TrainingHyperparameterProfile(
         name="ctde-madrl-game",
-        method="compact CTDE/MADRL attacker-defender game",
+        method="compact CTDE attacker-defender game",
         hyperparameters=(
             ("episodes", "180 by default in scripts/run_training_iterations.py"),
             ("horizon", "18"),
@@ -185,7 +185,7 @@ TRAINING_HYPERPARAMETERS: tuple[TrainingHyperparameterProfile, ...] = (
     ),
     TrainingHyperparameterProfile(
         name="ctde-madrl-game-gpu-profile",
-        method="heavier CTDE/MADRL diagnostic profile",
+        method="heavier compact CTDE diagnostic profile",
         hyperparameters=(
             ("command", "python scripts/run_training_iterations.py --profile gpu"),
             ("episodes", "600 by default"),
@@ -211,6 +211,24 @@ TRAINING_HYPERPARAMETERS: tuple[TrainingHyperparameterProfile, ...] = (
             ("graph seeds", "21 to 28"),
         ),
         source="src/node_level_robustness.py and scripts/run_training_iterations.py::run_node_level_robustness",
+    ),
+    TrainingHyperparameterProfile(
+        name="node-siprs-mappo-smoke",
+        method="cooperative community MAPPO on canonical node SIPRS",
+        hyperparameters=(
+            ("command", "python src/node_siprs_mappo.py --smoke --device cpu"),
+            ("nodes", "24 in smoke; 48 by default"),
+            ("communities", "3"),
+            ("compartments", "S/I/P/R"),
+            ("horizon", "6 in smoke; 18 by default"),
+            ("rollout_steps", "6 in smoke; 18 by default"),
+            ("ppo_epochs", "2 in smoke; 3 by default"),
+            ("minibatch_size", "3 in smoke; 6 by default"),
+            ("hidden width", "32 in smoke; 64 by default"),
+            ("gamma / GAE lambda", "0.97 / 0.95"),
+            ("clip_eps", "0.2"),
+        ),
+        source="src/node_siprs_mappo.py",
     ),
 )
 

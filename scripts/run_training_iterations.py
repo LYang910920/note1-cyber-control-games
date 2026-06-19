@@ -152,7 +152,7 @@ def run_ddqn(profile: dict, device: str):
 
 
 def run_madrl(profile: dict) -> list[dict]:
-    """Run a compact CTDE/MADRL stability diagnostic."""
+    """Run a compact CTDE stability diagnostic."""
     cfg = profile["madrl"]
     episodes = int(profile["episodes"])
     args = SimpleNamespace(
@@ -303,7 +303,7 @@ These runs use the `{profile["name"]}` profile. The default profile is small eno
 | Defender actions | none, patch, clean, deceive, isolate |
 | Attacker actions | scan, exploit, lateral, stealth |
 | DDQN setting | {episodes} episodes, horizon {ddqn_cfg["horizon"]}, hidden width {ddqn_cfg["hidden"]}, depth {ddqn_cfg["depth"]}, batch {ddqn_cfg["batch_size"]}, learning rate {ddqn_cfg["lr"]}, gamma {ddqn_cfg["gamma"]} |
-| CTDE/MADRL setting | {episodes} episodes, horizon {madrl_cfg["horizon"]}, hidden width {madrl_cfg["hidden"]}, learning rate {madrl_cfg["lr"]}, gamma {madrl_cfg["gamma"]} |
+| Compact CTDE setting | {episodes} episodes, horizon {madrl_cfg["horizon"]}, hidden width {madrl_cfg["hidden"]}, learning rate {madrl_cfg["lr"]}, gamma {madrl_cfg["gamma"]} |
 
 ## Timing Parameters
 
@@ -386,7 +386,7 @@ Open `figures/training_iteration_diagnostics.png`.
 |---|---|
 | FBSM baseline convergence | max control-update change should decay toward zero |
 | DDQN sampled-data defender | rolling evaluation return should improve and stabilize |
-| CTDE/MADRL attacker-defender diagnostics | loss and defender return should remain finite and interpretable |
+| Compact CTDE attacker-defender diagnostics | loss and defender return should remain finite and interpretable |
 | Hybrid malware policy comparison | DDQN should be competitive with or better than fixed policies |
 
 ## 3. Learning-Versus-Baseline Result
@@ -459,7 +459,7 @@ def plot_training_diagnostics(output_path: Path, fbsm: list[dict], ddqn: list[di
     axes[2].plot(madrl_episode, madrl_loss, alpha=0.35, label="joint loss")
     axes[2].plot(madrl_episode, rolling_mean(madrl_loss, window=5), color="black", linewidth=2, label="loss rolling mean")
     axes[2].plot(madrl_episode, madrl_def, alpha=0.35, label="defender return")
-    axes[2].set_title("CTDE/MADRL attacker-defender training diagnostics")
+    axes[2].set_title("Compact CTDE attacker-defender training diagnostics")
     axes[2].set_xlabel("Episode")
     axes[2].grid(alpha=0.25)
     axes[2].legend()

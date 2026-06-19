@@ -10,7 +10,7 @@ Foundation repository
 Companion Note 1
   -> continuous-time cyber dynamics
   -> original impulse points tau_j and sampled action points t_k
-  -> FBSM baseline, DDQN, CTDE/MADRL
+  -> FBSM baseline, DDQN, compact CTDE, node-SIPRS MAPPO
   -> figures and training diagnostics
 ```
 
@@ -19,7 +19,7 @@ Companion Note 1
 | Step | Repository | What to use it for |
 |---:|---|---|
 | 0 | `network-control-differential-games` | Foundation notation, shared package, continuous/impulse/hybrid worked examples, and degree-level/node-level scalability. |
-| 1 | `note1-cyber-control-games` | This note: PMP/FBSM, sampled-data MDPs, DDQN, CTDE/MADRL, and cyber game-learning diagnostics. |
+| 1 | `note1-cyber-control-games` | This note: PMP/FBSM, sampled-data MDPs, DDQN, a compact CTDE attacker-defender baseline, and node-SIPRS MAPPO diagnostics. |
 | 2 | `note2-pinn-pidl-cyber-control` | PINN/PIDL, inverse learning, neural control, and PMP-informed residual learning. |
 
 ## Timing In One Picture
@@ -27,7 +27,7 @@ Companion Note 1
 ```text
 FBSM: continuous control u(t) on an ODE time grid
 DDQN: observe at action point t_k, act once, jump/flow to t_{k+1}
-MADRL: both players observe at t_k, choose joint actions, jump/flow to t_{k+1}
+Markov-game learning: players observe at t_k, choose joint actions, jump/flow to t_{k+1}
 Impulses: original model events use tau_j; they may or may not coincide with t_k
 ```
 
@@ -38,13 +38,14 @@ Read `docs/MODEL_TO_MDP.md` if the difference between continuous time, impulse j
 1. Open `docs/note1_game_learning_cyber_control.pdf` for the tutorial narrative.
 2. Read `docs/MODEL_TO_MDP.md` for the continuous/impulse/MDP timing convention.
 3. Run `python src/scenario_profiles.py` to see the student-facing scenario profiles.
-4. Open `docs/PARAMETERS.md` before changing model parameters or DDQN/MADRL hyperparameters.
-5. For a heavier local/GPU diagnostic, run `python scripts/run_training_iterations.py --profile gpu --device auto` after the smoke tests pass.
-6. Read `docs/PAPER_WORKFLOW.md` when turning an example into a paper section.
-7. Run `bash scripts/run_smoke_tests.sh` to check the environment.
-8. Run `python scripts/generate_figures.py` to recreate the figures.
-9. Run `python scripts/run_training_iterations.py` for longer diagnostics.
-10. Read `docs/EXTENDING.md` when you want to scale the model.
+4. Open `docs/PARAMETERS.md` before changing model parameters, DDQN hyperparameters, compact CTDE settings, or MAPPO hyperparameters.
+5. Run `python src/node_siprs_mappo.py --smoke --device cpu` for the canonical node-SIPRS community MAPPO smoke check.
+6. For a heavier local/GPU diagnostic, run `python scripts/run_training_iterations.py --profile gpu --device auto` after the smoke tests pass.
+7. Read `docs/PAPER_WORKFLOW.md` when turning an example into a paper section.
+8. Run `bash scripts/run_smoke_tests.sh` to check the environment.
+9. Run `python scripts/generate_figures.py` to recreate the figures.
+10. Run `python scripts/run_training_iterations.py` for longer diagnostics.
+11. Read `docs/EXTENDING.md` when you want to scale the model.
 
 ## Folder Map
 
@@ -52,7 +53,7 @@ Read `docs/MODEL_TO_MDP.md` if the difference between continuous time, impulse j
 |---|---|
 | `docs/` | tutorial note, model-to-MDP guide, implementation notes, extension guide |
 | `docs/PARAMETERS.md` | model parameters, solver values, and neural-training hyperparameters |
-| `docs/PAPER_WORKFLOW.md` | paper workflow for FBSM, ODE-RL, DDQN, and CTDE/MADRL |
+| `docs/PAPER_WORKFLOW.md` | paper workflow for FBSM, ODE-RL, DDQN, compact CTDE, and node-SIPRS MAPPO |
 | `src/` | executable models and learning algorithms |
 | `scripts/` | commands for figures, smoke tests, and diagnostics |
 | `experiments/` | CSV histories and training summary |
@@ -68,7 +69,8 @@ Read `docs/MODEL_TO_MDP.md` if the difference between continuous time, impulse j
 5. `src/evaluation_metrics.py`: policy rollouts and multi-metric comparison helpers.
 6. `src/fbsm_malware_baseline.py`: continuous-control PMP/FBSM baseline.
 7. `src/ddqn_cyber_defense.py`: single-agent sampled-data MDP learning.
-8. `src/madrl_ctde_hybrid_game.py`: attacker-defender sampled-data Markov-game loop.
-9. `src/node_level_robustness.py`: node-level epidemic-model parameter-mismatch experiment.
+8. `src/madrl_ctde_hybrid_game.py`: compact attacker-defender sampled-data Markov-game baseline.
+9. `src/node_siprs_mappo.py`: cooperative community MAPPO smoke baseline on canonical node-level SIPRS dynamics.
+10. `src/node_level_robustness.py`: node-level epidemic-model parameter-mismatch experiment.
 
 For command details, use `scripts/README.md`. For module details, use `src/README.md`.

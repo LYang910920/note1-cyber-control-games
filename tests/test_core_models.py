@@ -20,6 +20,7 @@ from node_level_robustness import (
     rollout_node_policy,
     summarize_node_rollout,
 )
+from node_siprs_mappo import NodeSIPRSEnv, NodeSIPRSEnvConfig, train_mappo
 from scenario_profiles import describe_scenarios, describe_training_hyperparameters, get_scenario
 
 
@@ -103,6 +104,49 @@ class CoreModelTests(unittest.TestCase):
         self.assertGreaterEqual(rows["cumulative_compromised"], 0.0)
         self.assertEqual(rows["state_dimension"], 72)
         self.assertGreater(rows["node_pmp_unknown_proxy"], rows["state_dimension"])
+
+    def test_node_siprs_environment_contract(self):
+        cfg = NodeSIPRSEnvConfig(nodes=18, communities=3, horizon=3, substeps=2)
+        env = NodeSIPRSEnv(cfg)
+        obs = env.reset(seed=9)
+        next_obs, rewards, done, info = env.step(np.array([0, 1, 2]))
+
+        self.assertEqual(obs.shape, (3, 9))
+        self.assertEqual(next_obs.shape, (3, 9))
+        self.assertEqual(rewards.shape, (3,))
+        self.assertFalse(done)
+        self.assertLess(info["mass_error"], 1e-8)
+        self.assertAlmostEqual(float(env.state.sum(axis=1).max()), 1.0, places=8)
+
+    def test_node_siprs_mappo_smoke_history(self):
+        try:
+            import torch  # noqa: F401
+        except ImportError:
+            self.skipTest("PyTorch is not installed")
+
+        class Args:
+            nodes = 18
+            communities = 3
+            horizon = 4
+            updates = 1
+            rollout_steps = 4
+            ppo_epochs = 1
+            minibatch_size = 2
+            hidden = 16
+            lr = 3e-4
+            gamma = 0.97
+            gae_lambda = 0.95
+            clip_eps = 0.2
+            entropy_coef = 0.01
+            value_coef = 0.5
+            max_grad_norm = 0.5
+            device = "cpu"
+            seed = 11
+            log_every = 1
+
+        _, _, history = train_mappo(Args())
+        self.assertEqual(len(history), 1)
+        self.assertLess(history[0]["mass_error"], 1e-8)
 
     def test_scenario_profiles_are_readable_extension_entries(self):
         profile = get_scenario("paper-network-bridge")

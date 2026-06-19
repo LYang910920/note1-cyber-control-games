@@ -2,9 +2,9 @@
 Copyright (c) 2026 Luxing Yang.
 Licensed under the MIT License. See LICENSE in the repository root.
 
-Small CTDE/MADRL example for an attacker-defender cyber Markov game.
+Small CTDE policy-gradient baseline for an attacker-defender cyber Markov game.
 
-This is a deliberately compact MAPPO-like skeleton:
+This is a deliberately compact CTDE baseline:
   * decentralized categorical actors for defender and attacker;
   * a centralized critic that sees the joint state and both actions;
   * episodic rollouts through the hybrid ODE environment;
@@ -14,9 +14,9 @@ The Markov-game step is sampled-data: both agents observe at t_k, choose joint
 actions, the environment applies any impulse jump, integrates the ODE until
 t_{k+1}, and returns the next observation and both rewards.
 
-For serious experiments, replace this with a full MAPPO implementation that uses
-GAE, mini-batches, clipped policy ratios, entropy scheduling, and opponent pools.
-The value of this file is pedagogical: it makes the interaction loop explicit.
+For PPO-style cooperative defenders on node-level SIPRS dynamics, use
+``node_siprs_mappo.py``.  The value of this file is pedagogical: it makes the
+two-player interaction loop explicit without claiming to be full MAPPO.
 """
 from __future__ import annotations
 
@@ -160,7 +160,7 @@ def train(args):
 
 if __name__ == "__main__":
     p = argparse.ArgumentParser(
-        description="Run a compact CTDE/MADRL attacker-defender training loop."
+        description="Run a compact CTDE attacker-defender training loop."
     )
     p.add_argument("--smoke", action="store_true", help="Run a tiny execution check.")
     p.add_argument("--episodes", type=int, default=200, help="Number of training episodes.")

@@ -19,7 +19,7 @@ Open `figures/training_iteration_diagnostics.png`.
 |---|---|
 | FBSM baseline convergence | max control-update change should decay toward zero |
 | DDQN sampled-data defender | rolling evaluation return should improve and stabilize |
-| CTDE/MADRL attacker-defender diagnostics | loss and defender return should remain finite and interpretable |
+| Compact CTDE attacker-defender diagnostics | loss and defender return should remain finite and interpretable |
 | Hybrid malware policy comparison | DDQN should be competitive with or better than fixed policies |
 
 ## 3. Learning-Versus-Baseline Result

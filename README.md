@@ -1,10 +1,10 @@
 # Cyber Control and Game Learning: Companion Note 1
 
-Executable companion for **Note 1: Game Learning for Cyber Control**. This is the second repository in the tutorial family: it builds on the foundation repository's notation and shared `cybercontrol` package, then moves from continuous-time cyber dynamics to an FBSM optimal-control baseline, DDQN defense learning, and a compact attacker-defender CTDE/MADRL example.
+Executable companion for **Note 1: Game Learning for Cyber Control**. This is the second repository in the tutorial family: it builds on the foundation repository's notation and shared `cybercontrol` package, then moves from continuous-time cyber dynamics to an FBSM optimal-control baseline, DDQN defense learning, a compact attacker-defender CTDE baseline, and a node-level SIPRS MAPPO smoke baseline.
 
 The main goal is to show how one cyber propagation model can be studied from three angles: classical optimal control, sampled-data reinforcement learning, and multi-agent game learning.  Each example is short enough to read directly, but still produces figures and logs that make the numerical behavior visible.
 
-The repository is especially careful about timing: continuous flow happens between decision points, impulse actions can create immediate state jumps, and the DDQN/MADRL examples expose only the sampled decision points as MDP or Markov-game observations.
+The repository is especially careful about timing: continuous flow happens between decision points, impulse actions can create immediate state jumps, and the DDQN/CTDE/MAPPO examples expose only the sampled decision points as MDP or Markov-game observations.
 
 If this is your first visit, start with `START_HERE.md`.
 
@@ -15,7 +15,7 @@ The three repositories are meant to be read in order, but each remains runnable 
 | Order | Repository | Role |
 |---:|---|---|
 | 0 | [network-control-differential-games](https://github.com/LYang910920/network-control-differential-games) | **Foundation.** Notation, shared `cybercontrol` package, continuous/impulse/hybrid examples, degree-level versus node-level FBS scalability, and reference smoke runs. |
-| 1 | `note1-cyber-control-games` | **This companion note.** PMP/FBSM baselines, sampled-data MDP conversion, DDQN defense learning, CTDE/MADRL attacker-defender learning, and robustness diagnostics. |
+| 1 | `note1-cyber-control-games` | **This companion note.** PMP/FBSM baselines, sampled-data MDP conversion, DDQN defense learning, compact CTDE attacker-defender learning, node-SIPRS MAPPO, and robustness diagnostics. |
 | 2 | [note2-pinn-pidl-cyber-control](https://github.com/LYang910920/note2-pinn-pidl-cyber-control) | **Next companion note.** PINN/PIDL, inverse learning, neural control, and PMP-informed neural residuals. |
 
 ## Quick Start
@@ -65,7 +65,8 @@ cyber ODE dynamics
   -> FBSM continuous-control baseline
   -> hybrid ODE/RL environment
   -> DDQN defender
-  -> CTDE/MADRL attacker-defender game
+  -> compact CTDE attacker-defender baseline
+  -> node-SIPRS community MAPPO smoke baseline
 ```
 
 ![Neural architectures](figures/neural_architectures.png)
@@ -82,7 +83,7 @@ observe x(t_k^-)
   -> return x(t_{k+1}^-) as the next observation
 ```
 
-FBSM solves a continuous-time optimal-control problem on a numerical mesh; it does **not** create an MDP.  DDQN and CTDE/MADRL convert the simulator into a sampled-data MDP or Markov game, where `EnvConfig.dt` is the decision interval and RK4 `substeps` are only internal integration steps.  See `docs/MODEL_TO_MDP.md` for the full mapping.
+FBSM solves a continuous-time optimal-control problem on a numerical mesh; it does **not** create an MDP.  DDQN, compact CTDE, and MAPPO convert the simulator into a sampled-data MDP or Markov game, where `EnvConfig.dt` is the decision interval and RK4 `substeps` are only internal integration steps.  See `docs/MODEL_TO_MDP.md` for the full mapping.
 
 In the notation used here, `t_k` means a learning action/observation point after converting the model into an MDP or Markov game.  `tau_j` means an impulse or event point already present in the original model.  The code uses a fixed `Delta t` for readability, but the method can also use nonuniform action intervals `Delta t_k`.
 
@@ -96,7 +97,8 @@ In the notation used here, `t_k` means a learning action/observation point after
 | Optimal-control baseline | FBSM gives a deterministic reference policy before learning is introduced. |
 | Impulse and hybrid control | Some modes change continuous rates; isolation creates an immediate jump at `t_k`. |
 | Hybrid RL | The ODE and jump map are wrapped into a sampled-data MDP for DDQN. |
-| Game learning | Defender and attacker decisions form a sampled-data Markov game for CTDE/MADRL. |
+| Game learning | Defender and attacker decisions form a sampled-data Markov game for a compact CTDE baseline. |
+| Node/community MARL | Canonical node-level SIPRS dynamics are wrapped into a cooperative regional-defense MAPPO smoke baseline. |
 
 ## Representative Experiments
 
@@ -108,7 +110,7 @@ The hybrid policy comparison rolls out the same cyber scenario under no defense,
 
 ![Hybrid policy comparison](figures/hybrid_policy_comparison.png)
 
-The training diagnostics plot summarizes longer tutorial runs.  FBSM should show the clearest convergence; DDQN and CTDE/MADRL should be read as stochastic learning/stability diagnostics rather than formal equilibrium proofs.
+The training diagnostics plot summarizes longer tutorial runs.  FBSM should show the clearest convergence; DDQN and compact CTDE should be read as stochastic learning/stability diagnostics rather than formal equilibrium proofs.
 
 ![Training iteration diagnostics](figures/training_iteration_diagnostics.png)
 
@@ -128,9 +130,10 @@ The node-level epidemic-model robustness experiment shows a case where a low-dim
 | `figures/fbsm_malware_control.png` | FBSM state and patching-control baseline |
 | `figures/hybrid_policy_comparison.png` | no-defense, fixed-defense, and rule-based hybrid-policy comparison |
 | `figures/hybrid_policy_rollout.png` | one hybrid rollout with defender and attacker actions |
-| `figures/training_iteration_diagnostics.png` | longer FBSM, DDQN, and CTDE/MADRL diagnostics |
+| `figures/training_iteration_diagnostics.png` | longer FBSM, DDQN, and compact CTDE diagnostics |
 | `figures/game_response_matrix.png` | defender-policy performance against several attacker strategies |
 | `figures/node_level_learning_advantage.png` | node-level epidemic-model parameter-mismatch comparison: DDQN feedback versus nominal-beta FBSM |
+| `experiments/node_siprs_mappo_smoke.csv` | small cooperative MAPPO smoke history on canonical node-level SIPRS dynamics |
 | `experiments/OUTPUT_PREVIEW.md` | categorized first-stop summary after longer experiment runs |
 | `experiments/policy_comparison_metrics.csv` | multi-metric comparison of representative defense policies |
 | `experiments/game_response_metrics.csv` | game-style attacker-defender response metrics |
@@ -151,7 +154,7 @@ For a heavier local/GPU diagnostic after the smoke tests pass, use:
 python scripts/run_training_iterations.py --profile gpu --device auto
 ```
 
-The reusable numerical/model helpers are imported from the foundation package `cybercontrol`, especially RK4 integration, simplex projection, SIR/hybrid RHS functions, jump maps, plotting helpers, and CSV writing.
+The reusable numerical/model helpers are imported from the foundation package `cybercontrol`, especially RK4 integration, simplex projection, SIR/hybrid RHS functions, node-level SIPS/SIPRS equations, jump maps, plotting helpers, and CSV writing.
 
 ## Related Tutorial Repositories
 
