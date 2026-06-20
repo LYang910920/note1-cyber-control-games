@@ -28,7 +28,7 @@ from shared_setup import ensure_foundation_package
 ensure_foundation_package()
 from cybercontrol.diagnostics import add_caption, diagnostic_terms_for, rolling_mean, write_diagnostic_glossary
 from cybercontrol.io import write_csv
-from cybercontrol.plotting import panel_label, publication_style, save_publication_figure, style_axis
+from plotting_compat import panel_label, publication_style, save_publication_figure, style_axis
 from ddqn_cyber_defense import train as train_ddqn
 from evaluation_metrics import (
     evaluate_game_response_matrix,

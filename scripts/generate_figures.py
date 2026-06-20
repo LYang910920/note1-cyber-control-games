@@ -21,7 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 from shared_setup import ensure_foundation_package
 
 ensure_foundation_package()
-from cybercontrol.plotting import (
+from plotting_compat import (
     PUBLICATION_COLORS,
     PUBLICATION_LINESTYLES,
     PUBLICATION_MARKERS,
