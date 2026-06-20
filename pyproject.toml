@@ -32,9 +32,7 @@ py-modules = [
     "madrl_ctde_hybrid_game",
     "node_level_robustness",
     "node_siprs_mappo",
-    "plotting_compat",
     "scenario_profiles",
-    "shared_setup",
 ]
 
 [tool.setuptools.package-dir]

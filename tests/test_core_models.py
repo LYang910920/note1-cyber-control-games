@@ -23,7 +23,10 @@ class CoreModelTests(unittest.TestCase):
     def test_rk4_preserves_simplex_after_projection(self):
         params = MalwareParams()
         x0 = np.array([0.95, 0.05, 0.0])
-        rhs = lambda x, t: controlled_sir_rhs(x, u_patch=0.1, u_clean=0.2, p=params)
+
+        def rhs(x, t):
+            return controlled_sir_rhs(x, u_patch=0.1, u_clean=0.2, p=params)
+
         xT, path = rk4_integrate(rhs, x0, t0=0.0, dt=1.0, substeps=20, project=project_simplex3)
 
         self.assertEqual(path.shape, (21, 3))

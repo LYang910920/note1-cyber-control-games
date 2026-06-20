@@ -16,7 +16,7 @@ The repository is organized around one readable path from model to experiment:
 .
   requirements.txt
   README.md
-  START_HERE.md
+  README.md
   scripts/
     run_smoke_tests.sh
     generate_figures.py
@@ -29,13 +29,13 @@ The repository is organized around one readable path from model to experiment:
     madrl_ctde_hybrid_game.py
     node_level_robustness.py
     evaluation_metrics.py
-  experiments/
+  artifacts/experiments/
     OUTPUT_PREVIEW.md
     training_summary.md
     policy_comparison_metrics.csv
     game_response_metrics.csv
     node_level_robustness_metrics.csv
-  figures/
+  docs/assets/
     timing_semantics.png
     node_level_learning_advantage.png
 \end{verbatim}
@@ -80,7 +80,7 @@ Expected output: defender and attacker episode returns. This file is a compact C
 \begin{lstlisting}[style=pythonstyle]
 python scripts/generate_figures.py
 \end{lstlisting}
-Expected output: refreshed PNG figures under \texttt{figures/}, including neural architecture, timing-semantics, FBSM, hybrid rollout, and policy-comparison plots.
+Expected output: refreshed PNG figures under \texttt{docs/assets/}, including neural architecture, timing-semantics, FBSM, hybrid rollout, and policy-comparison plots.
 
 \subsection{Longer training diagnostics}
 \begin{lstlisting}[style=pythonstyle]
@@ -88,7 +88,7 @@ python scripts/run_training_iterations.py --episodes 180
 \end{lstlisting}
 Expected output:
 \begin{itemize}
-\item CSV histories under \texttt{experiments/};
+\item CSV histories under \texttt{artifacts/experiments/};
 \item \texttt{OUTPUT\_PREVIEW.md} and \texttt{training\_summary.md};
 \item the training-diagnostics, game-response, and node-level epidemic-robustness PNG figures.
 \end{itemize}

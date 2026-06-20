@@ -183,7 +183,10 @@ class HybridCyberDefenseEnv:
         apar = self.attack_parameters(attacker_action)
         pre_jump = self.state.copy()
         post_jump = self.jump_map(pre_jump, dpar)
-        rhs = lambda x, t: hybrid_rhs(x, dpar, apar, self.cfg.params)
+
+        def rhs(x, t):
+            return hybrid_rhs(x, dpar, apar, self.cfg.params)
+
         next_state, path = rk4_integrate(rhs, post_jump, t0=t_start,
                                          dt=self.cfg.dt, substeps=self.cfg.substeps,
                                          project=project_simplex3)

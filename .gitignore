@@ -6,10 +6,13 @@ __pycache__/
 .mypy_cache/
 *.egg-info/
 outputs/
+artifacts/
 *.log
 *.aux
 *.fdb_latexmk
 *.fls
 *.out
 *.toc
-docs/latex/*.pdf
+docs/source/*.pdf
+docs/assets/*.pdf
+docs/assets/*.figure.json

@@ -25,9 +25,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from cyber_hybrid_env import HybridCyberDefenseEnv, scripted_attacker
-from shared_setup import ensure_foundation_package, resolve_torch_device
 
-ensure_foundation_package()
 from cybercontrol.torch_utils import MLP as SharedMLP
 from cybercontrol.torch_utils import configure_torch
 
@@ -91,9 +89,9 @@ def train(args):
     pre-jump cyber observation at a decision epoch to Q-values for the five
     defender actions.
     """
-    random.seed(args.seed); np.random.seed(args.seed)
-    _, resolved_device, _ = resolve_torch_device(
-        configure_torch,
+    random.seed(args.seed)
+    np.random.seed(args.seed)
+    _, resolved_device, _ = configure_torch(
         seed=args.seed,
         device=getattr(args, "device", "auto"),
         threads=getattr(args, "threads", 1),
@@ -140,7 +138,10 @@ def train(args):
                     next_q = target(bsp).gather(1, next_a)
                     y = br + args.gamma*(1.0-bd)*next_q
                 loss = nn.functional.smooth_l1_loss(q_sa, y)
-                opt.zero_grad(); loss.backward(); nn.utils.clip_grad_norm_(q.parameters(), 5.0); opt.step()
+                opt.zero_grad()
+                loss.backward()
+                nn.utils.clip_grad_norm_(q.parameters(), 5.0)
+                opt.step()
                 last_loss = float(loss.detach().item())
 
             if global_step % args.target_update == 0:

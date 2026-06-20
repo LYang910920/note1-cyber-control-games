@@ -23,12 +23,9 @@ import torch
 
 ROOT = Path(__file__).resolve().parents[1]
 
-from shared_setup import ensure_foundation_package
-
-ensure_foundation_package()
 from cybercontrol.diagnostics import add_caption, diagnostic_terms_for, rolling_mean, write_diagnostic_glossary
 from cybercontrol.io import write_csv
-from plotting_compat import panel_label, publication_style, save_publication_figure, style_axis
+from cybercontrol.plotting import panel_label, publication_style, save_publication_figure, style_axis
 from ddqn_cyber_defense import train as train_ddqn
 from evaluation_metrics import (
     evaluate_game_response_matrix,
@@ -298,7 +295,7 @@ These runs use the `{profile["name"]}` profile. The default profile is small eno
 
 ## Training Diagnostic Terms
 
-Open `experiments/training_diagnostic_glossary.md` before reading the training plots.  In this repo, **iteration** is used for FBSM sweeps, **episode** is used for DDQN/CTDE learning, **return** is cumulative reward, and **rollout** is a forward simulation used for validation.
+Open `artifacts/experiments/training_diagnostic_glossary.md` before reading the training plots.  In this repo, **iteration** is used for FBSM sweeps, **episode** is used for DDQN/CTDE learning, **return** is cumulative reward, and **rollout** is a forward simulation used for validation.
 
 ## Experiment Configuration
 
@@ -386,7 +383,7 @@ Use this page as the first stop after running `python scripts/run_training_itera
 
 ## 2. Training Convergence
 
-Open `figures/training_iteration_diagnostics.png`.
+Open `artifacts/figures/training_iteration_diagnostics.png`.
 
 | Panel | What to check |
 |---|---|
@@ -404,7 +401,7 @@ Open `figures/training_iteration_diagnostics.png`.
 
 ## 4. Game Response
 
-Open `figures/game_response_matrix.png` and `experiments/game_response_metrics.csv`.
+Open `artifacts/figures/game_response_matrix.png` and `artifacts/experiments/game_response_metrics.csv`.
 
 Best cell in this deterministic response matrix:
 
@@ -414,7 +411,7 @@ Best cell in this deterministic response matrix:
 
 ## 5. Node-Level Epidemic Model Robustness
 
-Open `figures/node_level_learning_advantage.png` and `experiments/node_level_robustness_metrics.csv`.
+Open `artifacts/figures/node_level_learning_advantage.png` and `artifacts/experiments/node_level_robustness_metrics.csv`.
 
 In this section, **node-level** means each graph node carries a local S/I/R epidemic state.  The metric is aggregate infected-node exposure over action epochs, averaged over random graph seeds.  **Robustness** means behavior under nominal-vs-true beta mismatch and burst infection pressure.  `node_pmp_unknown_proxy` is only an approximate full-node PMP/FBSM variable count, not a reward or measured runtime.
 
@@ -427,13 +424,13 @@ In this section, **node-level** means each graph node carries a local S/I/R epid
 
 | Category | File |
 |---|---|
-| Summary | `experiments/training_summary.md` |
-| Diagnostic glossary | `experiments/training_diagnostic_glossary.md` |
-| Learning curves | `figures/training_iteration_diagnostics.png` |
-| Policy comparison CSV | `experiments/policy_comparison_metrics.csv` |
-| Game matrix CSV | `experiments/game_response_metrics.csv` |
-| Node-level epidemic robustness CSV | `experiments/node_level_robustness_metrics.csv` |
-| Timing diagram and explanation | `figures/timing_semantics.png`, `docs/MODEL_TO_MDP.md` |
+| Summary | `artifacts/experiments/training_summary.md` |
+| Diagnostic glossary | `artifacts/experiments/training_diagnostic_glossary.md` |
+| Learning curves | `artifacts/figures/training_iteration_diagnostics.png` |
+| Policy comparison CSV | `artifacts/experiments/policy_comparison_metrics.csv` |
+| Game matrix CSV | `artifacts/experiments/game_response_metrics.csv` |
+| Node-level epidemic robustness CSV | `artifacts/experiments/node_level_robustness_metrics.csv` |
+| Timing diagram and explanation | `docs/assets/timing_semantics.png`, `docs/MODEL_TO_MDP.md` |
 """
     path.write_text(text)
 
@@ -633,8 +630,8 @@ def main() -> None:
     args = parser.parse_args()
     profile = resolve_training_profile(args.profile, args.episodes)
 
-    exp_dir = ROOT / "experiments"
-    fig_dir = ROOT / "figures"
+    exp_dir = ROOT / "artifacts" / "experiments"
+    fig_dir = ROOT / "artifacts" / "figures"
     fbsm = run_fbsm()
     qnet, ddqn = run_ddqn(profile, args.device)
     madrl = run_madrl(profile)

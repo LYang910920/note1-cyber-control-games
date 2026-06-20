@@ -27,7 +27,7 @@ Notation used throughout this repo:
 
 The checked-in environment uses a fixed `EnvConfig.dt` because that is easiest to read and test.  The mathematical conversion does not require fixed intervals.  A nonuniform schedule `0=t_0<t_1<...<t_K=T` is valid if the simulator and reward use the matching `Delta t_k`.
 
-![Timing semantics](../figures/timing_semantics.png)
+![Timing semantics](../docs/assets/timing_semantics.png)
 
 ## Three Control Types
 

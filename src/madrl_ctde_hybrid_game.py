@@ -27,9 +27,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.distributions import Categorical
 from cyber_hybrid_env import HybridCyberDefenseEnv
-from shared_setup import ensure_foundation_package, resolve_torch_device
 
-ensure_foundation_package()
 from cybercontrol.torch_utils import configure_torch
 
 
@@ -108,8 +106,7 @@ def train(args):
     `return_history=True`, it also returns per-episode diagnostics for tutorial
     plots.  This is a readable CTDE skeleton, not a full MAPPO implementation.
     """
-    _, resolved_device, _ = resolve_torch_device(
-        configure_torch,
+    _, resolved_device, _ = configure_torch(
         seed=args.seed,
         device=getattr(args, "device", "auto"),
         threads=getattr(args, "threads", 1),
@@ -152,7 +149,10 @@ def train(args):
         critic_loss = nn.functional.mse_loss(Vd, Gd) + nn.functional.mse_loss(Va, Ga)
         entropy_bonus = (entd.mean() + enta.mean())
         loss = actor_loss + 0.5 * critic_loss - args.entropy_coef * entropy_bonus
-        opt.zero_grad(); loss.backward(); nn.utils.clip_grad_norm_(list(defender.parameters()) + list(attacker.parameters()), 5.0); opt.step()
+        opt.zero_grad()
+        loss.backward()
+        nn.utils.clip_grad_norm_(list(defender.parameters()) + list(attacker.parameters()), 5.0)
+        opt.step()
         if ep % args.log_every == 0:
             rd_total = sum(x.item() for x in rd)
             ra_total = sum(x.item() for x in ra)

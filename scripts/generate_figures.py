@@ -18,10 +18,7 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
 
-from shared_setup import ensure_foundation_package
-
-ensure_foundation_package()
-from plotting_compat import (
+from cybercontrol.plotting import (
     PUBLICATION_COLORS,
     PUBLICATION_LINESTYLES,
     PUBLICATION_MARKERS,
@@ -288,8 +285,8 @@ def plot_timing_semantics(output_dir: Path) -> None:
 
 
 def main() -> None:
-    output_dir = ROOT / "figures"
-    output_dir.mkdir(exist_ok=True)
+    output_dir = ROOT / "docs" / "assets"
+    output_dir.mkdir(parents=True, exist_ok=True)
     plot_fbsm(output_dir)
     plot_hybrid_rollout(output_dir)
     plot_hybrid_policy_comparison(output_dir)
