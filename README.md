@@ -2,7 +2,7 @@
 
 Executable companion for **Note 1: Game Learning for Cyber Control**. This is the second repository in the tutorial family: it builds on the foundation repository's notation and shared `cybercontrol` package, then moves from continuous-time cyber dynamics to an FBSM optimal-control baseline, DDQN defense learning, a compact attacker-defender CTDE baseline, and a node-level SIPRS MAPPO smoke baseline.
 
-The main goal is to show how one cyber propagation model can be studied from three angles: classical optimal control, sampled-data reinforcement learning, and multi-agent game learning.  Each example is short enough to read directly, but still produces figures and logs that make the numerical behavior visible.
+The examples show the same cyber propagation idea from three angles: classical optimal control, sampled-data reinforcement learning, and multi-agent game learning. Each file is short enough to read directly, while the generated figures and logs expose the numerical behavior.
 
 The repository is especially careful about timing: continuous flow happens between decision points, impulse actions can create immediate state jumps, and the DDQN/CTDE/MAPPO examples expose only the sampled decision points as MDP or Markov-game observations.
 
@@ -24,8 +24,8 @@ The three repositories are meant to be read in order, but each remains runnable 
 python -m venv .venv
 source .venv/bin/activate
 pip install --upgrade pip
-pip install -e ../network-control-differential-games
-pip install -r requirements.txt
+pip install -e "../network-control-differential-games[torch,dev]"
+pip install -e ".[dev]"
 bash scripts/run_smoke_tests.sh
 python scripts/generate_figures.py
 ```
@@ -33,7 +33,8 @@ python scripts/generate_figures.py
 If this repository is cloned by itself, install the shared foundation package from GitHub before running the examples:
 
 ```bash
-pip install "git+https://github.com/LYang910920/network-control-differential-games.git"
+pip install "cybercontrol[torch] @ git+https://github.com/LYang910920/network-control-differential-games.git"
+pip install -e ".[dev]"
 ```
 
 For longer convergence/stability diagnostics:

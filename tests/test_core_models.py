@@ -1,14 +1,9 @@
 # Copyright (c) 2026 Luxing Yang.
 # Licensed under the MIT License. See LICENSE in the repository root.
 
-from pathlib import Path
-import sys
 import unittest
 
 import numpy as np
-
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
 
 from cyber_dynamics import MalwareParams, controlled_sir_rhs, project_simplex3, rk4_integrate
 from cyber_hybrid_env import HybridCyberDefenseEnv, scripted_attacker

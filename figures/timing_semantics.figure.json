@@ -1,0 +1,19 @@
+{
+  "dpi": 220,
+  "files": [
+    "timing_semantics.png",
+    "timing_semantics.pdf"
+  ],
+  "formats": [
+    "png",
+    "pdf"
+  ],
+  "height_in": 3.8,
+  "metadata": {
+    "caption_hint": "Distinguishes sampled decision epochs from model impulse times.",
+    "figure_type": "guide diagram"
+  },
+  "primary_file_bytes": 86549,
+  "style": "guide",
+  "width_in": 11.0
+}

@@ -16,15 +16,10 @@ import argparse
 import csv
 from dataclasses import dataclass
 from pathlib import Path
-import sys
 
 import numpy as np
 
-ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
-from shared_setup import ensure_foundation_package
+from shared_setup import ensure_foundation_package, resolve_torch_device
 
 ensure_foundation_package()
 
@@ -222,7 +217,7 @@ def compute_gae(rewards, values, dones, last_value, gamma: float, lam: float):
 def train_mappo(args):
     """Train a compact cooperative MAPPO defender on node SIPRS dynamics."""
 
-    torch, device, _ = configure_torch(seed=args.seed, device=args.device, threads=1)
+    torch, device, _ = resolve_torch_device(configure_torch, seed=args.seed, device=args.device, threads=1)
     import torch.nn.functional as F
     from torch.distributions import Categorical
 

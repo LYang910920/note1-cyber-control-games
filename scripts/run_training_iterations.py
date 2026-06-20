@@ -13,7 +13,6 @@ from __future__ import annotations
 import argparse
 import textwrap
 from pathlib import Path
-import sys
 from types import SimpleNamespace
 
 import matplotlib
@@ -23,13 +22,13 @@ import numpy as np
 import torch
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
 
 from shared_setup import ensure_foundation_package
 
 ensure_foundation_package()
 from cybercontrol.diagnostics import add_caption, diagnostic_terms_for, rolling_mean, write_diagnostic_glossary
 from cybercontrol.io import write_csv
+from plotting_compat import panel_label, publication_style, save_publication_figure, style_axis
 from ddqn_cyber_defense import train as train_ddqn
 from evaluation_metrics import (
     evaluate_game_response_matrix,
@@ -440,14 +439,13 @@ In this section, **node-level** means each graph node carries a local S/I/R epid
 
 
 def plot_training_diagnostics(output_path: Path, fbsm: list[dict], ddqn: list[dict], madrl: list[dict], policy_metrics: list[dict]) -> None:
-    fig, axes = plt.subplots(2, 2, figsize=(12, 8.2))
+    with publication_style():
+        fig, axes = plt.subplots(2, 2, figsize=(7.16, 5.2))
     axes = axes.ravel()
 
     axes[0].semilogy([r["iteration"] for r in fbsm], [r["max_control_change"] for r in fbsm], color="black")
-    axes[0].set_title("FBSM continuous-control baseline: update convergence")
-    axes[0].set_xlabel("Iteration")
-    axes[0].set_ylabel("Max control-update change (log scale)")
-    axes[0].grid(alpha=0.25)
+    panel_label(axes[0], "(a) FBSM continuous-control convergence")
+    style_axis(axes[0], xlabel="Iteration", ylabel="Max control-update change (log scale)")
 
     ddqn_episode = [r["episode"] for r in ddqn]
     ddqn_train = [r["training_return"] for r in ddqn]
@@ -455,11 +453,8 @@ def plot_training_diagnostics(output_path: Path, fbsm: list[dict], ddqn: list[di
     axes[1].plot(ddqn_episode, ddqn_train, alpha=0.35, label="training return (with exploration)")
     axes[1].plot(ddqn_episode, ddqn_eval, alpha=0.35, label="evaluation return (greedy)")
     axes[1].plot(ddqn_episode, rolling_mean(ddqn_eval, window=5), color="black", linewidth=2, label="5-point evaluation rolling mean")
-    axes[1].set_title("DDQN sampled-data defender: return diagnostics")
-    axes[1].set_xlabel("Episode")
-    axes[1].set_ylabel("Cumulative defender return")
-    axes[1].grid(alpha=0.25)
-    axes[1].legend()
+    panel_label(axes[1], "(b) DDQN sampled-data defender")
+    style_axis(axes[1], xlabel="Episode", ylabel="Cumulative defender return", legend=True)
 
     madrl_episode = [r["episode"] for r in madrl]
     madrl_loss = [r["loss"] for r in madrl]
@@ -467,17 +462,15 @@ def plot_training_diagnostics(output_path: Path, fbsm: list[dict], ddqn: list[di
     axes[2].plot(madrl_episode, madrl_loss, alpha=0.35, label="joint policy/critic loss")
     axes[2].plot(madrl_episode, rolling_mean(madrl_loss, window=5), color="black", linewidth=2, label="5-point loss rolling mean")
     axes[2].plot(madrl_episode, madrl_def, alpha=0.35, label="defender return")
-    axes[2].set_title("Compact CTDE attacker-defender training diagnostics")
-    axes[2].set_xlabel("Episode")
-    axes[2].grid(alpha=0.25)
-    axes[2].legend()
+    panel_label(axes[2], "(c) compact CTDE attacker-defender game")
+    style_axis(axes[2], xlabel="Episode", legend=True)
 
     labels = [textwrap.fill(row["policy"], width=24) for row in policy_metrics]
     y = np.arange(len(labels))
     axes[3].barh(y, [row["cumulative_compromised"] for row in policy_metrics], color="#4c78a8", alpha=0.85)
     axes[3].set_yticks(y, labels)
     axes[3].invert_yaxis()
-    axes[3].set_title("Same-model baseline rollout comparison")
+    panel_label(axes[3], "(d) same-model baseline rollout")
     axes[3].set_xlabel("Cumulative compromised exposure (lower is better)")
     axes[3].grid(axis="x", alpha=0.25)
 
@@ -487,7 +480,14 @@ def plot_training_diagnostics(output_path: Path, fbsm: list[dict], ddqn: list[di
     )
     fig.tight_layout(rect=(0, 0.065, 1, 1))
     output_path.parent.mkdir(exist_ok=True)
-    fig.savefig(output_path, dpi=180)
+    save_publication_figure(
+        fig,
+        output_path,
+        metadata={
+            "figure_type": "training diagnostics",
+            "control_type": "continuous FBSM, sampled DDQN, and hybrid game learning",
+        },
+    )
     plt.close(fig)
 
 
@@ -500,11 +500,12 @@ def plot_game_response_matrix(output_path: Path, rows: list[dict]) -> None:
         j = attackers.index(row["attacker_policy"])
         matrix[i, j] = row["cumulative_compromised"]
 
-    fig, ax = plt.subplots(figsize=(9.5, 5.6))
+    with publication_style():
+        fig, ax = plt.subplots(figsize=(7.16, 4.2))
     im = ax.imshow(matrix, cmap="YlOrRd", aspect="auto")
     ax.set_xticks(np.arange(len(attackers)), [textwrap.fill(label, width=18) for label in attackers], rotation=25, ha="right")
     ax.set_yticks(np.arange(len(defenders)), [textwrap.fill(label, width=24) for label in defenders])
-    ax.set_title("Markov-game response matrix: cumulative compromised exposure")
+    panel_label(ax, "Markov-game response matrix")
     ax.set_xlabel("Attacker strategy")
     ax.set_ylabel("Defender policy")
     for i in range(matrix.shape[0]):
@@ -514,7 +515,14 @@ def plot_game_response_matrix(output_path: Path, rows: list[dict]) -> None:
     cbar.set_label("Cumulative compromised exposure (lower is better)")
     fig.tight_layout()
     output_path.parent.mkdir(exist_ok=True)
-    fig.savefig(output_path, dpi=180)
+    save_publication_figure(
+        fig,
+        output_path,
+        metadata={
+            "figure_type": "game response matrix",
+            "model": "hybrid attacker-defender Markov game",
+        },
+    )
     plt.close(fig)
 
 
@@ -531,7 +539,8 @@ def plot_node_level_advantage(output_path: Path, rollouts: list[dict], rows: lis
         NODE_FBSM_LABEL: "Nominal FBSM\nopen-loop patching",
         NODE_DDQN_LABEL: "DDQN feedback\naggregate state",
     }
-    fig, axes = plt.subplots(2, 2, figsize=(12.8, 8.7))
+    with publication_style():
+        fig, axes = plt.subplots(2, 2, figsize=(7.16, 5.2))
     axes = axes.ravel()
 
     ax = axes[0]
@@ -543,11 +552,13 @@ def plot_node_level_advantage(output_path: Path, rollouts: list[dict], rows: lis
         t = np.arange(len(mean))
         ax.plot(t, mean, label=display_names.get(policy, policy), color=colors.get(policy))
         ax.fill_between(t, np.maximum(0.0, mean - std), mean + std, color=colors.get(policy), alpha=0.14)
-    ax.set_title("Node-Level Epidemic Model: Infected-State Evolution")
-    ax.set_xlabel("Action epoch k in node-level simulator")
-    ax.set_ylabel("Aggregate infected-node share I_k")
-    ax.grid(alpha=0.25)
-    ax.legend(title="Policy deployed on graph", fontsize=7.5, title_fontsize=8)
+    panel_label(ax, "(a) aggregate infected-node share")
+    style_axis(
+        ax,
+        xlabel="Action epoch k in node-level simulator",
+        ylabel="Aggregate infected-node share I_k",
+    )
+    ax.legend(title="Policy deployed on graph", fontsize=7.5, title_fontsize=8, frameon=False)
 
     def mean_metric(policy: str, key: str) -> tuple[float, float]:
         vals = np.asarray([row[key] for row in rows if row["policy"] == policy], dtype=float)
@@ -561,7 +572,7 @@ def plot_node_level_advantage(output_path: Path, rollouts: list[dict], rows: lis
            color=[colors.get(p, "#4c78a8") for p in policies], alpha=0.85, capsize=4)
     ax.set_xticks(x, labels, rotation=18, ha="right")
     ax.set_ylabel("Mean cumulative infected-node exposure")
-    ax.set_title("Node-level epidemic exposure by policy")
+    panel_label(ax, "(b) exposure under mismatch")
     ax.grid(axis="y", alpha=0.25)
 
     peak = [mean_metric(p, "peak_compromised") for p in policies]
@@ -570,7 +581,7 @@ def plot_node_level_advantage(output_path: Path, rollouts: list[dict], rows: lis
            color=[colors.get(p, "#4c78a8") for p in policies], alpha=0.85, capsize=4)
     ax.set_xticks(x, labels, rotation=18, ha="right")
     ax.set_ylabel("Mean peak infected-node share")
-    ax.set_title("Burst robustness: peak infected-node share")
+    panel_label(ax, "(c) burst robustness")
     ax.grid(axis="y", alpha=0.25)
 
     ax = axes[3]
@@ -580,9 +591,9 @@ def plot_node_level_advantage(output_path: Path, rollouts: list[dict], rows: lis
     ax.plot(sizes, unknowns, marker="o", color="black")
     ax.set_xscale("log")
     ax.set_yscale("log")
+    panel_label(ax, "(d) node-level PMP/FBSM size proxy")
     ax.set_xlabel("Nodes")
     ax.set_ylabel("Approx. state+costate variables")
-    ax.set_title("Why full node-level PMP/FBSM becomes expensive")
     ax.grid(alpha=0.25, which="both")
 
     beta_assumed = rows[0]["beta_assumed_by_fbsm"]
@@ -602,7 +613,15 @@ def plot_node_level_advantage(output_path: Path, rollouts: list[dict], rows: lis
     )
     fig.tight_layout(rect=(0, 0.08, 1, 1))
     output_path.parent.mkdir(exist_ok=True)
-    fig.savefig(output_path, dpi=180)
+    save_publication_figure(
+        fig,
+        output_path,
+        metadata={
+            "figure_type": "node-level robustness comparison",
+            "model": "node-level epidemic SIR graph model",
+            "caption_hint": "Curves are aggregate infected-node shares averaged across graph seeds.",
+        },
+    )
     plt.close(fig)
 
 
