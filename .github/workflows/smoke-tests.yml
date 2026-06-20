@@ -24,6 +24,7 @@ jobs:
           python -m pip install --index-url https://download.pytorch.org/whl/cpu "torch>=2.0"
           python -m pip install "git+https://github.com/LYang910920/network-control-differential-games.git"
           python -m pip install -r requirements.txt
+          python -m pip install -e .
       - name: Run smoke tests
         run: bash scripts/run_smoke_tests.sh
       - name: Generate figures
