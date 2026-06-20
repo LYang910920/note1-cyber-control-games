@@ -25,7 +25,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from cyber_hybrid_env import HybridCyberDefenseEnv, scripted_attacker
-from shared_setup import ensure_foundation_package
+from shared_setup import ensure_foundation_package, resolve_torch_device
 
 ensure_foundation_package()
 from cybercontrol.torch_utils import MLP as SharedMLP
@@ -92,7 +92,8 @@ def train(args):
     defender actions.
     """
     random.seed(args.seed); np.random.seed(args.seed)
-    _, resolved_device, _ = configure_torch(
+    _, resolved_device, _ = resolve_torch_device(
+        configure_torch,
         seed=args.seed,
         device=getattr(args, "device", "auto"),
         threads=getattr(args, "threads", 1),
