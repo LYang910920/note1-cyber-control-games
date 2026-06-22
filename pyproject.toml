@@ -45,3 +45,9 @@ testpaths = ["tests"]
 [tool.ruff]
 line-length = 100
 src = ["src", "tests", "scripts"]
+
+[tool.ruff.lint]
+extend-ignore = [
+    "E402",  # scripts set the local execution path before importing tutorial modules
+    "E741",  # compartment notation uses I for infected state
+]

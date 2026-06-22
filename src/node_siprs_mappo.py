@@ -20,7 +20,12 @@ from pathlib import Path
 import numpy as np
 
 from cybercontrol.heterogeneity import node_heterogeneity_summary
-from cybercontrol.network_models import community_correlated_node_siprs_params, node_siprs_rhs_numpy, normalize_adjacency
+from cybercontrol.network_models import (
+    community_correlated_node_siprs_params,
+    contiguous_community_index,
+    node_siprs_rhs_numpy,
+    normalize_adjacency,
+)
 from cybercontrol.numerics import project_compartments, rk4_integrate
 from cybercontrol.torch_utils import MLP, configure_torch
 
@@ -53,7 +58,7 @@ def build_community_graph(cfg: NodeSIPRSEnvConfig, rng: np.random.Generator) -> 
     """Build a small graph with stronger within-community connectivity."""
 
     n = cfg.nodes
-    communities = community_index(cfg)
+    communities = contiguous_community_index(cfg.nodes, cfg.communities)
     A = np.zeros((n, n), dtype=np.float64)
     p_in = min(0.55, cfg.mean_degree / max(1, n // cfg.communities))
     p_out = min(0.08, p_in / 5.0)
@@ -69,12 +74,6 @@ def build_community_graph(cfg: NodeSIPRSEnvConfig, rng: np.random.Generator) -> 
     return normalize_adjacency(A)
 
 
-def community_index(cfg: NodeSIPRSEnvConfig) -> np.ndarray:
-    """Assign nodes to contiguous communities."""
-
-    return np.minimum(np.arange(cfg.nodes) * cfg.communities // cfg.nodes, cfg.communities - 1)
-
-
 class NodeSIPRSEnv:
     """Deterministic node-probability SIPRS environment for regional defenders."""
 
@@ -83,7 +82,7 @@ class NodeSIPRSEnv:
     def __init__(self, cfg: NodeSIPRSEnvConfig | None = None):
         self.cfg = cfg or NodeSIPRSEnvConfig()
         self.rng = np.random.default_rng(self.cfg.seed)
-        self.community = community_index(self.cfg)
+        self.community = contiguous_community_index(self.cfg.nodes, self.cfg.communities)
         self.adjacency = build_community_graph(self.cfg, self.rng)
         self.params = community_correlated_node_siprs_params(
             self.community,
