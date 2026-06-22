@@ -1,13 +1,13 @@
 # Cyber Control and Game Learning
 
-Executable tutorial code for cyber optimal control, sampled-data reinforcement learning, and attacker-defender game learning. This is the second repository in the tutorial family. It uses the foundation package `cybercontrol` for shared dynamics, integration, plotting, and neural helper blocks, then keeps the Note 1 code focused on environments and learning methods.
+Executable code for cyber optimal control, sampled-data reinforcement learning, and attacker-defender game learning. This is the second repository in the family. It uses the foundation package `cybercontrol` for shared dynamics, integration, plotting, and neural helper blocks; this repository keeps the environment and learning code.
 
 ## Repository Family
 
 | Order | Repository | Role |
 |---:|---|---|
 | 0 | [network-control-differential-games](https://github.com/LYang910920/network-control-differential-games) | Foundation notation, shared `cybercontrol` package, continuous/impulse/hybrid examples, degree-vs-node scalability, and reference smoke runs. |
-| 1 | `note1-cyber-control-games` | FBSM baseline, sampled-data MDP conversion, DDQN defense, compact CTDE attacker-defender learning, and node-SIPRS MAPPO smoke tests. |
+| 1 | `note1-cyber-control-games` | FBSM baseline, sampled-data MDP conversion, DDQN defense, CTDE attacker-defender learning, and cooperative node-SIPRS MAPPO. |
 | 2 | [note2-pinn-pidl-cyber-control](https://github.com/LYang910920/note2-pinn-pidl-cyber-control) | PINN/PIDL inverse learning, neural control, PMP-informed losses, and graph-state residual examples. |
 
 ## 5-Minute Quick Start
@@ -18,8 +18,8 @@ source .venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -e "../network-control-differential-games[torch,dev]"
 python -m pip install -e ".[dev]"
-bash scripts/run_smoke_tests.sh
-python scripts/generate_figures.py
+python run_all.py smoke
+python run_all.py figures
 ```
 
 If this repository is cloned without the sibling foundation repo:
@@ -32,7 +32,7 @@ python -m pip install -e ".[dev]"
 For bounded diagnostics that write local artifacts:
 
 ```bash
-python scripts/run_training_iterations.py
+python run_all.py train
 ```
 
 ## Code Map
@@ -46,9 +46,18 @@ python scripts/run_training_iterations.py
 | Paper workflow and extensions | `docs/PAPER_WORKFLOW.md`, `docs/EXTENDING.md` |
 | Aggregate cyber environment | `src/cyber_hybrid_env.py` |
 | FBSM baseline | `src/fbsm_malware_baseline.py` |
-| DDQN and compact CTDE | `src/ddqn_cyber_defense.py`, `src/madrl_ctde_hybrid_game.py` |
-| Heterogeneous node-SIPRS MAPPO smoke baseline | `src/node_siprs_mappo.py` |
+| DDQN and CTDE | `src/ddqn_cyber_defense.py`, `src/madrl_ctde_hybrid_game.py` |
+| Heterogeneous cooperative node-SIPRS MAPPO | `src/node_siprs_mappo.py` |
 | Static figures and bounded diagnostics | `scripts/generate_figures.py`, `scripts/run_training_iterations.py` |
+
+## Capability Status
+
+| Capability | API / file | Command | Metrics | Validation status |
+|---|---|---|---|---|
+| Heterogeneous node-SIPRS cooperative MAPPO | `src/node_siprs_mappo.py` | `python run_all.py mappo --policy-csv artifacts/extended_validation/mappo_policy.csv` | reward, infected exposure, peak/final infection, mass error | community defenders observe local state plus risk/rate summaries |
+| Uniform/degree/risk/oracle/budget-random baselines | `baseline_actions`, `evaluate_policy_baselines` | same command with `--policy-csv` | cumulative infected exposure and action count | budget-matched one-community intervention per epoch |
+| Held-out seeds and heterogeneity strengths | `evaluate_policy_baselines` | same command | policy metrics across seeds 101-105 and strengths 0.2/current/0.5 | runs on unseen profiles after training |
+| Heterogeneous attacker-defender node-SIPRS learning | not implemented | not advertised as a supported method | not applicable | current attacker-defender learning is the aggregate hybrid CTDE example |
 
 ## Representative Experiments
 
@@ -60,7 +69,7 @@ The hybrid policy comparison evaluates no defense, fixed defenses, and a rule-ba
 
 ![Hybrid policy comparison](docs/assets/hybrid_policy_comparison.png)
 
-The node-level robustness example deploys a nominal open-loop FBSM schedule and a DDQN feedback policy on stochastic node-level epidemic rollouts. Here robustness means lower infected-node exposure under parameter mismatch, not a formal guarantee. The MAPPO smoke environment uses the foundation SIPRS equations with community-correlated susceptibility, infectivity, recovery, criticality, costs, bounds, and efficacy; each community observes a compact risk/rate summary. Its policy evaluator compares uniform, degree, risk, oracle, budget-matched random, and learned MAPPO rollouts on held-out seeds and heterogeneity strengths.
+The node-level robustness example deploys a nominal open-loop FBSM schedule and a DDQN feedback policy on stochastic node-level epidemic rollouts. Here robustness means lower infected-node exposure under parameter mismatch, not a formal guarantee. The cooperative MAPPO environment uses the foundation SIPRS equations with community-correlated susceptibility, infectivity, recovery, criticality, costs, bounds, and efficacy. Its policy evaluator compares uniform, degree, risk, oracle, budget-matched random, and learned MAPPO rollouts on held-out seeds and heterogeneity strengths.
 
 ![Node-level epidemic model robustness](docs/assets/node_level_learning_advantage.png)
 
@@ -69,27 +78,27 @@ The node-level robustness example deploys a nominal open-loop FBSM schedule and 
 1. Read `docs/PARAMETERS.md` to locate the model, solver, and neural-training settings.
 2. Edit one method at a time: environment dynamics, reward/payoff, policy class, or training profile.
 3. Keep shared numerics and plotting in the foundation package `cybercontrol`; add Note 1 code only for game-learning behavior.
-4. Run `bash scripts/run_smoke_tests.sh` after each structural change.
-5. Use `python scripts/run_training_iterations.py` for bounded diagnostics. Outputs go to ignored `artifacts/experiments/` and `artifacts/figures/`.
+4. Run `python run_all.py smoke` after each structural change.
+5. Use `python run_all.py train` for bounded diagnostics. Outputs go to ignored `artifacts/experiments/` and `artifacts/figures/`.
 
 ## Validation
 
 ```bash
 python -m compileall -q src tests scripts
 python -m pytest -q
-bash scripts/run_smoke_tests.sh
-python scripts/generate_figures.py
+python run_all.py smoke
+python run_all.py figures
 ```
 
 Extended local diagnostic run:
 
 ```bash
-python scripts/run_training_iterations.py --profile teaching --episodes 240 --device cpu
+python run_all.py train --profile teaching --episodes 240 --device cpu
 ```
 
 In this run, FBSM control updates converged, DDQN evaluation return improved from about -76.6 to -20.6, and the node-level robustness comparison reported mean infected-node exposure 1.677 for DDQN feedback versus 16.111 for the nominal-beta FBSM open-loop schedule.
 
-GitHub Actions runs the smoke tests on pushes and pull requests. The examples are tutorial baselines, not calibrated cyber-risk models.
+GitHub Actions runs the smoke tests on pushes and pull requests. The examples are teaching baselines, not calibrated cyber-risk models.
 
 ## Citation and License
 

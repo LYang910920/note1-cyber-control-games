@@ -2,7 +2,7 @@
 Copyright (c) 2026 Luxing Yang.
 Licensed under the MIT License. See LICENSE in the repository root.
 
-Node-level SIPRS community-defense environment and compact MAPPO baseline.
+Node-level SIPRS community-defense environment and cooperative MAPPO baseline.
 
 The environment uses the canonical ``cybercontrol.network_models`` SIPRS
 equations.  Agents are regional defenders.  Each chooses one sampled-data mode
@@ -32,7 +32,7 @@ from cybercontrol.torch_utils import MLP, configure_torch
 
 @dataclass
 class NodeSIPRSEnvConfig:
-    """Small deterministic node-SIPRS profile for MAPPO smoke experiments."""
+    """Deterministic node-SIPRS profile for bounded MAPPO experiments."""
 
     nodes: int = 48
     communities: int = 3
@@ -296,8 +296,8 @@ def evaluate_policy_baselines(
     *,
     actor=None,
     base_cfg: NodeSIPRSEnvConfig | None = None,
-    seeds: tuple[int, ...] = (101, 102),
-    strengths: tuple[float, ...] = (0.2, 0.5),
+    seeds: tuple[int, ...] = (101, 102, 103, 104, 105),
+    strengths: tuple[float, ...] = (0.2, 0.35, 0.5),
     device: str = "cpu",
 ) -> list[dict[str, float | int | str]]:
     """Compare transparent baselines and an optional learned actor on unseen profiles."""
@@ -350,7 +350,7 @@ def compute_gae(rewards, values, dones, last_value, gamma: float, lam: float):
 
 
 def train_mappo(args):
-    """Train a compact cooperative MAPPO defender on node SIPRS dynamics."""
+    """Train a cooperative MAPPO defender on node SIPRS dynamics."""
 
     torch, device, _ = configure_torch(seed=args.seed, device=args.device, threads=1)
     import torch.nn.functional as F
@@ -442,7 +442,7 @@ def train_mappo(args):
 
 
 def build_parser():
-    parser = argparse.ArgumentParser(description="Train a compact MAPPO baseline on node-level SIPRS.")
+    parser = argparse.ArgumentParser(description="Train a cooperative MAPPO baseline on node-level SIPRS.")
     parser.add_argument("--smoke", action="store_true")
     parser.add_argument("--nodes", type=int, default=48)
     parser.add_argument("--communities", type=int, default=3)
@@ -490,7 +490,21 @@ if __name__ == "__main__":
             writer.writerows(history)
         print(f"wrote {args.output_csv}")
     if args.policy_csv is not None:
-        rows = evaluate_policy_baselines(actor=actor, device=getattr(actor, "_cybercontrol_device", args.device or "cpu"))
+        eval_cfg = NodeSIPRSEnvConfig(
+            nodes=args.nodes,
+            communities=args.communities,
+            horizon=args.horizon,
+            seed=args.seed,
+            heterogeneity_strength=args.heterogeneity_strength,
+        )
+        strengths = tuple(sorted({0.2, float(args.heterogeneity_strength), 0.5}))
+        rows = evaluate_policy_baselines(
+            actor=actor,
+            base_cfg=eval_cfg,
+            seeds=(101, 102, 103, 104, 105),
+            strengths=strengths,
+            device=getattr(actor, "_cybercontrol_device", args.device or "cpu"),
+        )
         args.policy_csv.parent.mkdir(parents=True, exist_ok=True)
         with args.policy_csv.open("w", newline="", encoding="utf-8") as handle:
             writer = csv.DictWriter(handle, fieldnames=list(rows[0].keys()))
