@@ -81,6 +81,14 @@ bash scripts/run_smoke_tests.sh
 python scripts/generate_figures.py
 ```
 
+Extended local diagnostic run:
+
+```bash
+python scripts/run_training_iterations.py --profile teaching --episodes 240 --device cpu
+```
+
+In this run, FBSM control updates converged, DDQN evaluation return improved from about -76.6 to -20.6, and the node-level robustness comparison reported mean infected-node exposure 1.677 for DDQN feedback versus 16.111 for the nominal-beta FBSM open-loop schedule.
+
 GitHub Actions runs the smoke tests on pushes and pull requests. The examples are tutorial baselines, not calibrated cyber-risk models.
 
 ## Citation and License
