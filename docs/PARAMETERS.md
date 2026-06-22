@@ -78,6 +78,7 @@ Use this page before changing the model, reward, or learner. It separates physic
 | default horizon | `18` sampled decision epochs |
 | ODE interval/substeps | `Delta t=0.5`, `substeps=4` |
 | MAPPO core | GAE, clipped policy ratio, value loss, entropy bonus, minibatches, gradient clipping |
+| held-out policy evaluator | uniform-cycle, degree-priority, parameter-risk, oracle-current-infection, budget-matched random, and optional learned MAPPO on unseen seeds and heterogeneity strengths |
 
 ## Node-Level Robustness Parameters
 

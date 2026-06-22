@@ -626,7 +626,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Run training-iteration experiments for Note 1.")
     parser.add_argument("--profile", choices=sorted(TRAINING_PROFILES), default="teaching", help="Named training profile.")
     parser.add_argument("--episodes", type=int, default=None, help="Override episode count for DDQN and MADRL diagnostics.")
-    parser.add_argument("--device", choices=["auto", "cpu", "cuda"], default="auto", help="DDQN training device.")
+    parser.add_argument("--device", choices=["auto", "cpu", "cuda", "mps"], default="auto", help="DDQN training device.")
     args = parser.parse_args()
     profile = resolve_training_profile(args.profile, args.episodes)
 

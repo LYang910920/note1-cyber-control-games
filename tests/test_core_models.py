@@ -15,7 +15,7 @@ from node_level_robustness import (
     rollout_node_policy,
     summarize_node_rollout,
 )
-from node_siprs_mappo import NodeSIPRSEnv, NodeSIPRSEnvConfig, train_mappo
+from node_siprs_mappo import NodeSIPRSEnv, NodeSIPRSEnvConfig, evaluate_policy_baselines, train_mappo
 from scenario_profiles import describe_scenarios, describe_training_hyperparameters, get_scenario
 
 
@@ -116,6 +116,18 @@ class CoreModelTests(unittest.TestCase):
         self.assertLess(info["mass_error"], 1e-8)
         self.assertGreater(info["mean_risk_score"], 0.0)
         self.assertAlmostEqual(float(env.state.sum(axis=1).max()), 1.0, places=8)
+
+    def test_node_siprs_policy_baselines_cover_unseen_profiles(self):
+        cfg = NodeSIPRSEnvConfig(nodes=12, communities=3, horizon=3, substeps=2, seed=4)
+        rows = evaluate_policy_baselines(base_cfg=cfg, seeds=(31,), strengths=(0.15, 0.45), device="cpu")
+        labels = {row["policy"] for row in rows}
+
+        self.assertTrue({"uniform", "degree", "risk", "oracle", "budget_random"}.issubset(labels))
+        self.assertEqual({row["seed"] for row in rows}, {31})
+        self.assertEqual({row["heterogeneity_strength"] for row in rows}, {0.15, 0.45})
+        for row in rows:
+            self.assertLess(row["mass_error"], 1e-8)
+            self.assertIn("cumulative_infected_exposure", row)
 
     def test_node_siprs_mappo_smoke_history(self):
         try:

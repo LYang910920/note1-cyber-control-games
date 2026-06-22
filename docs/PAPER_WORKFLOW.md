@@ -36,7 +36,7 @@ compact CTDE attacker-defender learning, and node-level SIPRS MAPPO examples.
 | Continuous control | FBSM `u(t)` as a time curve. |
 | Hybrid action | Discrete sampled action mode as a step plot; impulses as markers. |
 | Training convergence | FBSM control-change curve, DDQN evaluation return, compact CTDE loss/return, MAPPO reward/value diagnostics. |
-| Baseline comparison | No defense, fixed policies, rule policy, DDQN/CTDE/MAPPO policy, and random policies. |
+| Baseline comparison | No defense, fixed policies, rule policy, DDQN/CTDE/MAPPO policy, random policies, and for node-SIPRS MAPPO: uniform, degree-priority, risk-priority, oracle, and budget-matched random rollouts on held-out profiles. |
 | Game response | Fixed attacker vs varied defenders and fixed defender vs varied attackers. |
 | Node-SIPRS ablation | Merge `P` and `R`, remove waning, change budget, and compare unseen graph seeds. |
 

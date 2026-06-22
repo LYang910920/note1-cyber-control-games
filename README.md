@@ -60,7 +60,7 @@ The hybrid policy comparison evaluates no defense, fixed defenses, and a rule-ba
 
 ![Hybrid policy comparison](docs/assets/hybrid_policy_comparison.png)
 
-The node-level robustness example deploys a nominal open-loop FBSM schedule and a DDQN feedback policy on stochastic node-level epidemic rollouts. Here robustness means lower infected-node exposure under parameter mismatch, not a formal guarantee. The MAPPO smoke environment uses the foundation SIPRS equations with community-correlated susceptibility, infectivity, recovery, criticality, costs, bounds, and efficacy; each community observes a compact risk/rate summary.
+The node-level robustness example deploys a nominal open-loop FBSM schedule and a DDQN feedback policy on stochastic node-level epidemic rollouts. Here robustness means lower infected-node exposure under parameter mismatch, not a formal guarantee. The MAPPO smoke environment uses the foundation SIPRS equations with community-correlated susceptibility, infectivity, recovery, criticality, costs, bounds, and efficacy; each community observes a compact risk/rate summary. Its policy evaluator compares uniform, degree, risk, oracle, budget-matched random, and learned MAPPO rollouts on held-out seeds and heterogeneity strengths.
 
 ![Node-level epidemic model robustness](docs/assets/node_level_learning_advantage.png)
 

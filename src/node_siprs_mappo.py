@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import argparse
 import csv
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 import numpy as np
@@ -199,6 +199,123 @@ class NodeSIPRSEnv:
         return self.observation(), np.asarray(local_rewards, dtype=np.float32), done, info
 
 
+def _community_scores(env: NodeSIPRSEnv, values: np.ndarray) -> np.ndarray:
+    """Average node scores over defender communities."""
+
+    return np.asarray([float(np.mean(values[env.community == m])) for m in range(env.n_agents)], dtype=np.float64)
+
+
+def _single_budget_action(env: NodeSIPRSEnv, community: int) -> np.ndarray:
+    """Use one community-level intervention budget in a transparent way."""
+
+    actions = np.zeros(env.n_agents, dtype=np.int64)
+    mask = env.community == int(community)
+    local_i = float(np.average(env.state[mask, 1], weights=env.resolved_params.criticality[mask]))
+    actions[int(community)] = 2 if local_i >= env.cfg.initial_infected * 1.4 else 1
+    return actions
+
+
+def baseline_actions(env: NodeSIPRSEnv, policy: str, rng: np.random.Generator) -> np.ndarray:
+    """Return a transparent baseline action vector for the current state.
+
+    The non-learning baselines use one active community per decision epoch so
+    that uniform, degree, risk, oracle, and random policies have the same
+    community-level action budget.
+    """
+
+    if policy == "uniform":
+        community = env.k % env.n_agents
+    elif policy == "degree":
+        degree = np.count_nonzero(env.adjacency > 0.0, axis=1) + np.count_nonzero(env.adjacency.T > 0.0, axis=1)
+        community = int(np.argmax(_community_scores(env, degree)))
+    elif policy == "risk":
+        community = int(np.argmax(_community_scores(env, env.resolved_params.risk_score())))
+    elif policy == "oracle":
+        score = env.resolved_params.criticality * env.state[:, 1]
+        community = int(np.argmax(_community_scores(env, score)))
+    elif policy == "budget_random":
+        community = int(rng.integers(0, env.n_agents))
+    else:
+        raise ValueError(f"unknown node-SIPRS baseline policy: {policy}")
+    return _single_budget_action(env, community)
+
+
+def learned_actions(actor, obs: np.ndarray, device: str) -> np.ndarray:
+    """Greedy MAPPO actor actions for evaluation."""
+
+    import torch
+
+    with torch.no_grad():
+        logits = actor(torch.tensor(obs, dtype=torch.float32, device=device))
+        return torch.argmax(logits, dim=-1).cpu().numpy().astype(np.int64)
+
+
+def rollout_policy(policy: str, cfg: NodeSIPRSEnvConfig, *, actor=None, device: str = "cpu") -> dict[str, float | int | str]:
+    """Roll out one policy on a held-out node-SIPRS profile."""
+
+    env = NodeSIPRSEnv(cfg)
+    obs = env.reset(seed=cfg.seed)
+    rng = np.random.default_rng(cfg.seed + 9_001)
+    cumulative_reward = 0.0
+    cumulative_infected = 0.0
+    peak_infected = float(env.state[:, 1].mean())
+    action_count = 0
+    done = False
+    last_info = {
+        "global_infected": peak_infected,
+        "mass_error": 0.0,
+        "mean_risk_score": float(env.resolved_params.risk_score().mean()),
+    }
+    while not done:
+        if policy == "learned_mappo":
+            if actor is None:
+                raise ValueError("learned_mappo rollout requires an actor")
+            actions = learned_actions(actor, obs, device)
+        else:
+            actions = baseline_actions(env, policy, rng)
+        obs, rewards, done, last_info = env.step(actions)
+        global_i = float(last_info["global_infected"])
+        cumulative_reward += float(np.mean(rewards))
+        cumulative_infected += cfg.dt * global_i
+        peak_infected = max(peak_infected, global_i)
+        action_count += int(np.count_nonzero(actions))
+    return {
+        "policy": policy,
+        "seed": int(cfg.seed),
+        "heterogeneity_strength": float(cfg.heterogeneity_strength),
+        "cumulative_reward": cumulative_reward,
+        "cumulative_infected_exposure": cumulative_infected,
+        "peak_global_infected": peak_infected,
+        "final_global_infected": float(last_info["global_infected"]),
+        "action_count": int(action_count),
+        "mean_risk_score": float(last_info["mean_risk_score"]),
+        "mass_error": float(last_info["mass_error"]),
+    }
+
+
+def evaluate_policy_baselines(
+    *,
+    actor=None,
+    base_cfg: NodeSIPRSEnvConfig | None = None,
+    seeds: tuple[int, ...] = (101, 102),
+    strengths: tuple[float, ...] = (0.2, 0.5),
+    device: str = "cpu",
+) -> list[dict[str, float | int | str]]:
+    """Compare transparent baselines and an optional learned actor on unseen profiles."""
+
+    base_cfg = base_cfg or NodeSIPRSEnvConfig()
+    policies = ["uniform", "degree", "risk", "oracle", "budget_random"]
+    if actor is not None:
+        policies.append("learned_mappo")
+    rows: list[dict[str, float | int | str]] = []
+    for seed in seeds:
+        for strength in strengths:
+            cfg = replace(base_cfg, seed=seed, heterogeneity_strength=strength)
+            for policy in policies:
+                rows.append(rollout_policy(policy, cfg, actor=actor, device=device))
+    return rows
+
+
 class RolloutBuffer:
     """MAPPO rollout storage for one vectorized community game."""
 
@@ -250,6 +367,7 @@ def train_mappo(args):
     env = NodeSIPRSEnv(cfg)
     actor = MLP(env.obs_dim, env.n_actions, width=args.hidden, depth=2).to(device)
     critic = MLP(env.obs_dim * env.n_agents, 1, width=args.hidden, depth=2).to(device)
+    actor._cybercontrol_device = device
     actor_opt = torch.optim.Adam(actor.parameters(), lr=args.lr)
     critic_opt = torch.optim.Adam(critic.parameters(), lr=args.lr)
     history = []
@@ -342,11 +460,12 @@ def build_parser():
     parser.add_argument("--entropy-coef", type=float, default=0.01)
     parser.add_argument("--value-coef", type=float, default=0.5)
     parser.add_argument("--max-grad-norm", type=float, default=0.5)
-    parser.add_argument("--device", choices=["auto", "cpu", "cuda"], default="auto")
+    parser.add_argument("--device", choices=["auto", "cpu", "cuda", "mps"], default="auto")
     parser.add_argument("--seed", type=int, default=17)
     parser.add_argument("--heterogeneity-strength", type=float, default=0.35)
     parser.add_argument("--log-every", type=int, default=1)
     parser.add_argument("--output-csv", type=Path, default=None)
+    parser.add_argument("--policy-csv", type=Path, default=None, help="Optional held-out policy-baseline comparison CSV.")
     return parser
 
 
@@ -363,7 +482,7 @@ if __name__ == "__main__":
         args.ppo_epochs = 2
         args.minibatch_size = 3
         args.hidden = 32
-    _, _, history = train_mappo(args)
+    actor, _, history = train_mappo(args)
     if args.output_csv is not None:
         args.output_csv.parent.mkdir(parents=True, exist_ok=True)
         with args.output_csv.open("w", newline="", encoding="utf-8") as handle:
@@ -371,3 +490,11 @@ if __name__ == "__main__":
             writer.writeheader()
             writer.writerows(history)
         print(f"wrote {args.output_csv}")
+    if args.policy_csv is not None:
+        rows = evaluate_policy_baselines(actor=actor, device=getattr(actor, "_cybercontrol_device", args.device or "cpu"))
+        args.policy_csv.parent.mkdir(parents=True, exist_ok=True)
+        with args.policy_csv.open("w", newline="", encoding="utf-8") as handle:
+            writer = csv.DictWriter(handle, fieldnames=list(rows[0].keys()))
+            writer.writeheader()
+            writer.writerows(rows)
+        print(f"wrote {args.policy_csv}")
