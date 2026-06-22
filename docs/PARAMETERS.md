@@ -11,6 +11,7 @@ Use this page before changing the model, reward, or learner. It separates physic
 | Rebuild figures | `python scripts/generate_figures.py` |
 | Run longer diagnostics | `python scripts/run_training_iterations.py` |
 | Run node-SIPRS MAPPO smoke | `python src/node_siprs_mappo.py --smoke --device cpu` |
+| Run larger node-SIPRS attacker-defender smoke | `python src/node_siprs_adversarial_large.py --smoke` |
 | Run heavier GPU-oriented diagnostics | `python scripts/run_training_iterations.py --profile gpu --device auto` |
 
 ## Terms Used In This Repo
@@ -28,6 +29,7 @@ Use this page before changing the model, reward, or learner. It separates physic
 | `DDQN` | Double deep Q-network, a value-based sampled-data defender for discrete actions. |
 | `CTDE` | Centralized training, decentralized execution. Critics may see joint state/action information during training; actors use local observations at execution. |
 | `MAPPO` | Multi-agent PPO. In this repo it is a compact cooperative community-defense baseline on node-level SIPRS dynamics. |
+| `large node-SIPRS game` | A sparse node-level attacker-defender benchmark. The defender selects communities to patch or clean; the attacker selects communities where infection pressure is boosted. The included learner is a bounded self-play softmax baseline, not a full equilibrium solver. |
 | `known heterogeneity summary` | Observation features derived from known per-node parameters: risk score, susceptibility, infectivity, and recovery averaged over the defender's community. If these values are hidden in a paper model, the task becomes partially observable and should be labeled that way. |
 | `GAE` | Generalized advantage estimation, used by PPO/MAPPO to estimate lower-variance policy advantages from rollout rewards and value predictions. |
 | `training diagnostic` | A learning or solver-health check, such as FBSM control-update change, DDQN return, CTDE loss, or same-model rollout comparison. |
@@ -60,6 +62,7 @@ Use this page before changing the model, reward, or learner. It separates physic
 | Compact CTDE game baseline | `episodes=180`, `horizon=18`, `hidden=48`, `lr=5e-4`, `gamma=0.97`, `entropy_coef=0.02`, `seed=13` | `scripts/run_training_iterations.py::run_madrl` |
 | Extended local diagnostic run | `--profile teaching --episodes 240 --device cpu`; FBSM converged, DDQN evaluation return improved, and node-level robustness artifacts were written under ignored `artifacts/` | `python scripts/run_training_iterations.py --profile teaching --episodes 240 --device cpu` |
 | Node-SIPRS MAPPO smoke | `nodes=24`, `communities=3`, `horizon=6`, `updates=2`, `rollout_steps=6`, `ppo_epochs=2`, `minibatch_size=3`, `hidden=32`, `clip_eps=0.2`, `gae_lambda=0.95` | `src/node_siprs_mappo.py --smoke` |
+| Large node-SIPRS attacker-defender smoke | `nodes=96`, `communities=6`, `horizon=6`, `episodes=4`, sparse scale-free graph, defender/attacker budgets `2/2` | `src/node_siprs_adversarial_large.py --smoke` |
 | DDQN GPU-oriented profile | `episodes=600`, `horizon=48`, `eval_episodes=8`, `batch_size=256`, `hidden=256`, `depth=3`, `lr=5e-4`, `gamma=0.995`, `buffer_size=100000`, `target_update=200`, epsilon decay `4000`, `device=auto` | `python scripts/run_training_iterations.py --profile gpu --device auto` |
 | Compact CTDE GPU-oriented profile | `episodes=600`, `horizon=32`, `hidden=192`, `lr=3e-4`, `gamma=0.99`, `entropy_coef=0.015` | `python scripts/run_training_iterations.py --profile gpu` |
 | DDQN smoke | `--smoke` keeps the run short for execution checks | `src/ddqn_cyber_defense.py` |
@@ -80,6 +83,21 @@ Use this page before changing the model, reward, or learner. It separates physic
 | ODE interval/substeps | `Delta t=0.5`, `substeps=4` |
 | MAPPO core | GAE, clipped policy ratio, value loss, entropy bonus, minibatches, gradient clipping |
 | held-out policy evaluator | uniform-cycle, degree-priority, parameter-risk, oracle-current-infection, budget-matched random, and optional learned MAPPO on unseen seeds and heterogeneity strengths |
+
+## Large Node-SIPRS Attacker-Defender Parameters
+
+| Parameter | Value |
+|---|---:|
+| default nodes | `512` |
+| default communities | `8` |
+| graph | sparse Barabasi-Albert graph, row-normalized in the foundation adjacency convention |
+| compartments | `[S,I,P,R]` |
+| defender actions | select up to `defender_budget=2` communities; patch low-infection communities or clean high-infection communities |
+| attacker actions | select up to `attacker_budget=2` communities; selected communities receive beta boost `0.65` during the next ODE interval |
+| heterogeneity profile | community-correlated susceptibility, infectivity, recovery, criticality, action costs, bounds, and efficacy |
+| self-play learner | NumPy softmax logits over communities with REINFORCE-style updates and moving payoff baselines |
+| response matrix | no action, uniform, degree, risk, oracle, budget-random, and learned policies for both players |
+| claim limit | bounded benchmark and extension scaffold, not a Nash-equilibrium or exploitability guarantee |
 
 ## Node-Level Robustness Parameters
 

@@ -7,7 +7,7 @@ Executable code for cyber optimal control, sampled-data reinforcement learning, 
 | Order | Repository | Role |
 |---:|---|---|
 | 0 | [network-control-differential-games](https://github.com/LYang910920/network-control-differential-games) | Foundation notation, shared `cybercontrol` package, continuous/impulse/hybrid examples, degree-vs-node scalability, and reference smoke runs. |
-| 1 | `note1-cyber-control-games` | FBSM baseline, sampled-data MDP conversion, DDQN defense, CTDE attacker-defender learning, and cooperative node-SIPRS MAPPO. |
+| 1 | `note1-cyber-control-games` | FBSM baseline, sampled-data MDP conversion, DDQN defense, CTDE attacker-defender learning, cooperative node-SIPRS MAPPO, and larger node-SIPRS attacker-defender benchmarks. |
 | 2 | [note2-pinn-pidl-cyber-control](https://github.com/LYang910920/note2-pinn-pidl-cyber-control) | PINN/PIDL inverse learning, neural control, PMP-informed losses, and graph-state residual examples. |
 
 ## 5-Minute Quick Start
@@ -48,6 +48,7 @@ python run_all.py train
 | FBSM baseline | `src/fbsm_malware_baseline.py` |
 | DDQN and CTDE | `src/ddqn_cyber_defense.py`, `src/madrl_ctde_hybrid_game.py` |
 | Heterogeneous cooperative node-SIPRS MAPPO | `src/node_siprs_mappo.py` |
+| Larger heterogeneous node-SIPRS attacker-defender game | `src/node_siprs_adversarial_large.py` |
 | Static figures and bounded diagnostics | `scripts/generate_figures.py`, `scripts/run_training_iterations.py` |
 
 ## Capability Status
@@ -57,7 +58,7 @@ python run_all.py train
 | Heterogeneous node-SIPRS cooperative MAPPO | `src/node_siprs_mappo.py` | `python run_all.py mappo --policy-csv artifacts/extended_validation/mappo_policy.csv` | reward, infected exposure, peak/final infection, mass error | community defenders observe local state plus risk/rate summaries |
 | Uniform/degree/risk/oracle/budget-random baselines | `baseline_actions`, `evaluate_policy_baselines` | same command with `--policy-csv` | cumulative infected exposure and action count | budget-matched one-community intervention per epoch |
 | Held-out seeds and heterogeneity strengths | `evaluate_policy_baselines` | same command | policy metrics across seeds 101-105 and strengths 0.2/current/0.5 | runs on unseen profiles after training |
-| Heterogeneous attacker-defender node-SIPRS learning | not implemented | not advertised as a supported method | not applicable | current attacker-defender learning is the aggregate hybrid CTDE example |
+| Larger heterogeneous attacker-defender node-SIPRS benchmark | `src/node_siprs_adversarial_large.py` | `python run_all.py large-game --response-csv artifacts/extended_validation/large_game_response.csv` | defender/attacker payoff, infected exposure, response matrix, mass error | sparse graph, community budgets, self-play softmax policies |
 
 ## Representative Experiments
 
@@ -69,7 +70,7 @@ The hybrid policy comparison evaluates no defense, fixed defenses, and a rule-ba
 
 ![Hybrid policy comparison](docs/assets/hybrid_policy_comparison.png)
 
-The node-level robustness example deploys a nominal open-loop FBSM schedule and a DDQN feedback policy on stochastic node-level epidemic rollouts. Here robustness means lower infected-node exposure under parameter mismatch, not a formal guarantee. The cooperative MAPPO environment uses the foundation SIPRS equations with community-correlated susceptibility, infectivity, recovery, criticality, costs, bounds, and efficacy. Its policy evaluator compares uniform, degree, risk, oracle, budget-matched random, and learned MAPPO rollouts on held-out seeds and heterogeneity strengths.
+The node-level robustness example deploys a nominal open-loop FBSM schedule and a DDQN feedback policy on stochastic node-level epidemic rollouts. Here robustness means lower infected-node exposure under parameter mismatch, not a formal guarantee. The cooperative MAPPO environment uses the foundation SIPRS equations with community-correlated susceptibility, infectivity, recovery, criticality, costs, bounds, and efficacy. The larger attacker-defender benchmark uses the same SIPRS semantics on a sparse graph, adds attacker beta-boost actions, and reports a response matrix against uniform, degree, risk, oracle, random, and learned community policies.
 
 ![Node-level epidemic model robustness](docs/assets/node_level_learning_advantage.png)
 

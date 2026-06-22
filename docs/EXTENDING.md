@@ -30,7 +30,9 @@ For larger models, move from compartment states to degree-level arrays, node-lev
 
 For network-scale impulse models, record whether a jump is node-local, edge-local, or global. For example, isolating one subnet may create an immediate node-state jump, while patching campaigns may change vulnerability rates over the following interval.
 
-Use `src/node_siprs_mappo.py` as the first graph-scale route. It imports the canonical foundation SIPRS equations, keeps node states as `[S,I,P,R]`, and partitions the graph into regional defender communities. Each regional defender observes local means, boundary pressure, global infection, time-to-go, previous action, and a known heterogeneity summary for its community. The smoke MAPPO loop includes GAE, clipped policy ratios, minibatches, value loss, entropy, and gradient clipping.
+Use `src/node_siprs_mappo.py` as the first graph-scale cooperative route. It imports the canonical foundation SIPRS equations, keeps node states as `[S,I,P,R]`, and partitions the graph into regional defender communities. Each regional defender observes local means, boundary pressure, global infection, time-to-go, previous action, and a known heterogeneity summary for its community. The smoke MAPPO loop includes GAE, clipped policy ratios, minibatches, value loss, entropy, and gradient clipping.
+
+Use `src/node_siprs_adversarial_large.py` when the paper model needs a larger node-level attacker-defender scaffold. It uses sparse scale-free graphs, the same heterogeneous SIPRS equations, defender community budgets, attacker beta-boost budgets, self-play softmax policies, and a response matrix. Replace the softmax learner with MAPPO, MADDPG, opponent pools, or exploitability evaluation only after the response matrix is stable.
 
 Use `src/node_level_robustness.py` as a separate stress-test route from aggregate feedback to stochastic node-level S/I/R graphs. It demonstrates a useful stress test: compare a nominal-parameter FBSM open-loop schedule with a feedback policy when the true graph dynamics and propagation parameters differ from the baseline model.
 
@@ -48,6 +50,20 @@ Use `src/node_level_robustness.py` as a separate stress-test route from aggregat
 | MAPPO diagnostics | mean reward, final global infection, mass-conservation error, multi-seed stability |
 | Claim limit | empirical learned feedback, not global optimality or Nash equilibrium |
 
+## Large Node-SIPRS Attacker-Defender Model Card
+
+| Item | Choice in the current code |
+|---|---|
+| State | node probabilities `x_i=[S_i,I_i,P_i,R_i]` on a sparse graph |
+| Flow | canonical `cybercontrol.network_models.node_siprs_rhs_numpy` |
+| Defender action | choose communities to patch or clean under a budget |
+| Attacker action | choose communities receiving temporary infection-rate boost |
+| Heterogeneity | community-correlated physical and economic parameters from the foundation package |
+| Learner | bounded NumPy softmax self-play over communities |
+| Baselines | none, uniform, degree, risk, oracle, budget-random, learned |
+| Main output | response matrix with defender payoff, attacker payoff, infected exposure, peak/final infection, and mass error |
+| Claim limit | scalable benchmark scaffold, not a full MAPPO/MADDPG implementation |
+
 ## From Tutorial Code To Paper Models
 
 | Paper-model ingredient | First tutorial hook | What to preserve while extending |
@@ -55,7 +71,7 @@ Use `src/node_level_robustness.py` as a separate stress-test route from aggregat
 | More cyber compartments or assets | `src/cyber_dynamics.py` | nonnegative state projection and clear state labels |
 | Event-triggered or scheduled impulses | `HybridCyberDefenseEnv.jump_map` | explicit pre-jump and post-jump diagnostics |
 | Richer attacker behavior | `scripted_attacker`, `madrl_ctde_hybrid_game.py` | same observation/action/reward contract across baselines |
-| Node-level or graph-level state | `src/node_siprs_mappo.py`, then `src/node_level_robustness.py` | canonical SIPRS semantics, aggregate metrics plus node-level stress-test outputs |
+| Node-level or graph-level state | `src/node_siprs_mappo.py`, `src/node_siprs_adversarial_large.py`, then `src/node_level_robustness.py` | canonical SIPRS semantics, aggregate metrics plus node-level stress-test outputs |
 | Larger RL/MARL algorithms | `HybridCyberDefenseEnv.step` | stable `reset/step` interface before adding external libraries |
 | Paper-specific reward/payoff | `EnvConfig` and `evaluation_metrics.py` | separate infected exposure, defender cost, attacker payoff, and impulse counts |
 

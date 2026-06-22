@@ -1,7 +1,8 @@
 # How To Write A Paper From Note 1
 
 Note 1 connects continuous-time cyber dynamics to PMP/FBSM, ODE-RL, DDQN,
-compact CTDE attacker-defender learning, and node-level SIPRS MAPPO examples.
+CTDE attacker-defender learning, cooperative node-level SIPRS MAPPO examples,
+and a larger sparse node-SIPRS attacker-defender benchmark.
 
 ## Model-To-Code Map
 
@@ -14,8 +15,9 @@ compact CTDE attacker-defender learning, and node-level SIPRS MAPPO examples.
 | RK4 substeps | `EnvConfig.substeps` | Internal ODE solver steps, not MDP actions. |
 | running/impulse cost | `HybridCyberDefenseEnv.step` | Running cost plus separate impulse cost. |
 | `u(t)` | `src/fbsm_malware_baseline.py` | Continuous FBSM patching control. |
-| `x_i=[S_i,I_i,P_i,R_i]` | `src/node_siprs_mappo.py` | Canonical node-level SIPRS state. |
-| `u_i^p,u_i^c` | `patch`, `clean` in `node_siprs_mappo.py` | Regional sampled modes mapped to node patch/clean rates. |
+| `x_i=[S_i,I_i,P_i,R_i]` | `src/node_siprs_mappo.py`, `src/node_siprs_adversarial_large.py` | Canonical node-level SIPRS state. |
+| `u_i^p,u_i^c` | `patch`, `clean` in node-SIPRS files | Regional sampled modes mapped to node patch/clean rates. |
+| attacker boost | `beta_boost` in `src/node_siprs_adversarial_large.py` | Temporary community-level increase in infection pressure. |
 
 ## Recommended Paper Path
 
@@ -26,7 +28,7 @@ compact CTDE attacker-defender learning, and node-level SIPRS MAPPO examples.
 5. Present the compact CTDE script as an attacker-defender Markov-game baseline.
 6. Present node-SIPRS MAPPO as a cooperative community-defense feedback baseline.
 7. Compare all policies on the same model with fixed, random, threshold, and centrality baselines.
-8. Add attacker-defender node games only after cooperative MAPPO is stable.
+8. Use `src/node_siprs_adversarial_large.py` for a larger node-level attacker-defender scaffold and response matrix.
 
 ## Minimum Experiments
 
@@ -37,7 +39,7 @@ compact CTDE attacker-defender learning, and node-level SIPRS MAPPO examples.
 | Hybrid action | Discrete sampled action mode as a step plot; impulses as markers. |
 | Training convergence | FBSM control-change curve, DDQN evaluation return, compact CTDE loss/return, MAPPO reward/value diagnostics. |
 | Baseline comparison | No defense, fixed policies, rule policy, DDQN/CTDE/MAPPO policy, random policies, and for node-SIPRS MAPPO: uniform, degree-priority, risk-priority, oracle, and budget-matched random rollouts on held-out profiles. |
-| Game response | Fixed attacker vs varied defenders and fixed defender vs varied attackers. |
+| Game response | Fixed attacker vs varied defenders, fixed defender vs varied attackers, and full response matrix for the larger node-SIPRS game. |
 | Node-SIPRS ablation | Merge `P` and `R`, remove waning, change budget, and compare unseen graph seeds. |
 
 ## Claim Discipline
@@ -45,6 +47,7 @@ compact CTDE attacker-defender learning, and node-level SIPRS MAPPO examples.
 - Say "PMP/FBS candidate" unless a stronger optimality check is added.
 - Say "learned feedback policy" for DDQN rather than "optimal policy".
 - Say "MAPPO baseline" or "cooperative learned defenders" for `node_siprs_mappo.py`; add multi-seed and held-out-graph evidence before stronger claims.
+- Say "large attacker-defender benchmark" for `node_siprs_adversarial_large.py`; the included softmax learner is a scaffold, not a Nash solver.
 - Keep impulse cost separate from running cost in both equations and code.
 - Report seeds, horizon, `dt`, propagation rates, reward weights, network width, learning rate, replay size, and episode count.
 

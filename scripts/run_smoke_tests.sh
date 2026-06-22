@@ -22,4 +22,5 @@ fi
 "${PYTHON_BIN}" src/ddqn_cyber_defense.py --smoke
 "${PYTHON_BIN}" src/madrl_ctde_hybrid_game.py --smoke
 "${PYTHON_BIN}" src/node_siprs_mappo.py --smoke --device cpu
+"${PYTHON_BIN}" src/node_siprs_adversarial_large.py --smoke
 "${PYTHON_BIN}" -m unittest discover -s tests

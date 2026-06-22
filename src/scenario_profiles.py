@@ -114,7 +114,11 @@ SCENARIOS: dict[str, CyberScenarioProfile] = {
         state_level="aggregate state now; transition point toward node-level graph states",
         timing="shorter decision interval with more policy steps",
         control_type="hybrid control with stochastic initial states",
-        first_files_to_edit=("src/node_level_robustness.py", "src/madrl_ctde_hybrid_game.py"),
+        first_files_to_edit=(
+            "src/node_level_robustness.py",
+            "src/node_siprs_adversarial_large.py",
+            "src/madrl_ctde_hybrid_game.py",
+        ),
         paper_extension="Move the state from aggregate compartments to graph/node features and run multi-seed stress tests.",
         config_factory=paper_network_bridge,
     ),
@@ -231,6 +235,20 @@ TRAINING_HYPERPARAMETERS: tuple[TrainingHyperparameterProfile, ...] = (
             ("clip_eps", "0.2"),
         ),
         source="src/node_siprs_mappo.py",
+    ),
+    TrainingHyperparameterProfile(
+        name="large-node-siprs-attacker-defender",
+        method="large sparse node-SIPRS attacker-defender benchmark",
+        hyperparameters=(
+            ("command", "python src/node_siprs_adversarial_large.py --smoke"),
+            ("nodes", "96 in smoke; 512 by default"),
+            ("communities", "6 in smoke; 8 by default"),
+            ("graph", "sparse Barabasi-Albert, row-normalized"),
+            ("defender/attacker budgets", "2 / 2 communities per decision epoch"),
+            ("learner", "NumPy softmax self-play over communities"),
+            ("response matrix", "none, uniform, degree, risk, oracle, budget-random, learned"),
+        ),
+        source="src/node_siprs_adversarial_large.py",
     ),
 )
 

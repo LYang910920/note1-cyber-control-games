@@ -9,6 +9,12 @@ from cyber_dynamics import MalwareParams, controlled_sir_rhs, project_simplex3, 
 from cyber_hybrid_env import HybridCyberDefenseEnv, scripted_attacker
 from evaluation_metrics import evaluate_game_response_matrix, evaluate_policy_suite
 from fbsm_malware_baseline import solve_fbsm
+from node_siprs_adversarial_large import (
+    LargeAdversarialSIPRSConfig,
+    LargeAdversarialSIPRSEnv,
+    evaluate_response_matrix,
+    train_self_play,
+)
 from node_level_robustness import (
     NodeSimConfig,
     action_from_defender_mode,
@@ -159,6 +165,34 @@ class CoreModelTests(unittest.TestCase):
         _, _, history = train_mappo(Args())
         self.assertEqual(len(history), 1)
         self.assertLess(history[0]["mass_error"], 1e-8)
+
+    def test_large_node_siprs_adversarial_contract(self):
+        cfg = LargeAdversarialSIPRSConfig(nodes=48, communities=4, horizon=3, substeps=1, seed=8)
+        env = LargeAdversarialSIPRSEnv(cfg)
+        obs = env.reset(seed=8)
+        next_obs, defender_payoff, attacker_payoff, done, info = env.step(
+            np.array([0, 1]),
+            np.array([2]),
+        )
+
+        self.assertEqual(obs.shape[0], 4)
+        self.assertEqual(next_obs.shape[0], 4)
+        self.assertFalse(done)
+        self.assertTrue(np.isfinite(defender_payoff))
+        self.assertTrue(np.isfinite(attacker_payoff))
+        self.assertLess(info["mass_error"], 1e-8)
+
+    def test_large_node_siprs_self_play_response_matrix(self):
+        cfg = LargeAdversarialSIPRSConfig(nodes=40, communities=4, horizon=2, substeps=1, seed=9)
+        history, defender_logits, attacker_logits = train_self_play(cfg, episodes=2, lr=0.05, seed=9)
+        rows = evaluate_response_matrix(cfg, defender_logits, attacker_logits, seeds=(21,))
+
+        self.assertEqual(len(history), 2)
+        self.assertTrue(any(row["defender_policy"] == "learned" for row in rows))
+        self.assertTrue(any(row["attacker_policy"] == "learned" for row in rows))
+        for row in rows:
+            self.assertLess(row["mass_error"], 1e-8)
+            self.assertIn("cumulative_infected_exposure", row)
 
     def test_scenario_profiles_are_readable_extension_entries(self):
         profile = get_scenario("paper-network-bridge")
