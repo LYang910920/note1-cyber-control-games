@@ -19,7 +19,8 @@ from pathlib import Path
 
 import numpy as np
 
-from cybercontrol.network_models import NodeSIPRSParams, node_siprs_rhs_numpy, normalize_adjacency
+from cybercontrol.heterogeneity import node_heterogeneity_summary
+from cybercontrol.network_models import community_correlated_node_siprs_params, node_siprs_rhs_numpy, normalize_adjacency
 from cybercontrol.numerics import project_compartments, rk4_integrate
 from cybercontrol.torch_utils import MLP, configure_torch
 
@@ -41,6 +42,7 @@ class NodeSIPRSEnvConfig:
     omega_r: float = 0.025
     patch_rate: float = 0.35
     clean_rate: float = 0.45
+    heterogeneity_strength: float = 0.35
     local_weight: float = 1.0
     global_weight: float = 0.5
     action_cost: float = 0.03
@@ -82,14 +84,17 @@ class NodeSIPRSEnv:
         self.cfg = cfg or NodeSIPRSEnvConfig()
         self.rng = np.random.default_rng(self.cfg.seed)
         self.community = community_index(self.cfg)
-        self.params = NodeSIPRSParams(
+        self.adjacency = build_community_graph(self.cfg, self.rng)
+        self.params = community_correlated_node_siprs_params(
+            self.community,
+            strength=self.cfg.heterogeneity_strength,
             beta=self.cfg.beta,
             gamma=self.cfg.gamma,
             omega_p=self.cfg.omega_p,
             omega_r=self.cfg.omega_r,
         )
-        self.adjacency = build_community_graph(self.cfg, self.rng)
-        self.obs_dim = 9
+        self.resolved_params = self.params.resolve(self.cfg.nodes)
+        self.obs_dim = 13
         self.n_agents = self.cfg.communities
         self.n_actions = len(self.ACTIONS)
         self.reset()
@@ -123,8 +128,19 @@ class NodeSIPRSEnv:
             mask = self.community == m
             local = self.state[mask].mean(axis=0)
             boundary_pressure = float(pressure[mask].mean())
+            risk_summary = node_heterogeneity_summary(self.resolved_params, mask)
             budget_proxy = 1.0
-            obs.append(np.r_[local, boundary_pressure, global_i, budget_proxy, time_to_go, self.prev_actions[m]])
+            obs.append(
+                np.r_[
+                    local,
+                    boundary_pressure,
+                    global_i,
+                    budget_proxy,
+                    time_to_go,
+                    self.prev_actions[m],
+                    risk_summary,
+                ]
+            )
         return np.asarray(obs, dtype=np.float32)
 
     def _action_rates(self, actions: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
@@ -133,9 +149,9 @@ class NodeSIPRSEnv:
         for m, action in enumerate(actions):
             mask = self.community == m
             if int(action) == 1:
-                patch[mask] = self.cfg.patch_rate
+                patch[mask] = np.minimum(self.cfg.patch_rate, self.resolved_params.patch_bound[mask])
             elif int(action) == 2:
-                clean[mask] = self.cfg.clean_rate
+                clean[mask] = np.minimum(self.cfg.clean_rate, self.resolved_params.clean_bound[mask])
         return patch, clean
 
     def step(self, actions: np.ndarray):
@@ -161,8 +177,13 @@ class NodeSIPRSEnv:
         global_i = float(self.state[:, 1].mean())
         for m, action in enumerate(actions):
             mask = self.community == m
-            local_i = float(self.state[mask, 1].mean())
-            cost = self.cfg.action_cost * float(action != 0)
+            local_i = float(np.average(self.state[mask, 1], weights=self.resolved_params.criticality[mask]))
+            if int(action) == 1:
+                cost = self.cfg.action_cost * float(np.mean(self.resolved_params.patch_cost[mask]))
+            elif int(action) == 2:
+                cost = self.cfg.action_cost * float(np.mean(self.resolved_params.clean_cost[mask]))
+            else:
+                cost = 0.0
             local_rewards.append(-self.cfg.dt * (self.cfg.local_weight * local_i + self.cfg.global_weight * global_i + cost))
         self.prev_actions = actions.astype(np.float64) / max(1, self.n_actions - 1)
         self.k += 1
@@ -172,6 +193,8 @@ class NodeSIPRSEnv:
             "mean_patch_rate": float(patch.mean()),
             "mean_clean_rate": float(clean.mean()),
             "mass_error": float(np.max(np.abs(self.state.sum(axis=1) - 1.0))),
+            "mean_risk_score": float(self.resolved_params.risk_score().mean()),
+            "heterogeneity_strength": float(self.cfg.heterogeneity_strength),
         }
         return self.observation(), np.asarray(local_rewards, dtype=np.float32), done, info
 
@@ -222,6 +245,7 @@ def train_mappo(args):
         communities=args.communities,
         horizon=args.horizon,
         seed=args.seed,
+        heterogeneity_strength=args.heterogeneity_strength,
     )
     env = NodeSIPRSEnv(cfg)
     actor = MLP(env.obs_dim, env.n_actions, width=args.hidden, depth=2).to(device)
@@ -320,6 +344,7 @@ def build_parser():
     parser.add_argument("--max-grad-norm", type=float, default=0.5)
     parser.add_argument("--device", choices=["auto", "cpu", "cuda"], default="auto")
     parser.add_argument("--seed", type=int, default=17)
+    parser.add_argument("--heterogeneity-strength", type=float, default=0.35)
     parser.add_argument("--log-every", type=int, default=1)
     parser.add_argument("--output-csv", type=Path, default=None)
     return parser

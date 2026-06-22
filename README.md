@@ -47,7 +47,7 @@ python scripts/run_training_iterations.py
 | Aggregate cyber environment | `src/cyber_hybrid_env.py` |
 | FBSM baseline | `src/fbsm_malware_baseline.py` |
 | DDQN and compact CTDE | `src/ddqn_cyber_defense.py`, `src/madrl_ctde_hybrid_game.py` |
-| Node-SIPRS MAPPO smoke baseline | `src/node_siprs_mappo.py` |
+| Heterogeneous node-SIPRS MAPPO smoke baseline | `src/node_siprs_mappo.py` |
 | Static figures and bounded diagnostics | `scripts/generate_figures.py`, `scripts/run_training_iterations.py` |
 
 ## Representative Experiments
@@ -60,7 +60,7 @@ The hybrid policy comparison evaluates no defense, fixed defenses, and a rule-ba
 
 ![Hybrid policy comparison](docs/assets/hybrid_policy_comparison.png)
 
-The node-level robustness example deploys a nominal open-loop FBSM schedule and a DDQN feedback policy on stochastic node-level epidemic rollouts. Here robustness means lower infected-node exposure under parameter mismatch, not a formal guarantee.
+The node-level robustness example deploys a nominal open-loop FBSM schedule and a DDQN feedback policy on stochastic node-level epidemic rollouts. Here robustness means lower infected-node exposure under parameter mismatch, not a formal guarantee. The MAPPO smoke environment uses the foundation SIPRS equations with community-correlated susceptibility, infectivity, recovery, criticality, costs, bounds, and efficacy; each community observes a compact risk/rate summary.
 
 ![Node-level epidemic model robustness](docs/assets/node_level_learning_advantage.png)
 

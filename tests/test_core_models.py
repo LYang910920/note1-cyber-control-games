@@ -109,11 +109,12 @@ class CoreModelTests(unittest.TestCase):
         obs = env.reset(seed=9)
         next_obs, rewards, done, info = env.step(np.array([0, 1, 2]))
 
-        self.assertEqual(obs.shape, (3, 9))
-        self.assertEqual(next_obs.shape, (3, 9))
+        self.assertEqual(obs.shape, (3, 13))
+        self.assertEqual(next_obs.shape, (3, 13))
         self.assertEqual(rewards.shape, (3,))
         self.assertFalse(done)
         self.assertLess(info["mass_error"], 1e-8)
+        self.assertGreater(info["mean_risk_score"], 0.0)
         self.assertAlmostEqual(float(env.state.sum(axis=1).max()), 1.0, places=8)
 
     def test_node_siprs_mappo_smoke_history(self):
@@ -140,6 +141,7 @@ class CoreModelTests(unittest.TestCase):
             max_grad_norm = 0.5
             device = "cpu"
             seed = 11
+            heterogeneity_strength = 0.25
             log_every = 1
 
         _, _, history = train_mappo(Args())

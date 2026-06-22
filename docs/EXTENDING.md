@@ -30,7 +30,7 @@ For larger models, move from compartment states to degree-level arrays, node-lev
 
 For network-scale impulse models, record whether a jump is node-local, edge-local, or global. For example, isolating one subnet may create an immediate node-state jump, while patching campaigns may change vulnerability rates over the following interval.
 
-Use `src/node_siprs_mappo.py` as the first graph-scale route. It imports the canonical foundation SIPRS equations, keeps node states as `[S,I,P,R]`, and partitions the graph into regional defender communities. Each regional defender observes local means, boundary pressure, global infection, time-to-go, and previous action. The smoke MAPPO loop includes GAE, clipped policy ratios, minibatches, value loss, entropy, and gradient clipping.
+Use `src/node_siprs_mappo.py` as the first graph-scale route. It imports the canonical foundation SIPRS equations, keeps node states as `[S,I,P,R]`, and partitions the graph into regional defender communities. Each regional defender observes local means, boundary pressure, global infection, time-to-go, previous action, and a known heterogeneity summary for its community. The smoke MAPPO loop includes GAE, clipped policy ratios, minibatches, value loss, entropy, and gradient clipping.
 
 Use `src/node_level_robustness.py` as a separate stress-test route from aggregate feedback to stochastic node-level S/I/R graphs. It demonstrates a useful stress test: compare a nominal-parameter FBSM open-loop schedule with a feedback policy when the true graph dynamics and propagation parameters differ from the baseline model.
 
@@ -41,8 +41,10 @@ Use `src/node_level_robustness.py` as a separate stress-test route from aggregat
 | State | node probabilities `x_i=[S_i,I_i,P_i,R_i]` |
 | Flow | canonical `cybercontrol.network_models.node_siprs_rhs_numpy` |
 | Actions | per-community sampled modes: none, patch `S -> P`, clean `I -> R` |
-| Reward | local infected share, global infected share, and action cost integrated over `Delta t` |
-| Baselines to add before claims | no action, uniform patch, local threshold clean, degree/community targeting |
+| Heterogeneity | community-correlated susceptibility, infectivity, recovery, criticality, action costs, bounds, and efficacy from the foundation package |
+| Observations | local state means, boundary pressure, global infection, budget/time/action context, and community risk/rate summaries |
+| Reward | criticality-weighted local infected share, global infected share, and per-node action cost integrated over `Delta t` |
+| Baselines to add before claims | no action, uniform patch, degree/centrality targeting, parameter-risk targeting, oracle targeting, budget-matched random, independent learners, MAPPO |
 | MAPPO diagnostics | mean reward, final global infection, mass-conservation error, multi-seed stability |
 | Claim limit | empirical learned feedback, not global optimality or Nash equilibrium |
 

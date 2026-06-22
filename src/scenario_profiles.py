@@ -220,6 +220,8 @@ TRAINING_HYPERPARAMETERS: tuple[TrainingHyperparameterProfile, ...] = (
             ("nodes", "24 in smoke; 48 by default"),
             ("communities", "3"),
             ("compartments", "S/I/P/R"),
+            ("heterogeneity", "community-correlated rates/costs/bounds, strength=0.35 by default"),
+            ("observation", "13 features per community including known risk/rate summaries"),
             ("horizon", "6 in smoke; 18 by default"),
             ("rollout_steps", "6 in smoke; 18 by default"),
             ("ppo_epochs", "2 in smoke; 3 by default"),

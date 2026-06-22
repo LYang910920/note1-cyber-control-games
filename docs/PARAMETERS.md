@@ -28,6 +28,7 @@ Use this page before changing the model, reward, or learner. It separates physic
 | `DDQN` | Double deep Q-network, a value-based sampled-data defender for discrete actions. |
 | `CTDE` | Centralized training, decentralized execution. Critics may see joint state/action information during training; actors use local observations at execution. |
 | `MAPPO` | Multi-agent PPO. In this repo it is a compact cooperative community-defense baseline on node-level SIPRS dynamics. |
+| `known heterogeneity summary` | Observation features derived from known per-node parameters: risk score, susceptibility, infectivity, and recovery averaged over the defender's community. If these values are hidden in a paper model, the task becomes partially observable and should be labeled that way. |
 | `GAE` | Generalized advantage estimation, used by PPO/MAPPO to estimate lower-variance policy advantages from rollout rewards and value predictions. |
 | `training diagnostic` | A learning or solver-health check, such as FBSM control-update change, DDQN return, CTDE loss, or same-model rollout comparison. |
 | `training return` | Cumulative reward collected while a learner is exploring. It is noisy and should be read with evaluation return and cyber metrics. |
@@ -71,6 +72,9 @@ Use this page before changing the model, reward, or learner. It separates physic
 | default communities | `3` |
 | compartments | `[S,I,P,R]` |
 | patch/clean semantics | patch `S -> P`; clean and natural recovery `I -> R`; waning `P/R -> S` |
+| heterogeneity profile | community-correlated susceptibility, infectivity, recovery, criticality, action costs, bounds, and efficacy from `cybercontrol.network_models.community_correlated_node_siprs_params` |
+| observation shape | `communities x 13`: local `[S,I,P,R]`, boundary pressure, global infection, budget proxy, time-to-go, previous action, and four known heterogeneity summaries |
+| reward weights | local infected share is weighted by node criticality; action costs use per-node patch/clean costs |
 | default horizon | `18` sampled decision epochs |
 | ODE interval/substeps | `Delta t=0.5`, `substeps=4` |
 | MAPPO core | GAE, clipped policy ratio, value loss, entropy bonus, minibatches, gradient clipping |
