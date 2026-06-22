@@ -63,6 +63,7 @@ Use this page before changing the model, reward, or learner. It separates physic
 | Extended local diagnostic run | `--profile teaching --episodes 240 --device cpu`; FBSM converged, DDQN evaluation return improved, and node-level robustness artifacts were written under ignored `artifacts/` | `python scripts/run_training_iterations.py --profile teaching --episodes 240 --device cpu` |
 | Node-SIPRS MAPPO smoke | `nodes=24`, `communities=3`, `horizon=6`, `updates=2`, `rollout_steps=6`, `ppo_epochs=2`, `minibatch_size=3`, `hidden=32`, `clip_eps=0.2`, `gae_lambda=0.95` | `src/node_siprs_mappo.py --smoke` |
 | Large node-SIPRS attacker-defender smoke | `nodes=96`, `communities=6`, `horizon=6`, `episodes=4`, sparse scale-free graph, defender/attacker budgets `2/2` | `src/node_siprs_adversarial_large.py --smoke` |
+| Large node-SIPRS response sweep | trains one bounded self-play policy, then evaluates response matrices on held-out `--eval-seeds`, `--eval-strengths`, and optional `--size-sweep`; writes per-rollout and aggregated CSVs | `python run_all.py large-game --response-csv ... --summary-csv ...` |
 | DDQN GPU-oriented profile | `episodes=600`, `horizon=48`, `eval_episodes=8`, `batch_size=256`, `hidden=256`, `depth=3`, `lr=5e-4`, `gamma=0.995`, `buffer_size=100000`, `target_update=200`, epsilon decay `4000`, `device=auto` | `python scripts/run_training_iterations.py --profile gpu --device auto` |
 | Compact CTDE GPU-oriented profile | `episodes=600`, `horizon=32`, `hidden=192`, `lr=3e-4`, `gamma=0.99`, `entropy_coef=0.015` | `python scripts/run_training_iterations.py --profile gpu` |
 | DDQN smoke | `--smoke` keeps the run short for execution checks | `src/ddqn_cyber_defense.py` |
@@ -97,6 +98,8 @@ Use this page before changing the model, reward, or learner. It separates physic
 | heterogeneity profile | community-correlated susceptibility, infectivity, recovery, criticality, action costs, bounds, and efficacy |
 | self-play learner | NumPy softmax logits over communities with REINFORCE-style updates and moving payoff baselines |
 | response matrix | no action, uniform, degree, risk, oracle, budget-random, and learned policies for both players |
+| held-out evaluation | `--eval-seeds` changes graph/initial-state seeds; `--eval-strengths` changes the community-correlated physical/economic heterogeneity; `--size-sweep` changes node count while keeping the community action space fixed |
+| summary output | `--summary-csv` groups response rows by node count, heterogeneity strength, defender policy, and attacker policy; it reports mean/std payoff and infection metrics plus maximum mass-conservation error |
 | claim limit | bounded benchmark and extension scaffold, not a Nash-equilibrium or exploitability guarantee |
 
 ## Node-Level Robustness Parameters

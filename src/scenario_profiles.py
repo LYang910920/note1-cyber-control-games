@@ -247,6 +247,8 @@ TRAINING_HYPERPARAMETERS: tuple[TrainingHyperparameterProfile, ...] = (
             ("defender/attacker budgets", "2 / 2 communities per decision epoch"),
             ("learner", "NumPy softmax self-play over communities"),
             ("response matrix", "none, uniform, degree, risk, oracle, budget-random, learned"),
+            ("held-out evaluation", "--eval-seeds, --eval-strengths, and --size-sweep"),
+            ("summary output", "--summary-csv groups payoff and infection metrics by size/strength/policy pair"),
         ),
         source="src/node_siprs_adversarial_large.py",
     ),

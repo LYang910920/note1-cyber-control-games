@@ -32,7 +32,7 @@ For network-scale impulse models, record whether a jump is node-local, edge-loca
 
 Use `src/node_siprs_mappo.py` as the first graph-scale cooperative route. It imports the canonical foundation SIPRS equations, keeps node states as `[S,I,P,R]`, and partitions the graph into regional defender communities. Each regional defender observes local means, boundary pressure, global infection, time-to-go, previous action, and a known heterogeneity summary for its community. The smoke MAPPO loop includes GAE, clipped policy ratios, minibatches, value loss, entropy, and gradient clipping.
 
-Use `src/node_siprs_adversarial_large.py` when the paper model needs a larger node-level attacker-defender scaffold. It uses sparse scale-free graphs, the same heterogeneous SIPRS equations, defender community budgets, attacker beta-boost budgets, self-play softmax policies, and a response matrix. Replace the softmax learner with MAPPO, MADDPG, opponent pools, or exploitability evaluation only after the response matrix is stable.
+Use `src/node_siprs_adversarial_large.py` when the paper model needs a larger node-level attacker-defender scaffold. It uses sparse scale-free graphs, the same heterogeneous SIPRS equations, defender community budgets, attacker beta-boost budgets, self-play softmax policies, and response matrices. The command can evaluate held-out graph seeds, heterogeneity strengths, and node-count sweeps through one entry point. Replace the softmax learner with MAPPO, MADDPG, opponent pools, or exploitability evaluation only after these response and sweep diagnostics are stable.
 
 Use `src/node_level_robustness.py` as a separate stress-test route from aggregate feedback to stochastic node-level S/I/R graphs. It demonstrates a useful stress test: compare a nominal-parameter FBSM open-loop schedule with a feedback policy when the true graph dynamics and propagation parameters differ from the baseline model.
 
@@ -61,7 +61,7 @@ Use `src/node_level_robustness.py` as a separate stress-test route from aggregat
 | Heterogeneity | community-correlated physical and economic parameters from the foundation package |
 | Learner | bounded NumPy softmax self-play over communities |
 | Baselines | none, uniform, degree, risk, oracle, budget-random, learned |
-| Main output | response matrix with defender payoff, attacker payoff, infected exposure, peak/final infection, and mass error |
+| Main output | response matrix plus optional summary table over held-out seeds, strengths, and node counts |
 | Claim limit | scalable benchmark scaffold, not a full MAPPO/MADDPG implementation |
 
 ## From Tutorial Code To Paper Models

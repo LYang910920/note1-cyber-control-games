@@ -58,7 +58,7 @@ python run_all.py train
 | Heterogeneous node-SIPRS cooperative MAPPO | `src/node_siprs_mappo.py` | `python run_all.py mappo --policy-csv artifacts/extended_validation/mappo_policy.csv` | reward, infected exposure, peak/final infection, mass error | community defenders observe local state plus risk/rate summaries |
 | Uniform/degree/risk/oracle/budget-random baselines | `baseline_actions`, `evaluate_policy_baselines` | same command with `--policy-csv` | cumulative infected exposure and action count | budget-matched one-community intervention per epoch |
 | Held-out seeds and heterogeneity strengths | `evaluate_policy_baselines` | same command | policy metrics across seeds 101-105 and strengths 0.2/current/0.5 | runs on unseen profiles after training |
-| Larger heterogeneous attacker-defender node-SIPRS benchmark | `src/node_siprs_adversarial_large.py` | `python run_all.py large-game --response-csv artifacts/extended_validation/large_game_response.csv` | defender/attacker payoff, infected exposure, response matrix, mass error | sparse graph, community budgets, self-play softmax policies |
+| Larger heterogeneous attacker-defender node-SIPRS benchmark | `src/node_siprs_adversarial_large.py` | `python run_all.py large-game --response-csv ... --summary-csv ...` | defender/attacker payoff, infected exposure, response matrix, mass error | sparse graph, community budgets, self-play softmax policies, held-out seeds/strengths/sizes |
 
 ## Representative Experiments
 
@@ -95,6 +95,10 @@ Extended local diagnostic run:
 
 ```bash
 python run_all.py train --profile teaching --episodes 240 --device cpu
+python run_all.py large-game --nodes 1000 --communities 10 --horizon 8 --episodes 8 \
+  --eval-seeds 101,102 --eval-strengths 0.25,0.55 --size-sweep 256,1000 \
+  --response-csv artifacts/extended_validation/large_game_deep_response.csv \
+  --summary-csv artifacts/extended_validation/large_game_deep_summary.csv
 ```
 
 In this run, FBSM control updates converged, DDQN evaluation return improved from about -76.6 to -20.6, and the node-level robustness comparison reported mean infected-node exposure 1.677 for DDQN feedback versus 16.111 for the nominal-beta FBSM open-loop schedule.

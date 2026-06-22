@@ -18,6 +18,7 @@ import argparse
 import csv
 from dataclasses import dataclass, replace
 from pathlib import Path
+from statistics import fmean
 
 import networkx as nx
 import numpy as np
@@ -368,7 +369,11 @@ def rollout_game(
         "seed": run_seed,
         "nodes": cfg.nodes,
         "communities": cfg.communities,
+        "horizon": cfg.horizon,
+        "mean_degree": cfg.mean_degree,
         "heterogeneity_strength": cfg.heterogeneity_strength,
+        "defender_budget": cfg.defender_budget,
+        "attacker_budget": cfg.attacker_budget,
         "defender_payoff": defender_return,
         "attacker_payoff": attacker_return,
         "cumulative_infected_exposure": infected_exposure,
@@ -464,13 +469,108 @@ def evaluate_response_matrix(
     return rows
 
 
+def evaluate_response_sweep(
+    cfg: LargeAdversarialSIPRSConfig,
+    defender_logits: np.ndarray | None = None,
+    attacker_logits: np.ndarray | None = None,
+    *,
+    seeds: tuple[int, ...] = (101, 102, 103),
+    strengths: tuple[float, ...] | None = None,
+    sizes: tuple[int, ...] | None = None,
+) -> list[dict[str, float | int | str]]:
+    """Evaluate response matrices across held-out graph sizes and parameter strengths."""
+
+    strengths = strengths or (cfg.heterogeneity_strength,)
+    sizes = sizes or (cfg.nodes,)
+    rows: list[dict[str, float | int | str]] = []
+    for nodes in sizes:
+        if nodes < cfg.communities:
+            raise ValueError(f"size-sweep node count {nodes} is smaller than communities={cfg.communities}")
+        for strength in strengths:
+            eval_cfg = replace(cfg, nodes=int(nodes), heterogeneity_strength=float(strength))
+            rows.extend(
+                evaluate_response_matrix(
+                    eval_cfg,
+                    defender_logits,
+                    attacker_logits,
+                    seeds=seeds,
+                )
+            )
+    return rows
+
+
+def summarize_response_rows(rows: list[dict[str, float | int | str]]) -> list[dict[str, float | int | str]]:
+    """Aggregate response rows by size, strength, and policy pair."""
+
+    groups: dict[tuple[int, int, float, str, str], list[dict[str, float | int | str]]] = {}
+    for row in rows:
+        key = (
+            int(row["nodes"]),
+            int(row["communities"]),
+            float(row["heterogeneity_strength"]),
+            str(row["defender_policy"]),
+            str(row["attacker_policy"]),
+        )
+        groups.setdefault(key, []).append(row)
+
+    metrics = (
+        "defender_payoff",
+        "attacker_payoff",
+        "cumulative_infected_exposure",
+        "peak_global_infected",
+        "final_global_infected",
+    )
+    summary: list[dict[str, float | int | str]] = []
+    for (nodes, communities, strength, defender_policy, attacker_policy), group in sorted(groups.items()):
+        out: dict[str, float | int | str] = {
+            "nodes": nodes,
+            "communities": communities,
+            "heterogeneity_strength": strength,
+            "defender_policy": defender_policy,
+            "attacker_policy": attacker_policy,
+            "rollouts": len(group),
+            "seeds": ";".join(str(seed) for seed in sorted({int(row["seed"]) for row in group})),
+            "horizon": int(group[0]["horizon"]),
+            "mean_degree": float(group[0]["mean_degree"]),
+            "defender_budget": int(group[0]["defender_budget"]),
+            "attacker_budget": int(group[0]["attacker_budget"]),
+            "mass_error_max": max(float(row["mass_error"]) for row in group),
+        }
+        for metric in metrics:
+            values = [float(row[metric]) for row in group]
+            out[f"{metric}_mean"] = fmean(values)
+            out[f"{metric}_std"] = float(np.std(values, ddof=0))
+        summary.append(out)
+    return summary
+
+
 def _write_csv(path: Path, rows: list[dict[str, float | int | str]]) -> None:
+    if not rows:
+        raise ValueError(f"cannot write empty CSV to {path}")
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=list(rows[0].keys()))
         writer.writeheader()
         writer.writerows(rows)
     print(f"wrote {path}")
+
+
+def _parse_int_tuple(raw: str | None) -> tuple[int, ...]:
+    if raw is None or raw.strip() == "":
+        return ()
+    values = tuple(int(part.strip()) for part in raw.split(",") if part.strip())
+    if any(value <= 0 for value in values):
+        raise ValueError("integer lists must contain positive values")
+    return values
+
+
+def _parse_float_tuple(raw: str | None) -> tuple[float, ...]:
+    if raw is None or raw.strip() == "":
+        return ()
+    values = tuple(float(part.strip()) for part in raw.split(",") if part.strip())
+    if any(value < 0.0 for value in values):
+        raise ValueError("float lists must contain nonnegative values")
+    return values
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -488,6 +588,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--seed", type=int, default=29)
     parser.add_argument("--output-csv", type=Path, default=None)
     parser.add_argument("--response-csv", type=Path, default=None)
+    parser.add_argument("--summary-csv", type=Path, default=None)
+    parser.add_argument("--eval-seeds", type=str, default=None, help="Comma-separated held-out graph seeds.")
+    parser.add_argument("--eval-strengths", type=str, default=None, help="Comma-separated heterogeneity strengths.")
+    parser.add_argument("--size-sweep", type=str, default=None, help="Comma-separated node counts for held-out evaluation.")
     return parser
 
 
@@ -511,9 +615,25 @@ def main() -> None:
     history, defender_logits, attacker_logits = train_self_play(cfg, episodes=args.episodes, lr=args.lr, seed=args.seed)
     if args.output_csv is not None:
         _write_csv(args.output_csv, history)
+    if args.response_csv is not None or args.summary_csv is not None:
+        try:
+            seeds = _parse_int_tuple(args.eval_seeds) or ((101,) if args.smoke else (101, 102, 103))
+            strengths = _parse_float_tuple(args.eval_strengths) or (cfg.heterogeneity_strength,)
+            sizes = _parse_int_tuple(args.size_sweep) or (cfg.nodes,)
+        except ValueError as exc:
+            raise SystemExit(str(exc)) from exc
+        rows = evaluate_response_sweep(
+            cfg,
+            defender_logits,
+            attacker_logits,
+            seeds=seeds,
+            strengths=strengths,
+            sizes=sizes,
+        )
     if args.response_csv is not None:
-        rows = evaluate_response_matrix(cfg, defender_logits, attacker_logits)
         _write_csv(args.response_csv, rows)
+    if args.summary_csv is not None:
+        _write_csv(args.summary_csv, summarize_response_rows(rows))
     final = history[-1]
     print(
         "final "

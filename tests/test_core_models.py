@@ -13,6 +13,8 @@ from node_siprs_adversarial_large import (
     LargeAdversarialSIPRSConfig,
     LargeAdversarialSIPRSEnv,
     evaluate_response_matrix,
+    evaluate_response_sweep,
+    summarize_response_rows,
     train_self_play,
 )
 from node_level_robustness import (
@@ -193,6 +195,17 @@ class CoreModelTests(unittest.TestCase):
         for row in rows:
             self.assertLess(row["mass_error"], 1e-8)
             self.assertIn("cumulative_infected_exposure", row)
+
+    def test_large_node_siprs_response_sweep_summary(self):
+        cfg = LargeAdversarialSIPRSConfig(nodes=36, communities=4, horizon=2, substeps=1, seed=12)
+        rows = evaluate_response_sweep(cfg, seeds=(21,), strengths=(0.2, 0.4), sizes=(36, 44))
+        summary = summarize_response_rows(rows)
+
+        self.assertEqual({row["nodes"] for row in rows}, {36, 44})
+        self.assertEqual({row["heterogeneity_strength"] for row in rows}, {0.2, 0.4})
+        self.assertTrue(summary)
+        self.assertTrue(all(row["rollouts"] == 1 for row in summary))
+        self.assertLess(max(row["mass_error_max"] for row in summary), 1e-8)
 
     def test_scenario_profiles_are_readable_extension_entries(self):
         profile = get_scenario("paper-network-bridge")
