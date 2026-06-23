@@ -6,7 +6,7 @@ import unittest
 import numpy as np
 
 from cyber_dynamics import MalwareParams, controlled_sir_rhs, project_simplex3, rk4_integrate
-from cyber_hybrid_env import HybridCyberDefenseEnv, scripted_attacker
+from sampled_continuous_impulse_env import SampledContinuousImpulseCyberEnv, mode_intensity, scripted_attacker
 from evaluation_metrics import evaluate_game_response_matrix, evaluate_policy_suite
 from fbsm_malware_baseline import solve_fbsm
 from node_sips_adversarial_large import (
@@ -41,10 +41,13 @@ class CoreModelTests(unittest.TestCase):
         self.assertTrue(np.all(xT >= 0.0))
         self.assertAlmostEqual(float(xT.sum()), 1.0, places=8)
 
-    def test_hybrid_environment_step_contract(self):
-        env = HybridCyberDefenseEnv(seed=7)
+    def test_sampled_continuous_impulse_environment_step_contract(self):
+        env = SampledContinuousImpulseCyberEnv(seed=7)
         obs = env.reset()
-        next_obs, rewards, done, info = env.step(defender_action=(env.DEF_PATCH, 0.6), attacker_action=scripted_attacker(env, 0))
+        next_obs, rewards, done, info = env.step(
+            defender_action=mode_intensity(env.DEF_PATCH, 0.6),
+            attacker_action=scripted_attacker(env, 0),
+        )
 
         self.assertEqual(obs.shape, (3,))
         self.assertEqual(next_obs.shape, (3,))
@@ -57,11 +60,42 @@ class CoreModelTests(unittest.TestCase):
         self.assertAlmostEqual(info["t_observe"], 0.0)
         self.assertAlmostEqual(info["t_next_observe"], env.cfg.dt)
         self.assertEqual(info["solver_substeps"], env.cfg.substeps)
+        self.assertFalse(info["jump_applied"])
+        self.assertTrue(np.allclose(info["pre_jump"], info["post_jump"]))
+
+    def test_zoh_flow_matches_direct_constant_rate_integration(self):
+        env = SampledContinuousImpulseCyberEnv(seed=7)
+        x0 = env.reset(x0=np.array([0.82, 0.12, 0.06]))
+        defender_action = mode_intensity(env.DEF_PATCH, 0.5)
+        attacker_action = env.ATK_EXPLOIT
+        dpar = env.defense_parameters(defender_action)
+        apar = env.attack_parameters(attacker_action)
+
+        def rhs(x, t):
+            from cyber_dynamics import sampled_sir_flow_rhs
+
+            return sampled_sir_flow_rhs(x, dpar, apar, env.cfg.params)
+
+        expected, _ = rk4_integrate(
+            rhs,
+            x0,
+            t0=0.0,
+            dt=env.cfg.dt,
+            substeps=env.cfg.substeps,
+            project=project_simplex3,
+        )
+        next_obs, _, _, info = env.step(defender_action=defender_action, attacker_action=attacker_action)
+
+        self.assertFalse(info["jump_applied"])
+        self.assertTrue(np.allclose(next_obs, expected))
 
     def test_isolation_action_creates_impulse_jump(self):
-        env = HybridCyberDefenseEnv(seed=7)
+        env = SampledContinuousImpulseCyberEnv(seed=7)
         env.reset(x0=np.array([0.75, 0.20, 0.05]))
-        _, _, _, info = env.step(defender_action=(env.DEF_ISOLATE, 0.8), attacker_action=scripted_attacker(env, 0))
+        _, _, _, info = env.step(
+            defender_action=mode_intensity(env.DEF_ISOLATE, 0.8),
+            attacker_action=scripted_attacker(env, 0),
+        )
 
         self.assertTrue(info["jump_applied"])
         self.assertLess(info["post_jump"][1], info["pre_jump"][1])
@@ -84,7 +118,7 @@ class CoreModelTests(unittest.TestCase):
         labels = [row["policy"] for row in policy_rows]
 
         self.assertIn("Rule threshold isolate/deceive/patch", labels)
-        self.assertNotIn("Adaptive hybrid", labels)
+        self.assertNotIn("Adaptive parameterized", labels)
         for row in policy_rows:
             self.assertIn("cumulative_compromised", row)
             self.assertIn("total_defender_cost", row)

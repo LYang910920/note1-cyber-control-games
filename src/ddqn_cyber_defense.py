@@ -24,7 +24,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from cyber_hybrid_env import HybridCyberDefenseEnv, scripted_attacker
+from sampled_continuous_impulse_env import SampledContinuousImpulseCyberEnv, scripted_attacker
 
 from cybercontrol.torch_utils import MLP as SharedMLP
 from cybercontrol.torch_utils import configure_torch
@@ -61,7 +61,7 @@ def make_q_network(in_dim, out_dim, hidden=128, depth=2):
 def evaluate(qnet, episodes=5, seed=1000, horizon=None):
     """Evaluate the greedy defender policy against the scripted attacker."""
     device = next(qnet.parameters()).device
-    env = HybridCyberDefenseEnv(seed=seed)
+    env = SampledContinuousImpulseCyberEnv(seed=seed)
     if horizon is not None:
         env.cfg.horizon = horizon
     returns = []
@@ -97,7 +97,7 @@ def train(args):
         threads=getattr(args, "threads", 1),
     )
     device = torch.device(resolved_device)
-    env = HybridCyberDefenseEnv(seed=args.seed)
+    env = SampledContinuousImpulseCyberEnv(seed=args.seed)
     if args.smoke:
         env.cfg.horizon = 10
     if hasattr(args, "horizon") and args.horizon is not None:
@@ -173,7 +173,7 @@ def train(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Train a DDQN defender in the hybrid cyber-defense environment."
+        description="Train a DDQN defender in the sampled-flow cyber-defense environment."
     )
     parser.add_argument("--smoke", action="store_true", help="Run a tiny execution check.")
     parser.add_argument("--episodes", type=int, default=300, help="Number of training episodes.")

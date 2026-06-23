@@ -35,7 +35,7 @@ from evaluation_metrics import (
     summarize_rollout,
 )
 from fbsm_malware_baseline import solve_fbsm
-from madrl_ctde_hybrid_game import train as train_madrl
+from madrl_ctde_parameterized_game import train as train_madrl
 from node_level_robustness import (
     NodeSimConfig,
     action_from_defender_mode,
@@ -301,7 +301,7 @@ Open `artifacts/experiments/training_diagnostic_glossary.md` before reading the 
 
 | Item | Setting |
 |---|---|
-| Model | Hybrid malware/deception state `[S,I,R]` |
+| Model | Sampled SIR malware/deception state `[S,I,R]` |
 | Decision timing | observe at action point `t_k`, apply any impulse jump, integrate ODE to `t_{{k+1}}^-` |
 | Defender actions | none, patch, clean, deceive, isolate |
 | Attacker actions | scan, exploit, lateral, stealth |
@@ -376,7 +376,7 @@ Use this page as the first stop after running `python scripts/run_training_itera
 
 | Item | Value |
 |---|---|
-| Model | Hybrid malware/deception `[S,I,R]` |
+| Model | Sampled SIR malware/deception `[S,I,R]` |
 | Default decision interval | `Delta t = {policy_metrics[0]["decision_dt"]:.2f}` in this run; nonuniform `Delta t_k` is also valid |
 | Solver substeps | `{policy_metrics[0]["rk4_substeps"]}` RK4 substeps per decision interval |
 | Observation convention | policy sees pre-jump `x(t_k^-)`; next observation is `x(t_{{k+1}}^-)` |
@@ -390,7 +390,7 @@ Open `artifacts/figures/training_iteration_diagnostics.png`.
 | FBSM baseline convergence | max control-update change should decay toward zero |
 | DDQN sampled-data defender | rolling evaluation return should improve and stabilize |
 | Compact CTDE attacker-defender diagnostics | loss and defender return should remain finite and interpretable |
-| Hybrid malware policy comparison | DDQN should be competitive with or better than fixed policies |
+| Sampled-flow impulse policy comparison | DDQN should be competitive with or better than fixed policies |
 
 ## 3. Learning-Versus-Baseline Result
 
@@ -473,7 +473,7 @@ def plot_training_diagnostics(output_path: Path, fbsm: list[dict], ddqn: list[di
 
     add_caption(
         fig,
-        "Training diagnostics: FBSM uses solver iterations and reports control-update convergence; DDQN and compact CTDE use episodes and report reward/loss trends; the baseline panel uses the same hybrid malware model rolled forward under each policy.",
+        "Training diagnostics: FBSM uses solver iterations and reports control-update convergence; DDQN and compact CTDE use episodes and report reward/loss trends; the baseline panel uses the same sampled SIR malware model rolled forward under each policy.",
     )
     fig.tight_layout(rect=(0, 0.065, 1, 1))
     output_path.parent.mkdir(exist_ok=True)
@@ -482,7 +482,7 @@ def plot_training_diagnostics(output_path: Path, fbsm: list[dict], ddqn: list[di
         output_path,
         metadata={
             "figure_type": "training diagnostics",
-            "control_type": "continuous FBSM, sampled DDQN, and hybrid game learning",
+            "control_type": "continuous FBSM, sampled DDQN, and parameterized Markov-game learning",
         },
     )
     plt.close(fig)
@@ -517,7 +517,7 @@ def plot_game_response_matrix(output_path: Path, rows: list[dict]) -> None:
         output_path,
         metadata={
             "figure_type": "game response matrix",
-            "model": "hybrid attacker-defender Markov game",
+            "model": "parameterized attacker-defender Markov game",
         },
     )
     plt.close(fig)

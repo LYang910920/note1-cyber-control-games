@@ -42,9 +42,9 @@ Use this page before changing the model, reward, or learner. It separates physic
 
 | Scenario | State level | Control type | Horizon | `Delta t` | Main dynamics |
 |---|---|---|---:|---:|---|
-| `tutorial-hybrid-small` | aggregate `[S,I,R]` | hybrid continuous rates plus optional isolation impulse | `100` | `1.0` | `beta0=0.65`, `gamma=0.05`, `chi=0.70` |
-| `impulse-visible-defense` | aggregate `[S,I,R]` | impulse-dominant hybrid control | `80` | `1.0` | `beta0=0.80`, `gamma=0.04`, lower isolation/usability costs |
-| `paper-network-bridge` | aggregate now, bridge to graph state | hybrid control with stochastic initial states | `160` | `0.5` | `beta0=0.75`, `gamma=0.06`, stronger stress-test setting |
+| `tutorial-sampled-impulse-small` | aggregate `[S,I,R]` | sampled-data flow rates plus optional isolation impulse | `100` | `1.0` | `beta0=0.65`, `gamma=0.05`, `chi=0.70` |
+| `impulse-visible-defense` | aggregate `[S,I,R]` | impulse-dominant sampled-data control | `80` | `1.0` | `beta0=0.80`, `gamma=0.04`, lower isolation/usability costs |
+| `paper-network-bridge` | aggregate now, bridge to graph state | sampled flow control with stochastic initial states | `160` | `0.5` | `beta0=0.75`, `gamma=0.06`, stronger stress-test setting |
 
 ## FBSM And Solver Parameters
 
@@ -67,7 +67,7 @@ Use this page before changing the model, reward, or learner. It separates physic
 | DDQN GPU-oriented profile | `episodes=600`, `horizon=48`, `eval_episodes=8`, `batch_size=256`, `hidden=256`, `depth=3`, `lr=5e-4`, `gamma=0.995`, `buffer_size=100000`, `target_update=200`, epsilon decay `4000`, `device=auto` | `python scripts/run_training_iterations.py --profile gpu --device auto` |
 | Compact CTDE GPU-oriented profile | `episodes=600`, `horizon=32`, `hidden=192`, `lr=3e-4`, `gamma=0.99`, `entropy_coef=0.015` | `python scripts/run_training_iterations.py --profile gpu` |
 | DDQN smoke | `--smoke` keeps the run short for execution checks | `src/ddqn_cyber_defense.py` |
-| Compact CTDE smoke | `--smoke` keeps the run short for execution checks | `src/madrl_ctde_hybrid_game.py` |
+| Compact CTDE smoke | `--smoke` keeps the run short for execution checks | `src/madrl_ctde_parameterized_game.py` |
 
 ## Node-SIPS MAPPO Parameters
 
@@ -125,7 +125,7 @@ This table defines the parameter-mismatch stress test. The FBSM baseline is solv
 | Goal | First file |
 |---|---|
 | Change ODE rates or compartments | `src/cyber_dynamics.py` |
-| Change impulse/jump behavior | `src/cyber_hybrid_env.py` |
+| Change impulse/jump behavior | `src/sampled_continuous_impulse_env.py` |
 | Change scenario defaults | `src/scenario_profiles.py` |
 | Change DDQN/MADRL training hyperparameters | `scripts/run_training_iterations.py` |
 | Move toward graph-scale experiments | `src/node_sips_mappo.py` first, then `src/node_level_robustness.py` |

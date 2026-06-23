@@ -23,10 +23,10 @@ The repository is organized around one readable path from model to experiment:
     run_training_iterations.py
   src/
     cyber_dynamics.py
-    cyber_hybrid_env.py
+    sampled_continuous_impulse_env.py
     fbsm_malware_baseline.py
     ddqn_cyber_defense.py
-    madrl_ctde_hybrid_game.py
+    madrl_ctde_parameterized_game.py
     node_level_robustness.py
     evaluation_metrics.py
   artifacts/experiments/
@@ -72,7 +72,7 @@ Expected output: training return, validation return, and exploration rate. Impro
 
 \subsection{MADRL attacker-defender game}
 \begin{lstlisting}[style=pythonstyle]
-python src/madrl_ctde_hybrid_game.py --episodes 200
+python src/madrl_ctde_parameterized_game.py --episodes 200
 \end{lstlisting}
 Expected output: defender and attacker episode returns. This file is a compact CTDE teaching example. For research, extend it with MAPPO clipping, GAE, opponent pools, and cross-play evaluation.
 
@@ -80,7 +80,7 @@ Expected output: defender and attacker episode returns. This file is a compact C
 \begin{lstlisting}[style=pythonstyle]
 python scripts/generate_figures.py
 \end{lstlisting}
-Expected output: refreshed PNG figures under \texttt{docs/assets/}, including neural architecture, action timing, FBSM, hybrid rollout, and policy-comparison plots.
+Expected output: refreshed PNG figures under \texttt{docs/assets/}, including neural architecture, action timing, FBSM, sampled-flow rollout, and policy-comparison plots.
 
 \subsection{Longer training diagnostics}
 \begin{lstlisting}[style=pythonstyle]
@@ -125,7 +125,7 @@ x=[S_1,I_1,R_1,\ldots,S_K,I_K,R_K].
 The infection pressure should use the degree-weighted infected probability.
 
 \subsection{From scripted attacker to learned attacker}
-Start with \texttt{ddqn\_cyber\_defense.py}. Replace the scripted attacker with an actor network. Then use \texttt{madrl\_ctde\_hybrid\_game.py} as the training template.
+Start with \texttt{ddqn\_cyber\_defense.py}. Replace the scripted attacker with an actor network. Then use \texttt{madrl\_ctde\_parameterized\_game.py} as the training template.
 
 \subsection{From one attacker to a response matrix}
 Use \texttt{evaluation\_metrics.py} to add attacker policies, then rerun the training-diagnostics script.  The output \texttt{game\_response\_metrics.csv} is the first step toward cross-play and exploitability analysis.

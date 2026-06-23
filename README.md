@@ -6,7 +6,7 @@ Executable code for cyber optimal control, sampled-data reinforcement learning, 
 
 | Order | Repository | Role |
 |---:|---|---|
-| 0 | [network-control-differential-games](https://github.com/LYang910920/network-control-differential-games) | Foundation notation, shared `cybercontrol` package, continuous/impulse/hybrid examples, degree-vs-node scalability, and reference smoke runs. |
+| 0 | [network-control-differential-games](https://github.com/LYang910920/network-control-differential-games) | Foundation notation, shared `cybercontrol` package, continuous-time, impulse, continuous-impulsive examples, degree-vs-node scalability, and reference smoke runs. |
 | 1 | `note1-cyber-control-games` | FBSM baseline, sampled-data MDP conversion, DDQN defense, CTDE attacker-defender learning, cooperative node-SIPS MAPPO, and larger node-SIPS attacker-defender benchmarks. |
 | 2 | [note2-pinn-pidl-cyber-control](https://github.com/LYang910920/note2-pinn-pidl-cyber-control) | PINN/PIDL inverse learning, neural control, PMP-informed losses, and graph-state residual examples. |
 
@@ -44,9 +44,9 @@ python run_all.py train
 | Parameters and hyperparameters | `docs/PARAMETERS.md` |
 | MDP, Markov-game, and impulse timing | `docs/MODEL_TO_MDP.md` |
 | Paper workflow and extensions | `docs/PAPER_WORKFLOW.md`, `docs/EXTENDING.md` |
-| Aggregate cyber environment | `src/cyber_hybrid_env.py` |
+| Aggregate cyber environment | `src/sampled_continuous_impulse_env.py` |
 | FBSM baseline | `src/fbsm_malware_baseline.py` |
-| DDQN and CTDE | `src/ddqn_cyber_defense.py`, `src/madrl_ctde_hybrid_game.py` |
+| DDQN and CTDE | `src/ddqn_cyber_defense.py`, `src/madrl_ctde_parameterized_game.py` |
 | Heterogeneous cooperative node-SIPS MAPPO | `src/node_sips_mappo.py` |
 | Larger heterogeneous node-SIPS attacker-defender game | `src/node_sips_adversarial_large.py` |
 | Static figures and bounded diagnostics | `scripts/generate_figures.py`, `scripts/run_training_iterations.py` |
@@ -66,11 +66,15 @@ The FBSM baseline solves a continuous-time malware-control problem and produces 
 
 ![FBSM malware-control baseline](docs/assets/fbsm_malware_control.png)
 
-The hybrid policy comparison evaluates no defense, fixed defenses, and a rule-based hybrid policy on the same simulator. Lower compromised exposure is better.
+The taxonomy figure separates decision timing, action-value domain, and state effect. This prevents confusing a continuous-valued sampled action with a continuously varying control signal.
 
-![Hybrid policy comparison](docs/assets/hybrid_policy_comparison.png)
+![Control action taxonomy](docs/assets/control_action_taxonomy.png)
 
-The action-timing diagram separates policy decision epochs, internal ODE substeps, and impulse/event times from the original hybrid model.
+The sampled-flow plus optional impulse comparison evaluates no defense, fixed defenses, and a rule-based policy on the same simulator. Lower compromised exposure is better.
+
+![Sampled-flow and impulse policy comparison](docs/assets/sampled_impulse_policy_comparison.png)
+
+The action-timing diagram separates policy decision epochs, internal ODE substeps, and impulse/event times from the original continuous or impulse model.
 
 ![Action timing](docs/assets/action_timing.png)
 

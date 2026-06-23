@@ -17,8 +17,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable
 
-from cyber_dynamics import HybridParams
-from cyber_hybrid_env import EnvConfig
+from cyber_dynamics import SampledSIRParams
+from sampled_continuous_impulse_env import EnvConfig
 
 
 @dataclass(frozen=True)
@@ -49,13 +49,13 @@ class TrainingHyperparameterProfile:
     source: str
 
 
-def tutorial_hybrid_small() -> EnvConfig:
-    """Default compact hybrid cyber-defense setting."""
+def tutorial_sampled_impulse_small() -> EnvConfig:
+    """Default compact sampled-flow plus impulse cyber-defense setting."""
     return EnvConfig(
         dt=1.0,
         substeps=10,
         horizon=100,
-        params=HybridParams(beta0=0.65, gamma=0.05, omega=0.01, chi=0.70),
+        params=SampledSIRParams(beta0=0.65, gamma=0.05, omega=0.01, chi=0.70),
         randomize_initial_state=False,
     )
 
@@ -66,7 +66,7 @@ def impulse_visible_defense() -> EnvConfig:
         dt=1.0,
         substeps=12,
         horizon=80,
-        params=HybridParams(beta0=0.80, gamma=0.04, omega=0.015, chi=0.65),
+        params=SampledSIRParams(beta0=0.80, gamma=0.04, omega=0.015, chi=0.65),
         c_isolate=1.4,
         usability_cost=1.8,
         randomize_initial_state=True,
@@ -79,7 +79,7 @@ def paper_network_bridge() -> EnvConfig:
         dt=0.5,
         substeps=8,
         horizon=160,
-        params=HybridParams(beta0=0.75, gamma=0.06, omega=0.02, chi=0.55),
+        params=SampledSIRParams(beta0=0.75, gamma=0.06, omega=0.02, chi=0.55),
         w_I=12.0,
         c_deceive=1.2,
         c_isolate=2.4,
@@ -88,23 +88,23 @@ def paper_network_bridge() -> EnvConfig:
 
 
 SCENARIOS: dict[str, CyberScenarioProfile] = {
-    "tutorial-hybrid-small": CyberScenarioProfile(
-        name="tutorial-hybrid-small",
-        question="Can the full continuous/impulse/hybrid loop run end to end?",
+    "tutorial-sampled-impulse-small": CyberScenarioProfile(
+        name="tutorial-sampled-impulse-small",
+        question="Can the sampled flow plus optional impulse loop run end to end?",
         state_level="aggregate S/I/R compartments",
         timing="fixed sampled-data decisions t_k with RK4 substeps inside each interval",
-        control_type="hybrid: continuous rates plus optional impulse isolation",
-        first_files_to_edit=("src/cyber_dynamics.py", "src/cyber_hybrid_env.py"),
+        control_type="sampled-data flow rates plus optional isolation impulse",
+        first_files_to_edit=("src/cyber_dynamics.py", "src/sampled_continuous_impulse_env.py"),
         paper_extension="Add compartments, budgets, attacker knowledge states, or richer jump maps.",
-        config_factory=tutorial_hybrid_small,
+        config_factory=tutorial_sampled_impulse_small,
     ),
     "impulse-visible-defense": CyberScenarioProfile(
         name="impulse-visible-defense",
         question="What happens when impulsive isolation has a visible state jump?",
         state_level="aggregate S/I/R compartments",
         timing="fixed t_k decisions; impulse is applied before continuous ODE flow",
-        control_type="impulse-dominant hybrid control",
-        first_files_to_edit=("src/cyber_hybrid_env.py", "src/evaluation_metrics.py"),
+        control_type="impulse-dominant sampled-data control",
+        first_files_to_edit=("src/sampled_continuous_impulse_env.py", "src/evaluation_metrics.py"),
         paper_extension="Replace the scalar jump with node-local, edge-local, or event-triggered jumps.",
         config_factory=impulse_visible_defense,
     ),
@@ -113,11 +113,11 @@ SCENARIOS: dict[str, CyberScenarioProfile] = {
         question="How should I prepare the tutorial environment for a larger paper-style model?",
         state_level="aggregate state now; transition point toward node-level graph states",
         timing="shorter decision interval with more policy steps",
-        control_type="hybrid control with stochastic initial states",
+        control_type="sampled flow control with stochastic initial states",
         first_files_to_edit=(
             "src/node_level_robustness.py",
             "src/node_sips_adversarial_large.py",
-            "src/madrl_ctde_hybrid_game.py",
+            "src/madrl_ctde_parameterized_game.py",
         ),
         paper_extension="Move the state from aggregate compartments to graph/node features and run multi-seed stress tests.",
         config_factory=paper_network_bridge,

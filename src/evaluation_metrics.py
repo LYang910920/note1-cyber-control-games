@@ -2,7 +2,7 @@
 Copyright (c) 2026 Luxing Yang.
 Licensed under the MIT License. See LICENSE in the repository root.
 
-Policy-rollout metrics for the Note 1 hybrid cyber-control examples.
+Policy-rollout metrics for the Note 1 sampled-flow and impulse examples.
 
 The helpers keep method-comparison plots and experiment CSV files consistent.
 They also make the timing convention explicit: policies observe at decision
@@ -13,51 +13,57 @@ from __future__ import annotations
 from typing import Callable, Dict, List, Tuple
 import numpy as np
 
-from cyber_hybrid_env import Action, EnvConfig, HybridCyberDefenseEnv, scripted_attacker
+from sampled_continuous_impulse_env import (
+    Action,
+    EnvConfig,
+    SampledContinuousImpulseCyberEnv,
+    mode_intensity,
+    scripted_attacker,
+)
 
-PolicyFn = Callable[[HybridCyberDefenseEnv, int, np.ndarray], Action]
-AttackerFn = Callable[[HybridCyberDefenseEnv, int, np.ndarray], Action]
+PolicyFn = Callable[[SampledContinuousImpulseCyberEnv, int, np.ndarray], Action]
+AttackerFn = Callable[[SampledContinuousImpulseCyberEnv, int, np.ndarray], Action]
 
 
-def no_defense_policy(env: HybridCyberDefenseEnv, k: int, obs: np.ndarray) -> Action:
+def no_defense_policy(env: SampledContinuousImpulseCyberEnv, k: int, obs: np.ndarray) -> Action:
     return env.DEF_NONE
 
 
-def always_patch_policy(env: HybridCyberDefenseEnv, k: int, obs: np.ndarray) -> Action:
-    return env.DEF_PATCH, 0.8
+def always_patch_policy(env: SampledContinuousImpulseCyberEnv, k: int, obs: np.ndarray) -> Action:
+    return mode_intensity(env.DEF_PATCH, 0.8)
 
 
-def always_clean_policy(env: HybridCyberDefenseEnv, k: int, obs: np.ndarray) -> Action:
-    return env.DEF_CLEAN, 0.8
+def always_clean_policy(env: SampledContinuousImpulseCyberEnv, k: int, obs: np.ndarray) -> Action:
+    return mode_intensity(env.DEF_CLEAN, 0.8)
 
 
-def adaptive_hybrid_policy(env: HybridCyberDefenseEnv, k: int, obs: np.ndarray) -> Action:
+def adaptive_sampled_impulse_policy(env: SampledContinuousImpulseCyberEnv, k: int, obs: np.ndarray) -> Action:
     """Threshold rule using deception, patching, and isolate impulses."""
     if obs[1] > 0.20:
-        return env.DEF_ISOLATE, 0.8
+        return mode_intensity(env.DEF_ISOLATE, 0.8)
     if k < 20:
-        return env.DEF_DECEIVE, 0.7
-    return env.DEF_PATCH, 0.7
+        return mode_intensity(env.DEF_DECEIVE, 0.7)
+    return mode_intensity(env.DEF_PATCH, 0.7)
 
 
-def scripted_attacker_policy(env: HybridCyberDefenseEnv, k: int, obs: np.ndarray) -> Action:
+def scripted_attacker_policy(env: SampledContinuousImpulseCyberEnv, k: int, obs: np.ndarray) -> Action:
     """Scenario attacker used in the single-defender tutorial experiments."""
     return scripted_attacker(env, k)
 
 
-def fixed_scan_attacker(env: HybridCyberDefenseEnv, k: int, obs: np.ndarray) -> Action:
+def fixed_scan_attacker(env: SampledContinuousImpulseCyberEnv, k: int, obs: np.ndarray) -> Action:
     return env.ATK_SCAN
 
 
-def fixed_exploit_attacker(env: HybridCyberDefenseEnv, k: int, obs: np.ndarray) -> Action:
+def fixed_exploit_attacker(env: SampledContinuousImpulseCyberEnv, k: int, obs: np.ndarray) -> Action:
     return env.ATK_EXPLOIT
 
 
-def fixed_lateral_attacker(env: HybridCyberDefenseEnv, k: int, obs: np.ndarray) -> Action:
+def fixed_lateral_attacker(env: SampledContinuousImpulseCyberEnv, k: int, obs: np.ndarray) -> Action:
     return env.ATK_LATERAL
 
 
-def fixed_stealth_attacker(env: HybridCyberDefenseEnv, k: int, obs: np.ndarray) -> Action:
+def fixed_stealth_attacker(env: SampledContinuousImpulseCyberEnv, k: int, obs: np.ndarray) -> Action:
     return env.ATK_STEALTH
 
 
@@ -67,7 +73,7 @@ def policy_suite() -> List[Tuple[str, PolicyFn]]:
         ("No defense", no_defense_policy),
         ("Fixed high patch", always_patch_policy),
         ("Fixed high clean", always_clean_policy),
-        ("Rule threshold isolate/deceive/patch", adaptive_hybrid_policy),
+        ("Rule threshold isolate/deceive/patch", adaptive_sampled_impulse_policy),
     ]
 
 
@@ -90,7 +96,7 @@ def rollout_policy(
     attacker_policy: AttackerFn | None = None,
 ) -> Dict[str, object]:
     """Roll out one policy and retain states, rewards, actions, and timing."""
-    env = HybridCyberDefenseEnv(config=config, seed=seed) if config else HybridCyberDefenseEnv(seed=seed)
+    env = SampledContinuousImpulseCyberEnv(config=config, seed=seed) if config else SampledContinuousImpulseCyberEnv(seed=seed)
     env.cfg.horizon = horizon
     if attacker_policy is None:
         attacker_policy = scripted_attacker_policy
@@ -144,7 +150,7 @@ def summarize_rollout(rollout: Dict[str, object]) -> Dict[str, float | int | str
     attacker_rewards = rollout["attacker_rewards"]
     jump_removed = rollout["jump_removed"]
     dt = float(rollout["decision_dt"])
-    deception_steps = int(np.count_nonzero(defender_modes == HybridCyberDefenseEnv.DEF_DECEIVE))
+    deception_steps = int(np.count_nonzero(defender_modes == SampledContinuousImpulseCyberEnv.DEF_DECEIVE))
     action_switches = int(np.sum(defender_modes[1:] != defender_modes[:-1])) if len(defender_modes) > 1 else 0
     total_defender_reward = float(np.sum(defender_rewards))
     return {

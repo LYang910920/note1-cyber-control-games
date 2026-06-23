@@ -14,17 +14,17 @@ from __future__ import annotations
 
 import numpy as np
 
-from cybercontrol.models import HybridParams, MalwareParams, controlled_sir_rhs, hybrid_rhs, isolation_jump
+from cybercontrol.models import SampledSIRParams, MalwareParams, controlled_sir_rhs, sampled_sir_flow_rhs, isolation_jump
 from cybercontrol.numerics import project_simplex3, rk4_integrate, rk4_step
 
 Array = np.ndarray
 
 __all__ = [
     "Array",
-    "HybridParams",
+    "SampledSIRParams",
     "MalwareParams",
     "controlled_sir_rhs",
-    "hybrid_rhs",
+    "sampled_sir_flow_rhs",
     "isolation_jump",
     "project_simplex3",
     "rk4_integrate",

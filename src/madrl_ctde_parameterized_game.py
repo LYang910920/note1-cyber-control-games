@@ -7,7 +7,7 @@ Small CTDE policy-gradient baseline for an attacker-defender cyber Markov game.
 This file keeps the CTDE baseline readable:
   * decentralized categorical actors for defender and attacker;
   * a centralized critic that sees the joint state and both actions;
-  * episodic rollouts through the hybrid ODE environment;
+  * episodic rollouts through the sampled-flow and impulse environment;
   * policy-gradient updates with a shared advantage estimate.
 
 The Markov-game step is sampled-data: both agents observe at t_k, choose joint
@@ -26,7 +26,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.distributions import Categorical
-from cyber_hybrid_env import HybridCyberDefenseEnv
+from sampled_continuous_impulse_env import SampledContinuousImpulseCyberEnv
 
 from cybercontrol.torch_utils import configure_torch
 
@@ -70,7 +70,7 @@ class CentralCritic(nn.Module):
 
 
 def rollout(env, defender, attacker, critic, horizon, device):
-    """Collect one attacker-defender trajectory from the hybrid environment."""
+    """Collect one attacker-defender trajectory from the sampled environment."""
     obs_np = env.reset()
     storage = []
     for k in range(horizon):
@@ -113,7 +113,7 @@ def train(args):
     )
     device = torch.device(resolved_device)
     np.random.seed(args.seed)
-    env = HybridCyberDefenseEnv(seed=args.seed)
+    env = SampledContinuousImpulseCyberEnv(seed=args.seed)
     if args.smoke:
         env.cfg.horizon = 10
     if hasattr(args, "horizon") and args.horizon is not None:

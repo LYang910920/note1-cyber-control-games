@@ -18,7 +18,7 @@ That command prints the named student-facing profiles. Pick the closest one befo
 
 1. **Change the state.** Add new compartments, budget variables, node features, or uncertainty states. Update projection or clipping logic so the state remains physically meaningful.
 2. **Decide the timing.** State whether each action changes ODE rates, creates an impulse jump, or does both. Use `t_k` for learning action/observation points and `tau_j` for original model impulse/event points. Fixed `Delta t` is convenient, but nonuniform `Delta t_k` is valid if the simulator records it.
-3. **Change the dynamics.** Replace `controlled_sir_rhs` or `hybrid_rhs` with a new `f(x,u,a,t)`. Keep the function signature simple and write a short smoke test before adding learning.
+3. **Change the dynamics.** Replace `controlled_sir_rhs` or `sampled_sir_flow_rhs` with a new `f(x,u,a,t)`. Keep the function signature simple and write a short smoke test before adding learning.
 4. **Change the reward.** Decide which quantities should be minimized by the defender and maximized by the attacker. Add clear weights to `EnvConfig`.
 5. **Add baselines before learning.** Compare no-defense, constant-defense, threshold, and FBSM-style policies before training DDQN or MARL.
 6. **Scale the learner.** Move from the compact DDQN/CTDE files to MAPPO or a stronger library only after the environment contract is stable.
@@ -69,10 +69,10 @@ Use `src/node_level_robustness.py` as a separate stress-test route from aggregat
 | Paper-model ingredient | First tutorial hook | What to preserve while extending |
 |---|---|---|
 | More cyber compartments or assets | `src/cyber_dynamics.py` | nonnegative state projection and clear state labels |
-| Event-triggered or scheduled impulses | `HybridCyberDefenseEnv.jump_map` | explicit pre-jump and post-jump diagnostics |
-| Richer attacker behavior | `scripted_attacker`, `madrl_ctde_hybrid_game.py` | same observation/action/reward contract across baselines |
+| Event-triggered or scheduled impulses | `SampledContinuousImpulseCyberEnv.jump_map` | explicit pre-jump and post-jump diagnostics |
+| Richer attacker behavior | `scripted_attacker`, `madrl_ctde_parameterized_game.py` | same observation/action/reward contract across baselines |
 | Node-level or graph-level state | `src/node_sips_mappo.py`, `src/node_sips_adversarial_large.py`, then `src/node_level_robustness.py` | canonical SIPS semantics, aggregate metrics plus node-level stress-test outputs |
-| Larger RL/MARL algorithms | `HybridCyberDefenseEnv.step` | stable `reset/step` interface before adding external libraries |
+| Larger RL/MARL algorithms | `SampledContinuousImpulseCyberEnv.step` | stable `reset/step` interface before adding external libraries |
 | Paper-specific reward/payoff | `EnvConfig` and `evaluation_metrics.py` | separate infected exposure, defender cost, attacker payoff, and impulse counts |
 
 ## Paper-Level Extension Contract
@@ -82,7 +82,7 @@ When adapting a paper model, keep these contracts visible in code and outputs:
 1. A named profile in `src/scenario_profiles.py` with the horizon, `Delta t`, propagation rates, reward weights, learner hyperparameters, and first files to edit.
 2. A runnable smoke command that finishes quickly and checks mass conservation, finite rewards, and output files.
 3. One baseline table for the same model: no-defense, fixed/rule policies, random policies when practical, and any FBSM/PMP candidate.
-4. One result figure per model, with captions stating whether curves are aggregate means, degree classes, nodes, communities, continuous controls, impulse actions, or hybrid actions.
+4. One result figure per model, with captions stating whether curves are aggregate means, degree classes, nodes, communities, continuous-time controls, impulse actions, or parameterized actions.
 5. A short claim statement in `docs/PAPER_WORKFLOW.md`: what can be claimed from the current evidence, and what still needs multiple seeds, held-out graphs, or exploitability checks.
 
 ## Related Learning Path

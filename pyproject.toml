@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "note1-cyber-control-games"
 version = "0.1.0"
-description = "Tutorial code for cyber optimal control, sampled-data RL, and hybrid attacker-defender games."
+description = "Tutorial code for cyber optimal control, sampled-data RL, and parameterized attacker-defender games."
 readme = "README.md"
 requires-python = ">=3.9"
 license = {text = "MIT"}
@@ -25,11 +25,11 @@ dev = ["pytest", "ruff"]
 [tool.setuptools]
 py-modules = [
     "cyber_dynamics",
-    "cyber_hybrid_env",
+    "sampled_continuous_impulse_env",
     "ddqn_cyber_defense",
     "evaluation_metrics",
     "fbsm_malware_baseline",
-    "madrl_ctde_hybrid_game",
+    "madrl_ctde_parameterized_game",
     "node_sips_adversarial_large",
     "node_level_robustness",
     "node_sips_mappo",

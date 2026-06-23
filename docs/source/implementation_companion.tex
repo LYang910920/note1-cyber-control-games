@@ -16,10 +16,10 @@ File & Role \\
 \midrule
 \small\texttt{shared\_setup.py} & local helper that finds the shared foundation package in a sibling workspace \\
 \small\texttt{cyber\_dynamics.py} & compatibility wrapper for shared \texttt{cybercontrol} ODE and RK4 utilities \\
-\small\texttt{cyber\_hybrid\_env.py} & sampled-data environment with continuous flow, jump map, and hybrid actions \\
+\small\texttt{sampled\_continuous}\newline\small\texttt{\_impulse\_env.py} & sampled-data environment with continuous flow, jump map, and parameterized actions \\
 \small\texttt{fbsm\_malware\_baseline.py} & open-loop FBSM baseline from PMP \\
 \small\texttt{ddqn\_cyber\_defense.py} & discrete-action DDQN defender against a scripted attacker \\
-\small\texttt{madrl\_ctde}\newline\small\texttt{\_hybrid\_game.py} & compact CTDE attacker-defender baseline \\
+\small\texttt{madrl\_ctde}\newline\small\texttt{\_parameterized\_game.py} & compact CTDE attacker-defender baseline \\
 \small\texttt{node\_level\_robustness.py} & node-level epidemic-model robustness experiment \\
 \bottomrule
 \end{longtable}
@@ -34,20 +34,20 @@ A clean implementation should separate four layers:
 \end{enumerate}
 The code folder follows this structure. The environment is intentionally independent of DQN, PPO, or MADRL so that different learning algorithms can reuse the same cyber model.
 
-\section{ODE and Hybrid Environment}
+\section{ODE, Sampled Flow, and Impulse Environment}
 The central environment step is
 \begin{equation}
 \boxed{s_k}\rightarrow\boxed{a_D^k,a_A^k}\rightarrow\boxed{x_k^+=G(x_k,a_k)}\rightarrow\boxed{x_{k+1}=\operatorname{RK4}(f,x_k^+)}\rightarrow\boxed{r_D^k,r_A^k}.
 \end{equation}
-The implementation is in \texttt{cyber\_hybrid\_env.py}. The most important design choice is to keep jump effects separate from continuous flow effects.
+The implementation is in \texttt{sampled\_continuous\_impulse\_env.py}. The most important design choice is to keep jump effects separate from continuous flow effects.
 
-\begin{lstlisting}[style=pythonstyle,caption={Core idea of a sampled-data hybrid environment step.}]
+\begin{lstlisting}[style=pythonstyle,caption={Core idea of a sampled-data flow and impulse environment step.}]
 def step(self, defender_action, attacker_action):
     dpar = self.defense_parameters(defender_action)
     apar = self.attack_parameters(attacker_action)
     pre_jump = self.state.copy()
     post_jump = self.jump_map(pre_jump, dpar)
-    rhs = lambda x, t: hybrid_rhs(x, dpar, apar, self.cfg.params)
+    rhs = lambda x, t: sampled_sir_flow_rhs(x, dpar, apar, self.cfg.params)
     next_state, path = rk4_integrate(rhs, post_jump, t0=self.t*self.cfg.dt,
                                      dt=self.cfg.dt, substeps=self.cfg.substeps,
                                      project=project_simplex3)
@@ -135,7 +135,7 @@ If the research question becomes inverse learning, missing-mechanism learning, d
 \section{Suggested Project Sequence}
 \begin{enumerate}
 \item Run FBSM and DDQN on the same simple malware model.
-\item Add hybrid actions and compare no defense, static patch, rule-based, DDQN.
+\item Add parameterized actions and compare no defense, static patch, rule-based, DDQN.
 \item Add attacker learning and compare independent learning with CTDE.
 \item Add node-level graph experiments and parameter-mismatch robustness.
 \item Move to Note 2 if the next step is inverse PINN, PIDL, or PMP-informed neural control.

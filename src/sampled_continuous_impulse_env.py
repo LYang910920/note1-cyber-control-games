@@ -5,9 +5,9 @@ Licensed under the MIT License. See LICENSE in the repository root.
 Sampled SIR cyber-defense environment for ODE-RL, DDQN, PPO, SAC, and MADRL examples.
 
 The environment illustrates three control types used in the repository guides:
-  * continuous flow control: selected action changes ODE rates over an interval;
-  * impulsive control: selected action causes an immediate jump x(t_k+) = G(x(t_k-),a_k);
-  * hybrid action: a discrete mode plus a continuous intensity in [0,1].
+  * sampled flow control: selected action changes ODE rates over an interval;
+  * parameterized/mixed action: a mode plus an intensity held by ZOH;
+  * impulse/reset control: selected action causes x(t_k+) = G(x(t_k-),a_k).
 
 The code avoids gym/gymnasium dependencies so that it can be read
 as plain Python.  It still follows the familiar reset/step interface.
@@ -26,9 +26,30 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, Tuple, Union
 import numpy as np
-from cyber_dynamics import HybridParams, hybrid_rhs, isolation_jump, project_simplex3, rk4_integrate
+from cyber_dynamics import SampledSIRParams, sampled_sir_flow_rhs, isolation_jump, project_simplex3, rk4_integrate
 
-Action = Union[int, Tuple[int, float]]
+
+@dataclass(frozen=True)
+class ModeIntensityAction:
+    """Parameterized sampled action ``(mode, intensity)``.
+
+    ``mode`` selects the ODE-rate effect or impulse kind.  ``intensity`` is
+    clipped to ``[0,1]`` and held constant over one decision interval when the
+    action affects the flow.  A parameterized action is not an impulse unless
+    its mode explicitly calls :meth:`jump_map`.
+    """
+
+    mode: int
+    intensity: float = 1.0
+
+
+Action = Union[int, ModeIntensityAction]
+
+
+def mode_intensity(mode: int, intensity: float = 1.0) -> ModeIntensityAction:
+    """Build a readable parameterized/mixed action for policies and tests."""
+
+    return ModeIntensityAction(mode=int(mode), intensity=float(intensity))
 
 
 @dataclass
@@ -43,7 +64,7 @@ class EnvConfig:
     substeps: int = 10
     # horizon is the maximum number of policy decisions in one episode.
     horizon: int = 100
-    params: HybridParams = field(default_factory=HybridParams)
+    params: SampledSIRParams = field(default_factory=SampledSIRParams)
     # reward weights
     w_I: float = 10.0
     w_S: float = 0.5
@@ -58,13 +79,14 @@ class EnvConfig:
     randomize_initial_state: bool = False
 
 
-class HybridCyberDefenseEnv:
-    """Continuous-time cyber propagation with sampled decisions and jumps.
+class SampledContinuousImpulseCyberEnv:
+    """Sampled-data SIR propagation with ZOH flow actions and optional impulses.
 
     Inputs to `step` are a defender action and an attacker action.  The method
     applies any immediate jump, integrates the ODE over one decision interval,
     and returns the next observation, both players' rewards, a terminal flag,
-    and diagnostic information for plotting or debugging.
+    and diagnostic information for plotting or debugging.  The state shape is
+    ``(3,)`` for ``[S,I,R]`` and mass is projected back to the simplex.
     """
 
     # Defender modes
@@ -122,12 +144,20 @@ class HybridCyberDefenseEnv:
         return self.state.copy()
 
     def decode_action(self, action: Action) -> Tuple[int, float]:
-        if isinstance(action, tuple):
-            mode, intensity = action
-            return int(mode), float(np.clip(intensity, 0.0, 1.0))
+        """Decode an integer mode or ``ModeIntensityAction``.
+
+        Solver substeps are not actions.  For flow modes, the decoded intensity
+        is mapped to rates and held by zero-order hold on ``[t_k,t_{k+1})``.  A
+        state reset occurs only when the decoded mode is ``DEF_ISOLATE``.
+        """
+
+        if isinstance(action, ModeIntensityAction):
+            return int(action.mode), float(np.clip(action.intensity, 0.0, 1.0))
         return int(action), 1.0
 
     def defense_parameters(self, action: Action) -> Dict[str, float]:
+        """Map a sampled defender action to held flow rates and impulse size."""
+
         mode, v = self.decode_action(action)
         return {
             "patch": 0.30 * v if mode == self.DEF_PATCH else 0.0,
@@ -139,6 +169,8 @@ class HybridCyberDefenseEnv:
         }
 
     def attack_parameters(self, action: Action) -> Dict[str, float]:
+        """Map a sampled attacker action to held flow-rate parameters."""
+
         mode, v = self.decode_action(action)
         attack_boost = [0.10, 0.50, 0.70, 0.20][mode] * v
         stealth_factor = 0.5 if mode == self.ATK_STEALTH else 1.0
@@ -173,6 +205,11 @@ class HybridCyberDefenseEnv:
         3. apply an instantaneous jump, if the chosen mode has one;
         4. integrate the continuous ODE flow over one decision interval;
         5. return x(t_{k+1}^-) as the next observation.
+
+        Reward equation:
+        ``r_D = -(dt * running_defense_cost + impulse_cost)`` and
+        ``r_A = dt * (8 I_mean + S_mean - attack_cost)``.  Running and impulse
+        costs are kept separate in ``info``.
         """
         epoch = self.t
         t_start = epoch * self.cfg.dt
@@ -182,7 +219,7 @@ class HybridCyberDefenseEnv:
         post_jump = self.jump_map(pre_jump, dpar)
 
         def rhs(x, t):
-            return hybrid_rhs(x, dpar, apar, self.cfg.params)
+            return sampled_sir_flow_rhs(x, dpar, apar, self.cfg.params)
 
         next_state, path = rk4_integrate(rhs, post_jump, t0=t_start,
                                          dt=self.cfg.dt, substeps=self.cfg.substeps,
@@ -232,7 +269,7 @@ class HybridCyberDefenseEnv:
         return self.observe(), {"defender": defender_reward, "attacker": attacker_reward}, done, info
 
 
-def scripted_attacker(env: HybridCyberDefenseEnv, k: int):
+def scripted_attacker(env: SampledContinuousImpulseCyberEnv, k: int):
     """A non-learning attacker used for first defender experiments."""
     if k < 20:
         return env.ATK_SCAN
@@ -242,9 +279,12 @@ def scripted_attacker(env: HybridCyberDefenseEnv, k: int):
 
 
 if __name__ == "__main__":
-    env = HybridCyberDefenseEnv(seed=1)
+    env = SampledContinuousImpulseCyberEnv(seed=1)
     obs = env.reset()
     print("initial", obs)
     for k in range(5):
-        obs, rewards, done, info = env.step(defender_action=(env.DEF_PATCH, 0.8), attacker_action=scripted_attacker(env, k))
+        obs, rewards, done, info = env.step(
+            defender_action=mode_intensity(env.DEF_PATCH, 0.8),
+            attacker_action=scripted_attacker(env, k),
+        )
         print(f"k={k:02d}", "obs=", np.round(obs, 4), "rewards=", rewards)

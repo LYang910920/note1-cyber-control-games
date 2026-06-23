@@ -1,4 +1,4 @@
-# Continuous, Impulse, Hybrid, MDP, And Markov Game Guide
+# Control Timing, Impulse, MDP, And Markov Game Guide
 
 This repository uses one cyber propagation model in several forms.  The key is to keep the timing convention explicit.
 
@@ -22,20 +22,20 @@ Notation used throughout this repo:
 |---|---|
 | `t_k` | action/observation point after converting the simulator into an MDP or Markov game |
 | `Delta t_k = t_{k+1} - t_k` | action interval; it may be fixed or nonuniform |
-| `tau_j` | impulse or event point already present in the original continuous/hybrid model |
+| `tau_j` | impulse or event point already present in the original continuous-time or impulse model |
 | RK4 substeps | internal solver points inside one action interval, not learner decisions |
 
 The checked-in environment uses a fixed `EnvConfig.dt` because that is easiest to read and test.  The mathematical conversion does not require fixed intervals.  A nonuniform schedule `0=t_0<t_1<...<t_K=T` is valid if the simulator and reward use the matching `Delta t_k`.
 
 ![Action timing](../docs/assets/action_timing.png)
 
-## Three Control Types
+## Three Control/Action Types
 
 | Type | Mathematical object | Code location | Does the state jump? |
 |---|---|---|---|
 | Continuous-time control | `u(t)` appears in the ODE right-hand side. | `fbsm_malware_baseline.py`, `controlled_sir_rhs` | No |
-| Impulse control | `x(t_k^+) = G(x(t_k^-), a_k)` at selected times. | `HybridCyberDefenseEnv.jump_map` | Yes |
-| Hybrid sampled action | discrete mode plus intensity `(m_k, v_k)`; may set rates, jumps, or both. | `decode_action`, `defense_parameters`, `attack_parameters` | Depends on the mode |
+| Impulse control | `x(t_k^+) = G(x(t_k^-), a_k)` at selected times. | `SampledContinuousImpulseCyberEnv.jump_map` | Yes |
+| Parameterized sampled action | discrete mode plus intensity `(m_k, v_k)`; may set rates, jumps, or both. | `decode_action`, `defense_parameters`, `attack_parameters` | Depends on the mode |
 
 In the current environment, `DEF_ISOLATE` is impulsive because it immediately moves a fraction of compromised devices into the protected compartment.  `DEF_PATCH`, `DEF_CLEAN`, and `DEF_DECEIVE` mainly change ODE rates during the next decision interval.
 
@@ -47,9 +47,9 @@ There are two different grids.  They should not be confused.
 |---|---|---|---|
 | Continuous-control integration grid | Numerical time mesh for solving ODE/PMP equations. | FBSM baseline | No |
 | Decision grid `0=t_0<...<t_K=T` | Times where policies observe the state and choose actions. Fixed `t_k=k Delta t` is only one case. | DDQN MDP, compact CTDE/MAPPO Markov game | Yes |
-| RK4 substeps inside one interval | Internal solver steps used to integrate from `t_k` to `t_{k+1}`. | Hybrid environment | No |
+| RK4 substeps inside one interval | Internal solver steps used to integrate from `t_k` to `t_{k+1}`. | Sampled flow/impulse environment | No |
 
-FBSM does not convert the original process into an MDP.  It solves a continuous-time optimal-control problem on a numerical mesh.  DDQN, compact CTDE, and MAPPO convert the continuous/hybrid simulator into a sampled-data MDP or Markov game by exposing only the decision grid to the learning algorithm.
+FBSM does not convert the original process into an MDP.  It solves a continuous-time optimal-control problem on a numerical mesh.  DDQN, compact CTDE, and MAPPO convert the continuous-time or impulse simulator into a sampled-data MDP or Markov game by exposing only the decision grid to the learning algorithm.
 
 ## Does Learning Always Require Discretization?
 
@@ -70,7 +70,7 @@ Some models already have impulse times before learning is introduced.  Keep thos
 
 | Relationship | Meaning | Implementation |
 |---|---|---|
-| original impulse times equal decision times | every learning action may create a jump | standard hybrid MDP or Markov game |
+| original impulse times equal decision times | every learning action may create a jump | continuous-impulsive MDP or Markov game |
 | original impulse times are a subset of decision times | only some epochs allow impulse actions | action mask or time-dependent action set |
 | original impulse times are denser than decision times | simulator has events the learner does not choose | include those events inside the transition |
 | policy chooses impulse timing | timing itself is part of the action | semi-MDP or event-triggered policy |

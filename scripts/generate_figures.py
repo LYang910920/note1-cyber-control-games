@@ -31,7 +31,11 @@ from cybercontrol.plotting import (
     save_publication_figure,
     style_axis,
 )
-from cyber_hybrid_env import HybridCyberDefenseEnv, scripted_attacker
+from sampled_continuous_impulse_env import (
+    SampledContinuousImpulseCyberEnv,
+    mode_intensity,
+    scripted_attacker,
+)
 from evaluation_metrics import evaluate_policy_suite
 from fbsm_malware_baseline import solve_fbsm
 
@@ -63,20 +67,20 @@ def plot_fbsm(output_dir: Path) -> None:
     plt.close(fig)
 
 
-def plot_hybrid_rollout(output_dir: Path) -> None:
-    env = HybridCyberDefenseEnv(seed=4)
+def plot_sampled_impulse_rollout(output_dir: Path) -> None:
+    env = SampledContinuousImpulseCyberEnv(seed=4)
     obs = env.reset()
     states = [obs.copy()]
     actions = []
     for k in range(40):
         if obs[1] > 0.20:
-            action = (env.DEF_ISOLATE, 0.8)
+            action = mode_intensity(env.DEF_ISOLATE, 0.8)
         elif obs[1] > 0.08:
-            action = (env.DEF_CLEAN, 0.7)
+            action = mode_intensity(env.DEF_CLEAN, 0.7)
         else:
-            action = (env.DEF_PATCH, 0.5)
+            action = mode_intensity(env.DEF_PATCH, 0.5)
         obs, _, done, _ = env.step(action, scripted_attacker(env, k))
-        actions.append(action[0])
+        actions.append(action.mode)
         states.append(obs.copy())
         if done:
             break
@@ -88,7 +92,7 @@ def plot_hybrid_rollout(output_dir: Path) -> None:
     axes[0].plot(t, states[:, 0], label="Susceptible", linestyle="-")
     axes[0].plot(t, states[:, 1], label="Compromised", linestyle="--")
     axes[0].plot(t, states[:, 2], label="Recovered/protected", linestyle="-.")
-    panel_label(axes[0], "(a) hybrid state trajectory")
+    panel_label(axes[0], "(a) sampled-flow state trajectory")
     style_axis(axes[0], ylabel="State", legend=True)
 
     axes[1].step(np.arange(len(actions)), actions, where="post", color="black")
@@ -99,17 +103,17 @@ def plot_hybrid_rollout(output_dir: Path) -> None:
     fig.tight_layout()
     save_publication_figure(
         fig,
-        output_dir / "hybrid_policy_rollout",
+        output_dir / "sampled_impulse_policy_rollout",
         metadata={
             "model": "sampled SIR malware environment with action-dependent deception",
-            "control_type": "hybrid sampled continuous-plus-impulse policy",
-            "caption_hint": "Hybrid rollout under sampled defender actions.",
+            "control_type": "sampled flow with optional impulse/reset",
+            "caption_hint": "Sampled defender actions with ZOH flow and isolation impulses.",
         },
     )
     plt.close(fig)
 
 
-def plot_hybrid_policy_comparison(output_dir: Path) -> None:
+def plot_sampled_impulse_policy_comparison(output_dir: Path) -> None:
     rollouts, metrics = evaluate_policy_suite(horizon=50, seed=7)
     colors = list(PUBLICATION_COLORS[:4])
     linestyles = list(PUBLICATION_LINESTYLES[:4])
@@ -168,11 +172,11 @@ def plot_hybrid_policy_comparison(output_dir: Path) -> None:
     fig.tight_layout()
     save_publication_figure(
         fig,
-        output_dir / "hybrid_policy_comparison",
+        output_dir / "sampled_impulse_policy_comparison",
         metadata={
-            "model": "hybrid malware/deception environment",
-            "control_type": "hybrid policy comparison",
-            "caption_hint": "Same-model comparison of sampled hybrid defender policies.",
+            "model": "sampled SIR malware/deception environment",
+            "control_type": "sampled flow plus optional impulse policy comparison",
+            "caption_hint": "Same-model comparison of sampled defender policies.",
         },
     )
     plt.close(fig)
@@ -222,6 +226,70 @@ def plot_neural_architectures(output_dir: Path) -> None:
         output_dir / "neural_architectures",
         formats=("png", "pdf"),
         metadata={"figure_type": "guide diagram", "caption_hint": "Neural-control architecture overview."},
+    )
+    plt.close(fig)
+
+
+def plot_control_action_taxonomy(output_dir: Path) -> None:
+    """Draw the timing/value/effect taxonomy used in Section 5."""
+
+    with guide_style():
+        fig, axes = plt.subplots(2, 2, figsize=(11, 6.2))
+    t = np.linspace(0.0, 5.0, 250)
+    epochs = np.arange(0, 6)
+    zoh_values = np.array([0.15, 0.62, 0.35, 0.75, 0.48, 0.48])
+
+    ax = axes[0, 0]
+    ax.plot(t, 0.48 + 0.28 * np.sin(1.15 * t) + 0.08 * np.sin(3.4 * t), color="#4c78a8", linewidth=2.2)
+    ax.set_ylim(0, 1)
+    panel_label(ax, "(a) time-varying continuous-time control")
+    style_axis(ax, xlabel="time", ylabel="u(t)")
+    ax.text(0.2, 0.9, "signal exists throughout time", fontsize=9)
+
+    ax = axes[0, 1]
+    ax.step(epochs, zoh_values, where="post", color="#f58518", linewidth=2.2)
+    ax.scatter(epochs[:-1], zoh_values[:-1], color="#f58518", s=35, zorder=3)
+    ax.set_ylim(0, 1)
+    panel_label(ax, "(b) sampled real-valued action under ZOH")
+    style_axis(ax, xlabel="decision epoch t_k", ylabel="held u_k")
+    ax.text(0.2, 0.9, "continuous-valued action, piecewise-constant signal", fontsize=9)
+
+    ax = axes[1, 0]
+    modes = np.array([0, 1, 2, 1, 3])
+    intensity = np.array([0.0, 0.35, 0.8, 0.55, 0.25])
+    ax.step(np.arange(len(modes)), modes + 0.05, where="post", color="#54a24b", linewidth=2.0, label="mode m_k")
+    ax.plot(np.arange(len(intensity)), 3.3 * intensity, "o--", color="#9467bd", linewidth=1.6, label="intensity v_k")
+    ax.set_yticks([0, 1, 2, 3])
+    ax.set_yticklabels(["none", "patch", "clean", "deceive"])
+    panel_label(ax, "(c) switched/parameterized sampled action")
+    style_axis(ax, xlabel="decision epoch k", ylabel="mode / scaled intensity", legend=True)
+    ax.text(0.05, 2.8, "changes vector field; no reset unless specified", fontsize=9)
+
+    ax = axes[1, 1]
+    x = 0.18 + 0.11 * t + 0.05 * np.sin(2.1 * t)
+    jumps = [(1.35, -0.18), (3.25, 0.22)]
+    y = x.copy()
+    for tau, jump in jumps:
+        y[t >= tau] += jump
+    ax.plot(t, y, color="#e45756", linewidth=2.2)
+    for idx, (tau, _) in enumerate(jumps, start=1):
+        before = np.interp(tau - 1e-3, t, y)
+        after = np.interp(tau + 1e-3, t, y)
+        ax.vlines(tau, min(before, after), max(before, after), color="#e45756", linestyle="--", linewidth=2.0)
+        ax.text(tau, max(before, after) + 0.05, f"$\\tau_{idx}$", ha="center", fontsize=10)
+    panel_label(ax, "(d) impulse/reset and continuous-impulsive flow")
+    style_axis(ax, xlabel="time", ylabel="state component")
+    ax.text(0.15, y.max() - 0.05, "$x(\\tau_j^+)=G(x(\\tau_j^-),v_j)$", fontsize=9)
+
+    fig.tight_layout()
+    save_guide_figure(
+        fig,
+        output_dir / "control_action_taxonomy",
+        formats=("png", "pdf"),
+        metadata={
+            "figure_type": "guide diagram",
+            "caption_hint": "Contrasts continuous-time, ZOH sampled, mode/parameterized, and impulse actions.",
+        },
     )
     plt.close(fig)
 
@@ -279,7 +347,7 @@ def plot_action_timing(output_dir: Path) -> None:
         ax.text(tau, y_impulse - 0.26, label, ha="center", va="top", fontsize=9.5, color="#a83232")
 
     ax.text(action_times[0] - 0.1, 2.0, "$t_k$: MDP/MG observation and action points", color="#234f7f", fontsize=10)
-    ax.text(action_times[0] - 0.1, 1.78, "$\\tau_j$: impulse/event times in the original hybrid model", color="#a83232", fontsize=10)
+    ax.text(action_times[0] - 0.1, 1.78, "$\\tau_j$: impulse/event times in the original model", color="#a83232", fontsize=10)
     ax.text(
         action_times[0] - 0.1,
         -1.92,
@@ -309,9 +377,10 @@ def main() -> None:
     output_dir = ROOT / "docs" / "assets"
     output_dir.mkdir(parents=True, exist_ok=True)
     plot_fbsm(output_dir)
-    plot_hybrid_rollout(output_dir)
-    plot_hybrid_policy_comparison(output_dir)
+    plot_sampled_impulse_rollout(output_dir)
+    plot_sampled_impulse_policy_comparison(output_dir)
     plot_neural_architectures(output_dir)
+    plot_control_action_taxonomy(output_dir)
     plot_action_timing(output_dir)
     print(f"Wrote figures to {output_dir}")
 

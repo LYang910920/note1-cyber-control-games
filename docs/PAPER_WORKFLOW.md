@@ -8,12 +8,12 @@ and a larger sparse node-SIPS attacker-defender benchmark.
 
 | Paper notation | Code location | Meaning |
 | --- | --- | --- |
-| `x=[S,I,R]` | `src/cyber_hybrid_env.py` | Aggregate malware state with deception as an interval action effect. |
-| `f(x,a_D,a_A)` | `cybercontrol.models.hybrid_rhs` | Continuous flow between sampled decisions. |
+| `x=[S,I,R]` | `src/sampled_continuous_impulse_env.py` | Aggregate malware state with deception as an interval action effect. |
+| `f(x,a_D,a_A)` | `cybercontrol.models.sampled_sir_flow_rhs` | Continuous flow between sampled decisions. |
 | `G(x,a_D)` | `cybercontrol.models.isolation_jump` | Impulse jump for isolation. |
 | `Delta t` | `EnvConfig.dt` | Sampled decision interval. |
 | RK4 substeps | `EnvConfig.substeps` | Internal ODE solver steps, not MDP actions. |
-| running/impulse cost | `HybridCyberDefenseEnv.step` | Running cost plus separate impulse cost. |
+| running/impulse cost | `SampledContinuousImpulseCyberEnv.step` | Running cost plus separate impulse cost. |
 | `u(t)` | `src/fbsm_malware_baseline.py` | Continuous FBSM patching control. |
 | `x_i=[S_i,I_i,P_i]` | `src/node_sips_mappo.py`, `src/node_sips_adversarial_large.py` | Canonical node-level SIPS state. |
 | `u_i^p,u_i^c` | `patch`, `clean` in node-SIPS files | Regional sampled modes mapped to node patch/clean rates. |
@@ -36,7 +36,7 @@ and a larger sparse node-SIPS attacker-defender benchmark.
 | --- | --- |
 | State evolution | Specify aggregate state or node-level mean; label `S`, `I`, `R` for sampled SIR or `S`, `I`, `P` for node-SIPS. Deception is an action that reduces effective beta during an interval. |
 | Continuous control | FBSM `u(t)` as a time curve. |
-| Hybrid action | Discrete sampled action mode as a step plot; impulses as markers. |
+| Parameterized action | Discrete sampled action mode as a step plot; impulses as markers. |
 | Training convergence | FBSM control-change curve, DDQN evaluation return, compact CTDE loss/return, MAPPO reward/value diagnostics. |
 | Baseline comparison | No defense, fixed policies, rule policy, DDQN/CTDE/MAPPO policy, random policies, and for node-SIPS MAPPO: uniform, degree-priority, risk-priority, oracle, and budget-matched random rollouts on held-out profiles. |
 | Game response | Fixed attacker vs varied defenders, fixed defender vs varied attackers, and full response matrix for the larger node-SIPS game. |
