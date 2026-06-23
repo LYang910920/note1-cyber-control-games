@@ -16,4 +16,5 @@ artifacts/
 docs/source/*.pdf
 docs/assets/*.pdf
 !docs/assets/action_timing.pdf
+!docs/assets/control_action_taxonomy.pdf
 docs/assets/*.figure.json
