@@ -2,7 +2,7 @@
 \documentclass[11pt,a4paper]{article}
 \input{tutorial_style}
 \begin{document}
-\tutorialtitle{Tutorial Note 1}{Cyber Differential Games, PMP, RL/DRL, MADRL, Neural ODE, PINN/PIDL, and Hybrid Control}{A self-contained guide from models to implementation}{Prepared for advanced research discussion and supervision}
+\tutorialtitle{Tutorial Note 1}{Cyber Control and Game Learning}{Dynamics, action timing, MDPs, RL/DRL, MARL/MAPPO, and evaluation}{Prepared for advanced research discussion and supervision}
 \tableofcontents
 \newpage
 \lhead{\small Note 1: Cyber Control and Game Learning}
@@ -540,65 +540,27 @@ MARL learns policies $\pi_A$ and $\pi_D$ by repeated interaction.
 \subsection{What is preserved and what is lost?}
 This conversion preserves the state dynamics, intervention costs, and strategic interaction. However, it usually does not preserve the costate equations or Hamiltonian stationarity conditions unless these are explicitly added to the learning objective. Therefore, a DRL solver for the induced MDP is not automatically a solver for the PMP boundary-value problem. It is a feedback-policy solver for a discretized control/game problem.
 
-\section{PMP and FBSM: Classical Continuous-Time Solution}
-\subsection{PMP conditions}
-For
-\begin{equation}
-\min_u \Phi(x(T))+\int_0^T L(x,u,t)\dd t,
-\qquad \dot{x}=f(x,u,t),
-\end{equation}
-define the Hamiltonian
-\begin{equation}
-H(x,u,\lambda,t)=L(x,u,t)+\lambda^\top f(x,u,t).
-\end{equation}
-PMP gives \cite{pontryagin1962,lenhart2007}
-\begin{align}
-\dot{x}^*&=H_\lambda(x^*,u^*,\lambda,t),\\
-\dot{\lambda}&=-H_x(x^*,u^*,\lambda,t),\\
-u^*(t)&=\argmin_{u\in\mathcal{U}}H(x^*,u,\lambda,t),\\
-\lambda(T)&=\Phi_x(x^*(T)).
-\end{align}
-For a zero-sum differential game, the saddle-point condition is
-\begin{equation}
-u_D^*=\argmin_{u_D}H(x,u_A^*,u_D,\lambda,t),\qquad
-u_A^*=\argmax_{u_A}H(x,u_A,u_D^*,\lambda,t).
-\end{equation}
+\section{PMP/FBSM Baseline Bridge}
+\begin{boxednote}
+\textbf{Scope of this section.}
+This note uses PMP and FBSM only as a short bridge from continuous-time models to learning baselines. The detailed optimal-control derivations, FBSM implementation choices, and classical differential-game examples are maintained in the Foundation repository.
+\end{boxednote}
 
-\subsection{Malware example: deriving the control formula}
-For the controlled malware model, the Hamiltonian is
-\begin{align}
-H=&A_I I+\frac{B_p}{2}u_p^2+\frac{B_c}{2}u_c^2
-+\lambda_S(-\beta SI-u_pS+\omega R)\nonumber\\
-&+\lambda_I(\beta SI-\gamma I-u_cI)
-+\lambda_R(\gamma I+u_pS+u_cI-\omega R).
-\end{align}
-The stationarity conditions are
-\begin{align}
-H_{u_p}&=B_pu_p-\lambda_SS+\lambda_RS=0,\\
-H_{u_c}&=B_cu_c-\lambda_II+\lambda_RI=0.
-\end{align}
-With bounds, the controls are
-\begin{align}
-u_p^*(t)&=\clip\left(\frac{(\lambda_S-\lambda_R)S}{B_p},0,u_{p,\max}\right),\\
-u_c^*(t)&=\clip\left(\frac{(\lambda_I-\lambda_R)I}{B_c},0,u_{c,\max}\right).
-\end{align}
-This formula is interpretable: if the marginal benefit of moving vulnerable devices to protected devices is high, $u_p$ increases; if the marginal benefit of cleaning compromised devices is high, $u_c$ increases.
-
-\subsection{Forward-backward sweep method}
-The PMP system is a two-point boundary-value problem. FBSM solves it iteratively \cite{mcasey2012}:
+For a known continuous-time model
+\[
+\dot{x}=f(x,u,t),\qquad J=\Phi(x(T))+\int_0^T L(x,u,t)\dd t,
+\]
+PMP introduces a Hamiltonian
+\[
+H(x,u,\lambda,t)=L(x,u,t)+\lambda^\top f(x,u,t),
+\]
+and gives state, costate, stationarity, and terminal conditions \cite{pontryagin1962,lenhart2007}. FBSM solves the resulting two-point boundary-value problem iteratively:
 \begin{flowbox}
 Guess $u^{(0)}(t)$ $\rightarrow$ forward solve $x^{(i)}(t)$ $\rightarrow$ backward solve $\lambda^{(i)}(t)$ $\rightarrow$ update $u^{(i+1)}(t)$ $\rightarrow$ repeat.
 \end{flowbox}
-A relaxed update is
-\begin{equation}
-u^{(i+1)}(t)=\alpha \tilde{u}^{(i+1)}(t)+(1-\alpha)u^{(i)}(t),\qquad 0<\alpha\leq1.
-\end{equation}
-FBSM is an excellent baseline when the dynamics are known and the control is continuous. It becomes less natural when the defender must choose discrete actions such as isolate or deceive.
-
-
 
 \subsection{FBSM versus RL/DRL: what changes?}
-FBSM and RL solve different computational versions of the same modeling idea. FBSM normally returns an open-loop control $u^*(t)$ for a fixed initial condition and fixed parameters. If the actual cyber state deviates from the predicted trajectory, the open-loop schedule may be suboptimal unless the problem is solved again. RL/DRL instead learns a feedback policy $\policy(a|s)$ that reacts to the observed state.
+FBSM normally returns an open-loop control $u^*(t)$ for a fixed initial condition and fixed parameters. If the cyber state deviates from the predicted trajectory, the schedule may be suboptimal unless the problem is solved again. RL/DRL instead learns a feedback policy $\policy(a|s)$ that reacts to the observed state.
 
 \begin{longtable}{p{0.22\textwidth}p{0.34\textwidth}p{0.34\textwidth}}
 \toprule
@@ -615,10 +577,9 @@ Interpretability & high & medium to low, unless policy is analyzed \\
 \bottomrule
 \end{longtable}
 
-A useful experimental design is to treat FBSM as a continuous-control benchmark and DRL as a practical feedback controller. If DRL is claimed to improve FBSM, explain whether the improvement comes from feedback adaptation, discrete action modeling, robustness to stochasticity, or simply from optimizing a different objective.
+A useful experimental design is to treat FBSM as a continuous-control benchmark and DRL as a feedback controller. If DRL is claimed to improve FBSM, explain whether the improvement comes from feedback adaptation, discrete action modeling, robustness to stochasticity, or optimizing a different objective.
 
-\section{How PMP Should Be Connected to Learning}
-\subsection{Five levels of coupling}
+\subsection{How PMP should be connected to learning}
 \begin{longtable}{p{0.11\textwidth}p{0.24\textwidth}p{0.53\textwidth}}
 \toprule
 Level & Name & Meaning \\
@@ -636,7 +597,6 @@ Level & Name & Meaning \\
 If a method trains on $(s,a,r,s')$ only, call it a DRL solver for the induced MDP or Markov game. If the loss contains $\dot{\lambda}+H_x$, $H_u$, or HJI residuals, call it PMP-informed or HJI-informed. This avoids overstating the connection between PMP and learning.
 \end{boxednote}
 
-\subsection{Why recent papers often use Level 1}
 PMP/FBSM gives structure but may be too slow, too offline, or too continuous for operational cyber actions. For example, DDQN malware suppression formulates the malware game and then uses DDQN because actions such as patching decisions are discrete \cite{shen2023ddqn}. Time-delay deception deployment formulates a differential game but converts it to a Markov game and uses PPO to learn real-time feedback policies \cite{he2026timedelay}. These are valid designs, but the methodological contribution is not ``solving PMP by DRL.'' It is ``using DRL to solve the feedback decision problem induced by a differential game.''
 
 \section{RL and DRL in Cyber Control}
@@ -666,11 +626,11 @@ y^{DDQN}=r+\gamma_d Q_{\theta^-}\left(s',\argmax_{a'}Q_\theta(s',a')\right).
 \begin{methodbox}
 \textbf{DQN implementation for malware defense.}
 \begin{enumerate}
-\item State: $s_k=[S_k,I_k,R_k,z_k,b_k]$, normalized to $[0,1]$.
-\item Actions: $\{\text{no-op},\text{patch},\text{monitor},\text{isolate},\text{deceive}\}$.
+\item State: $s_k=[S_k,I_k,R_k]$, normalized to $[0,1]$; budget or context variables can be appended only when they are explicitly modeled.
+\item Actions: $\{\text{no-op},\text{patch},\text{clean},\text{deceive},\text{isolate}\}$.
 \item Transition: map the action to ODE parameters, integrate from $t_k$ to $t_{k+1}$.
 \item Reward: $r_k=-\Delta t_k(A_II_{k+1}+c_a(a_k)+c_{iso}\mathbf{1}_{a_k=\text{isolate}}I_{k+1})$.
-\item Network: MLP $5\to64\to64\to5$.
+\item Network: MLP $3\to64\to64\to5$ for the default aggregate environment.
 \item Training: replay buffer, target network, $\epsilon$-greedy exploration, Adam optimizer.
 \end{enumerate}
 \end{methodbox}
@@ -846,65 +806,19 @@ A cyber MADRL paper is stronger when it is not compared only with random or stat
 \end{enumerate}
 For example, if PMP gives $u_D^{\mathrm{PMP}}(t)$ for an initial state $x_0$, simulate small perturbations of $x_0$, solve FBSM repeatedly, and train a policy $\pi_D(x,t)$ to imitate the resulting controls. Then fine-tune by RL/MADRL. This produces a more transparent bridge between differential-game theory and learning.
 
-\section{Neural ODE, PINN, and PIDL: What They Do Differently}
-\subsection{Neural ODE as a dynamics learner}
-Neural ODE represents continuous dynamics by a neural network \cite{chen2018neuralode}:
-\begin{equation}
-\dot{x}=f_\theta(x,t).
-\end{equation}
-For cyber research, the most useful version is often hybrid mechanistic-neural:
-\begin{equation}
-\dot{x}=f_{known}(x,u,t)+g_\theta(x,u,t).
-\end{equation}
-The known term captures malware, APT, or rumor theory; the neural term captures unknown behavior such as attacker adaptation, social reinforcement, hidden vulnerabilities, or platform recommendation effects. Neural ODE learns dynamics; it still needs PMP, MPC, RL, or PINN/PIDL to solve control.
+\section{Neural ODE and PINN/PIDL Handoff}
+\begin{boxednote}
+\textbf{Scope of this section.}
+This note introduces Neural ODE, PINN, and PIDL only to explain how learning can be constrained by equations. Detailed inverse-learning, physics-informed, data-informed, and PMP-informed neural methods are maintained in Tutorial Note 2.
+\end{boxednote}
 
-\subsection{PINN/PIDL as equation-constrained learning}
-PINNs train networks to satisfy data and differential equation residuals \cite{raissi2019}. Approximate
-\begin{equation}
-\hat{x}(t)=N_x(t),\qquad \hat{u}(t)=N_u(t),
-\end{equation}
-and define
-\begin{equation}
-r_x(t)=\dot{\hat{x}}(t)-f(\hat{x}(t),\hat{u}(t),t;\theta).
-\end{equation}
-A basic loss is
-\begin{equation}
-\mathcal{L}=\mathcal{L}_{data}+\alpha_f\frac{1}{N_f}\sum_{j=1}^{N_f}\norm{r_x(t_j)}^2+\alpha_b\mathcal{L}_{boundary}.
-\end{equation}
-PIDL is broader than PINN: it can include ODE/PDE residuals, PMP residuals, HJB/HJI residuals, conservation laws, parameter priors, monotonicity constraints, and cyber-specific constraints.
+Neural ODE learns a continuous vector field, often written as
+\[
+\dot{x}=f_{\mathrm{known}}(x,u,t;\theta_p)+g_\theta(x,u,t),
+\]
+where the mechanistic part captures the cyber model and the neural term captures missing mechanisms such as attacker adaptation or unobserved platform effects \cite{chen2018neuralode}. It learns dynamics; it does not by itself choose an optimal action.
 
-\subsection{PMP-informed PINN}
-A true PMP-informed neural solver approximates state, costate, and control:
-\begin{equation}
-\hat{x}(t)=N_x(t),\qquad \hat{\lambda}(t)=N_\lambda(t),\qquad \hat{u}(t)=N_u(t).
-\end{equation}
-The loss is
-\begin{align}
-\mathcal{L}_{PMP}=&\frac{1}{N_f}\sum_j\norm{\dot{\hat{x}}-H_\lambda}^2
-+\frac{1}{N_f}\sum_j\norm{\dot{\hat{\lambda}}+H_x}^2 \\
-&+\frac{1}{N_f}\sum_j\norm{H_u}^2+\mathcal{L}_{IC}+\mathcal{L}_{terminal}.
-\end{align}
-This is different from Level 1 DRL: the Hamiltonian and costate equations appear inside the training objective.
-
-
-
-\subsection{How Neural ODE is trained in a cyber setting}
-Suppose observations $x(t_i)$ are available. A Neural ODE predicts
-\begin{equation}
-\hat{x}(t_{i+1})=\ODESolve(f_\theta,\hat{x}(t_i),[t_i,t_{i+1}]).
-\end{equation}
-The loss is
-\begin{equation}
-\mathcal{L}_{NODE}=\sum_i\norm{\hat{x}(t_i)-x^{obs}(t_i)}^2.
-\end{equation}
-For cyber models, a safer design is not to learn all of $f$ from scratch. Instead use
-\begin{equation}
-f_\theta(x,u,t)=f_{mechanistic}(x,u,t;\theta_p)+g_\theta(x,u,t),
-\end{equation}
-where $f_{mechanistic}$ encodes known propagation and $g_\theta$ learns missing mechanisms. This improves interpretability and reduces the amount of data required.
-
-\subsection{When PINN/PIDL is preferable to Neural ODE}
-Neural ODE primarily learns a trajectory-generating vector field from data. PINN/PIDL is preferable when one wants to enforce equations at collocation points, learn parameters under sparse data, impose conservation laws, or solve optimality systems. In short, Neural ODE is a dynamics learner; PINN/PIDL is an equation-constrained learning and solving framework. They can also be combined: Neural ODE learns unknown terms, while PINN/PIDL enforces physics and control residuals.
+PINN/PIDL adds equation residuals, conservation laws, parameter priors, boundary conditions, and sometimes PMP/HJB/HJI residuals to the training loss \cite{raissi2019}. In this project family, Note 2 is the detailed reference for inverse SIR/SIPS learning, PIDL missing-mechanism models, direct neural control, and PMP-informed neural solvers. In Note 1, these methods are mainly used as upstream estimation tools or optional equation-informed baselines before RL/MARL evaluation.
 
 \section{Hybrid Control and Mixed Continuous-Discrete Differential Games}
 \subsection{Why hybrid actions are natural}
@@ -977,7 +891,7 @@ This map makes the model transparent. It also makes it clear which part is learn
 \section{Compact Case Studies and Experiment Reporting}
 The earlier sections describe the mathematics. This section is the implementation map: what to build, what to compare, and what result should be reported. It replaces several repetitive recipes with one compact table.
 
-\begin{longtable}{p{0.16\textwidth}p{0.24\textwidth}p{0.25\textwidth}p{0.25\textwidth}}
+\begin{longtable}{p{0.15\textwidth}p{0.23\textwidth}p{0.24\textwidth}p{0.24\textwidth}}
 \toprule
 Case & What to build & What the method needs & What to report \\
 \midrule

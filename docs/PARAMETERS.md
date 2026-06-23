@@ -75,10 +75,10 @@ Use this page before changing the model, reward, or learner. It separates physic
 |---|---:|
 | default nodes | `48` |
 | default communities | `3` |
-| compartments | `[S,I,P,R]` |
+| compartments | `[S,I,P]` |
 | patch/clean semantics | patch `S -> P`; clean and natural recovery `I -> P`; waning `P -> S` |
 | heterogeneity profile | community-correlated susceptibility, infectivity, recovery, criticality, action costs, bounds, and efficacy from `cybercontrol.network_models.community_correlated_node_sips_params` |
-| observation shape | `communities x 13`: local `[S,I,P,R]`, boundary pressure, global infection, budget proxy, time-to-go, previous action, and four known heterogeneity summaries |
+| observation shape | `communities x 12`: local `[S,I,P]`, boundary pressure, global infection, budget proxy, time-to-go, previous action, and four known heterogeneity summaries |
 | reward weights | local infected share is weighted by node criticality; action costs use per-node patch/clean costs |
 | default horizon | `18` sampled decision epochs |
 | ODE interval/substeps | `Delta t=0.5`, `substeps=4` |
@@ -92,7 +92,7 @@ Use this page before changing the model, reward, or learner. It separates physic
 | default nodes | `512` |
 | default communities | `8` |
 | graph | sparse Barabasi-Albert graph, row-normalized in the foundation adjacency convention |
-| compartments | `[S,I,P,R]` |
+| compartments | `[S,I,P]` |
 | defender actions | select up to `defender_budget=2` communities; patch low-infection communities or clean high-infection communities |
 | attacker actions | select up to `attacker_budget=2` communities; selected communities receive beta boost `0.65` during the next ODE interval |
 | heterogeneity profile | community-correlated susceptibility, infectivity, recovery, criticality, action costs, bounds, and efficacy |

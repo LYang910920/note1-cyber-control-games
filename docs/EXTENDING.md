@@ -30,7 +30,7 @@ For larger models, move from compartment states to degree-level arrays, node-lev
 
 For network-scale impulse models, record whether a jump is node-local, edge-local, or global. For example, isolating one subnet may create an immediate node-state jump, while patching campaigns may change vulnerability rates over the following interval.
 
-Use `src/node_sips_mappo.py` as the first graph-scale cooperative route. It imports the canonical foundation SIPS equations, keeps node states as `[S,I,P,R]`, and partitions the graph into regional defender communities. Each regional defender observes local means, boundary pressure, global infection, time-to-go, previous action, and a known heterogeneity summary for its community. The smoke MAPPO loop includes GAE, clipped policy ratios, minibatches, value loss, entropy, and gradient clipping.
+Use `src/node_sips_mappo.py` as the first graph-scale cooperative route. It imports the canonical foundation SIPS equations, keeps node states as `[S,I,P]`, and partitions the graph into regional defender communities. Each regional defender observes local means, boundary pressure, global infection, time-to-go, previous action, and a known heterogeneity summary for its community. The smoke MAPPO loop includes GAE, clipped policy ratios, minibatches, value loss, entropy, and gradient clipping.
 
 Use `src/node_sips_adversarial_large.py` when the paper model needs a larger node-level attacker-defender scaffold. It uses sparse scale-free graphs, the same heterogeneous SIPS equations, defender community budgets, attacker beta-boost budgets, self-play softmax policies, and response matrices. The command can evaluate held-out graph seeds, heterogeneity strengths, and node-count sweeps through one entry point. Replace the softmax learner with MAPPO, MADDPG, opponent pools, or exploitability evaluation only after these response and sweep diagnostics are stable.
 
@@ -40,7 +40,7 @@ Use `src/node_level_robustness.py` as a separate stress-test route from aggregat
 
 | Item | Choice in the current code |
 |---|---|
-| State | node probabilities `x_i=[S_i,I_i,P_i,R_i]` |
+| State | node probabilities `x_i=[S_i,I_i,P_i]` |
 | Flow | canonical `cybercontrol.network_models.node_sips_rhs_numpy` |
 | Actions | per-community sampled modes: none, patch `S -> P`, clean `I -> P` |
 | Heterogeneity | community-correlated susceptibility, infectivity, recovery, criticality, action costs, bounds, and efficacy from the foundation package |
@@ -54,7 +54,7 @@ Use `src/node_level_robustness.py` as a separate stress-test route from aggregat
 
 | Item | Choice in the current code |
 |---|---|
-| State | node probabilities `x_i=[S_i,I_i,P_i,R_i]` on a sparse graph |
+| State | node probabilities `x_i=[S_i,I_i,P_i]` on a sparse graph |
 | Flow | canonical `cybercontrol.network_models.node_sips_rhs_numpy` |
 | Defender action | choose communities to patch or clean under a budget |
 | Attacker action | choose communities receiving temporary infection-rate boost |
