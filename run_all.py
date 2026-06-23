@@ -38,9 +38,9 @@ def main() -> None:
     if args.command == "train":
         run([py, "scripts/run_training_iterations.py", *rest])
     if args.command == "mappo":
-        run([py, "src/node_siprs_mappo.py", *rest])
+        run([py, "src/node_sips_mappo.py", *rest])
     if args.command == "large-game":
-        run([py, "src/node_siprs_adversarial_large.py", *rest])
+        run([py, "src/node_sips_adversarial_large.py", *rest])
 
 
 if __name__ == "__main__":

@@ -7,7 +7,7 @@
 \newpage
 
 \section{Purpose}
-This companion explains the Note 1 Python files. The goal is not to provide production-ready benchmark software. The goal is to make the conversion from equations to code explicit and extendable. Each script is short enough to read, but structured enough to become a research prototype. PINN/PIDL examples are handled in the separate Note 2 repository.
+This companion explains the Note 1 Python files. It maps equations to runnable code and points to extension hooks used in research prototypes. PINN/PIDL examples are handled in the separate Note 2 repository.
 
 \section{File Map}
 \begin{longtable}{p{0.28\textwidth}p{0.62\textwidth}}
@@ -56,11 +56,11 @@ def step(self, defender_action, attacker_action):
 \end{lstlisting}
 
 \subsection{How to extend this environment}
-To extend from the simple $[S,I,R,z]$ model to a degree-based network model, replace the state vector with
+To extend from the simple $[S,I,R]$ model to a degree-based network model, replace the state vector with
 \begin{equation}
-x=[S_1,I_1,R_1,\ldots,S_K,I_K,R_K,z]
+x=[S_1,I_1,R_1,\ldots,S_K,I_K,R_K]
 \end{equation}
-where $K$ is the number of degree classes. Then update the RHS so that infection pressure for degree class $k$ uses a degree-weighted infected neighbor probability. The RL environment interface does not change.
+where $K$ is the number of degree classes. Then update the RHS so that infection pressure for degree class $k$ uses a degree-weighted infected neighbor probability. Deception remains an action-dependent reduction of effective infection pressure during a decision interval rather than a core state compartment. The RL environment interface does not change.
 
 \section{FBSM Baseline}
 The FBSM file solves a continuous-control malware problem. It should be used as a classical baseline when the model is known and the control is open-loop. It is not a substitute for DDQN or MADRL because it does not learn a feedback policy.

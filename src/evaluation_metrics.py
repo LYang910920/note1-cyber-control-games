@@ -144,6 +144,7 @@ def summarize_rollout(rollout: Dict[str, object]) -> Dict[str, float | int | str
     attacker_rewards = rollout["attacker_rewards"]
     jump_removed = rollout["jump_removed"]
     dt = float(rollout["decision_dt"])
+    deception_steps = int(np.count_nonzero(defender_modes == HybridCyberDefenseEnv.DEF_DECEIVE))
     action_switches = int(np.sum(defender_modes[1:] != defender_modes[:-1])) if len(defender_modes) > 1 else 0
     total_defender_reward = float(np.sum(defender_rewards))
     return {
@@ -158,7 +159,7 @@ def summarize_rollout(rollout: Dict[str, object]) -> Dict[str, float | int | str
         "peak_compromised": float(np.max(states[:, 1])),
         "final_compromised": float(states[-1, 1]),
         "final_protected": float(states[-1, 2]),
-        "mean_deception": float(np.mean(states[:, 3])),
+        "deception_action_fraction": float(deception_steps / max(1, len(defender_modes))),
         "impulse_events": int(np.count_nonzero(jump_removed > 1e-12)),
         "total_impulse_removed": float(np.sum(jump_removed)),
         "action_switches": action_switches,

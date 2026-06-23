@@ -30,9 +30,9 @@ py-modules = [
     "evaluation_metrics",
     "fbsm_malware_baseline",
     "madrl_ctde_hybrid_game",
-    "node_siprs_adversarial_large",
+    "node_sips_adversarial_large",
     "node_level_robustness",
-    "node_siprs_mappo",
+    "node_sips_mappo",
     "scenario_profiles",
 ]
 

@@ -2,7 +2,7 @@
 \input{tutorial_style}
 
 \begin{document}
-\tutorialtitle{Code Running Guide}{How to Run and Extend the Note 1 Python Examples}{Installation, smoke tests, training diagnostics, outputs, and troubleshooting}{Companion to the cyber control and game-learning tutorial note}
+\tutorialtitle{Code Running Guide}{How to Run and Extend the Note 1 Python Examples}{Installation, smoke tests, training diagnostics, outputs, and troubleshooting}{Companion to the cyber control and game-learning guide}
 \tableofcontents
 \newpage
 \lhead{\small Note 1 Code Running Guide}
@@ -36,7 +36,7 @@ The repository is organized around one readable path from model to experiment:
     game_response_metrics.csv
     node_level_robustness_metrics.csv
   docs/assets/
-    timing_semantics.png
+    action_timing.png
     node_level_learning_advantage.png
 \end{verbatim}
 
@@ -80,7 +80,7 @@ Expected output: defender and attacker episode returns. This file is a compact C
 \begin{lstlisting}[style=pythonstyle]
 python scripts/generate_figures.py
 \end{lstlisting}
-Expected output: refreshed PNG figures under \texttt{docs/assets/}, including neural architecture, timing-semantics, FBSM, hybrid rollout, and policy-comparison plots.
+Expected output: refreshed PNG figures under \texttt{docs/assets/}, including neural architecture, action timing, FBSM, hybrid rollout, and policy-comparison plots.
 
 \subsection{Longer training diagnostics}
 \begin{lstlisting}[style=pythonstyle]
@@ -111,11 +111,11 @@ Node-level epidemic robustness plot & Parameter-mismatch stress test: nominal FB
 
 \section{Extending the Code}
 \subsection{From simple malware to APT}
-Add a deception state $z$ and modify the infection rate:
+Add a deception action and modify the infection rate during the affected decision interval:
 \begin{equation}
-\beta SI\quad \rightarrow\quad \beta(1-\chi z)VC.
+\beta SI\quad \rightarrow\quad \beta(1-\chi\eta_k)VC,\qquad 0\leq\eta_k\leq 1.
 \end{equation}
-Add actions such as deceive, isolate, and stealth. The provided environment already contains these mechanisms.
+Here $\eta_k$ is the deception intensity selected at action epoch $t_k$. Add actions such as deceive, isolate, and stealth. The provided environment already contains these mechanisms.
 
 \subsection{From compartment model to degree-based model}
 Replace $S,I,R$ by degree-indexed compartments. For example,

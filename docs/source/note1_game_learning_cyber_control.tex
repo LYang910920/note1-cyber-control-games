@@ -6,7 +6,7 @@
 \tableofcontents
 \newpage
 \lhead{\small Note 1: Cyber Control and Game Learning}
-\section{How This Tutorial Note Is Organized}
+\section{How This Guide Is Organized}
 The note is organized around a clean workflow:
 \begin{equation}
 \begin{array}{c}
@@ -163,12 +163,11 @@ The term $A_I I(t)$ is security loss, while $B_pu_p^2/2$ and $B_cu_c^2/2$ penali
 \subsection{APT repair and deception dynamics}
 APT attacks are persistent and stealthy, so it is useful to include repair, isolation, and deception. A compact APT-oriented model is
 \begin{align}
-    \dot{V} &= -\beta(1-\chi z)VC-u_hV+\omega P, \\
-    \dot{C} &= \beta(1-\chi z)VC-(\gamma+u_r+u_i)C, \\
-    \dot{P} &= u_hV+(\gamma+u_r+u_i)C-\omega P, \\
-    \dot{z} &= u_d(1-z)-\xi z.
+    \dot{V} &= -\beta(1-\chi\eta_k)VC-u_hV+\omega P, \\
+    \dot{C} &= \beta(1-\chi\eta_k)VC-(\gamma+u_r+u_i)C, \\
+    \dot{P} &= u_hV+(\gamma+u_r+u_i)C-\omega P.
 \end{align}
-Here $V$ is vulnerable but uncompromised assets, $C$ is compromised assets, $P$ is protected or repaired assets, and $z\in[0,1]$ is deception effectiveness. The factor $(1-\chi z)$ reduces the effective compromise rate. When $z$ is large, honeypots, decoys, moving-target defense, or false information confuse the attacker. This extends differential-game APT repair ideas such as Yang et al. \cite{yang2019apt} and connects naturally with impulsive and hybrid APT defense models \cite{sun2023impulsive,qin2024impulsive}.
+Here $V$ is vulnerable but uncompromised assets, $C$ is compromised assets, and $P$ is protected or repaired assets. The action $\eta_k\in[0,1]$ is chosen at decision epoch $t_k$ and held or mapped over the next interval. The factor $(1-\chi\eta_k)$ reduces the effective compromise rate during that interval. In cyber terms, honeypots, decoys, moving-target defense, or false information reduce useful attacker contact without introducing a fourth core compartment. This extends differential-game APT repair ideas such as Yang et al. \cite{yang2019apt} and connects naturally with impulsive and hybrid APT defense models \cite{sun2023impulsive,qin2024impulsive}.
 
 \subsection{Rumor and misinformation defense}
 For rumor, misinformation, or cyber propaganda, a simple correction model is
@@ -194,7 +193,7 @@ where $x$ is a cyber/social state, $u_D$ is defense intervention, $u_A$ is attac
 \subsection{How to read these models operationally}
 The compartment variables should not be interpreted as only biological analogies. In cybersecurity, a compartment can represent a proportion of devices, accounts, hosts, services, narratives, or users. For example, $I(t)$ in a malware model can be the fraction of compromised IoT devices, while $M(t)$ in a misinformation model can be the fraction of users currently spreading a false narrative. A control is any costly intervention that changes transition rates. Patching changes the transition from vulnerable to protected. Cleaning changes the transition from compromised to recovered. Fact-checking changes the transition from misinformation to correction. Deception changes the effective attack rate by altering the attacker's information.
 
-The main modeling decision is therefore not the name of the compartments but the transition mechanism. A paper should explain why each term exists. For example, $\beta SI$ means mass-action infection: compromise increases when both vulnerable and infected assets are present. The term $(1-\chi z)$ means deception reduces useful attacker contact. The term $u_fM$ means correction effort converts misinformation spreaders into corrected or inactive users. Clear interpretation of every term is essential before applying PMP or learning methods.
+The main modeling decision is therefore not the name of the compartments but the transition mechanism. A paper should explain why each term exists. For example, $\beta SI$ means mass-action infection: compromise increases when both vulnerable and infected assets are present. The term $(1-\chi\eta_k)$ means a deception action reduces useful attacker contact over a decision interval. The term $u_fM$ means correction effort converts misinformation spreaders into corrected or inactive users. Clear interpretation of every term is essential before applying PMP or learning methods.
 
 \subsection{What makes a cyber model suitable for learning-based control?}
 A model is suitable when it can be simulated under candidate actions. For RL/DRL/MARL, the simulator may be an ODE solver, an agent-based simulator, a cyber range, or a hybrid environment. For PINN/PIDL, the model must provide differentiable residuals or differentiable approximations. For Neural ODE, one needs trajectory data or simulated traces to train the dynamics. For PMP/FBSM, the model should be differentiable with respect to states and controls so that $H_x$, $H_u$, and costate equations can be derived.
@@ -397,7 +396,7 @@ u(t)=\Gamma(a_k),\qquad t\in[t_k,t_{k+1}).
 This makes the applied control piecewise constant on each action interval. It is common because it gives a clean environment transition. It is not required by the original differential game. One may use piecewise-linear controls, event-triggered impulses, continuous actor outputs inside a differentiable ODE solver, or a feedback law $u(t)=\pi(x(t),t)$ evaluated continuously. If a paper uses zero-order hold, it should say so explicitly.
 \end{boxednote}
 
-\subsection{Action points, impulse points, and nonuniform intervals}
+\subsection{Decision epochs, impulse times, and nonuniform intervals}
 Use separate symbols for two different kinds of time points:
 \[
 0=t_0<t_1<\cdots<t_K=T,\qquad \Delta t_k=t_{k+1}-t_k,
@@ -406,27 +405,12 @@ where $t_k$ is a learning action/observation point after conversion to an MDP or
 
 If the original continuous or hybrid model already has impulse or event points, denote them by $\tau_j$. These points belong to the original model, not automatically to the RL conversion.
 
-\begin{center}
-\begin{tikzpicture}[x=1.5cm,y=1cm,>=Latex]
-\draw[->,thick] (-0.2,0) -- (5.1,0) node[right]{time};
-\foreach \x/\lab in {0/$t_0$,1.0/$t_1$,2.35/$t_2$,3.25/$t_3$,4.55/$t_4$}{
-  \draw[DeepBlue,thick] (\x,-0.18)--(\x,0.18);
-  \fill[DeepBlue] (\x,0) circle (2pt);
-  \node[DeepBlue,below=5pt] at (\x,-0.18) {\lab};
-}
-\foreach \x/\lab in {0.55/$\tau_1$,2.35/$\tau_2=t_2$,3.95/$\tau_3$}{
-  \draw[red!70!black,dashed,thick] (\x,0.05)--(\x,0.75);
-  \node[red!70!black,above] at (\x,0.75) {\lab};
-}
-\draw[<->,black!60] (0,-0.65)--(1.0,-0.65) node[midway,below] {$\Delta t_0$};
-\draw[<->,black!60] (1.0,-0.65)--(2.35,-0.65) node[midway,below] {$\Delta t_1$};
-\draw[<->,black!60] (2.35,-0.65)--(3.25,-0.65) node[midway,below] {$\Delta t_2$};
-\node[align=center,font=\small] at (0.5,0.35) {ODE flow};
-\node[align=center,font=\small] at (1.67,0.35) {ODE flow\\ plus event if any};
-\node[align=center,font=\small] at (2.8,0.35) {observe\\ act};
-\node[align=left,font=\small] at (2.45,1.25) {$t_k$: MDP/MG action point\\$\tau_j$: original impulse/event point};
-\end{tikzpicture}
-\end{center}
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.95\linewidth]{../assets/action_timing.pdf}
+\caption{Three-lane action timing used in the sampled-data learning code. Decision epochs $t_k$ are the points where the MDP or Markov game observes the state and chooses actions. ODE substeps are internal numerical integration steps. Impulse times $\tau_j$ belong to the original hybrid model and may coincide with, or fall between, decision epochs.}
+\label{fig:action-timing}
+\end{figure}
 
 \begin{longtable}{p{0.22\textwidth}p{0.36\textwidth}p{0.32\textwidth}}
 \toprule
@@ -746,12 +730,15 @@ state $s_k$ $\rightarrow$ attacker action $a_A^k$ and defender action $a_D^k$ $\
 \end{flowbox}
 
 \subsection{Concrete attacker-defender malware/deception game}
-Use $s_k=[V_k,C_k,P_k,z_k]$. Defender actions are patch, monitor, isolate, deceive. Attacker actions are scan, exploit, lateral movement, stealth. The ODE between decision points is
+Use $s_k=[V_k,C_k,P_k]$. Defender actions are patch, monitor, isolate, deceive. Attacker actions are scan, exploit, lateral movement, stealth. Deception is modeled as an action effect over the current decision interval, not as a stored population compartment:
+\[
+\beta_k^{\rm eff}=\beta_k(1-\chi\eta_k).
+\]
+The ODE between decision points is
 \begin{align}
-\dot{V}&=-\beta_k(1-\chi z)VC-\rho_kV+\omega P,\\
-\dot{C}&=\beta_k(1-\chi z)VC-(\gamma+\mu_k+\iota_k)C,\\
-\dot{P}&=\rho_kV+(\gamma+\mu_k+\iota_k)C-\omega P,\\
-\dot{z}&=\eta_k(1-z)-\xi z-\zeta\mathbf{1}_{a_A\in\{\text{scan},\text{stealth}\}}z.
+\dot{V}&=-\beta_k^{\rm eff}VC-\rho_kV+\omega P,\\
+\dot{C}&=\beta_k^{\rm eff}VC-(\gamma+\mu_k+\iota_k)C,\\
+\dot{P}&=\rho_kV+(\gamma+\mu_k+\iota_k)C-\omega P.
 \end{align}
 The defender reward is
 \begin{equation}
@@ -759,7 +746,7 @@ r_D^k=-\Delta t_k\left(w_CC_{k+1}+c_\rho\rho_k^2+c_\mu\mu_k^2+c_\iota\iota_k^2+c
 \end{equation}
 and the attacker reward is
 \begin{equation}
-r_A^k=\Delta t_k\left(q_CC_{k+1}-d_A(a_A^k)-q_zz_{k+1}-q_PP_{k+1}\right).
+r_A^k=\Delta t_k\left(q_CC_{k+1}-d_A(a_A^k)-q_PP_{k+1}\right).
 \end{equation}
 
 \subsection{Training order}
@@ -995,7 +982,7 @@ The earlier sections describe the mathematics. This section is the implementatio
 Case & What to build & What the method needs & What to report \\
 \midrule
 FBSM malware baseline & Continuous SIR-style malware ODE with patching or cleaning intensity $u(t)$. & Known parameters, differentiable dynamics, running cost, terminal cost, control bounds. & Control-change convergence, objective, compromised trajectory, peak/final compromise, and open-loop control curve. \\
-DDQN malware defender & Sampled-data MDP with state $s_k=[S,I,R,z]$, discrete defense modes, jump map, and ODE flow. & Transition simulator, action map, reward, replay buffer, Q-network, fixed or documented nonuniform action schedule. & Training/evaluation return, cumulative compromise, peak/final compromise, defense cost, impulse count, and comparison with no-defense and fixed-policy baselines. \\
+DDQN malware defender & Sampled-data MDP with state $s_k=[S,I,R]$, discrete defense modes, jump map, and ODE flow. & Transition simulator, action map, reward, replay buffer, Q-network, fixed or documented nonuniform action schedule. & Training/evaluation return, cumulative compromise, peak/final compromise, defense cost, impulse count, and comparison with no-defense and fixed-policy baselines. \\
 Node-level epidemic-model robustness & Stochastic graph simulator where each node has a local S/I/R state, bursts, and aggregate feedback observation. & Node graph, true propagation parameters, nominal FBSM parameters, trained feedback policy. & A metric where feedback matters: cumulative infected-node exposure under parameter mismatch, peak infected-node share, final infected-node share, cost, and a scaling proxy for node-level PMP/FBSM unknowns. \\
 HODGE-style propaganda game & Hybrid differential game with continuous influence investment and impulsive interventions \cite{cheng2024propaganda}. & Degree-based state, two-player rewards, impulse map, continuous investment costs. & Payoff, cost-effectiveness, impulse timing, lower-bound sensitivity, and approximate Nash or deviation diagnostics. \\
 PMP-informed PINN APT defense & Neural networks for state, costate, and control that satisfy PMP residuals. & APT model, Hamiltonian, boundary conditions, stationarity residual, control bounds. & Residual loss, boundary error, recovered control, comparison with FBSM, and sensitivity to sparse or noisy data. \\
@@ -1086,7 +1073,7 @@ PMP and FBSM provide theoretical structure, optimality conditions, and interpret
 
 
 \section{Python Implementation Map and Code Organization}
-The accompanying code is intentionally organized around the same methodological structure as this note.  The mathematical model is separated from the solvers so that FBSM, DDQN, compact CTDE, node-SIPRS MAPPO, and shared evaluation metrics can be compared on the same cyber-control timing convention.
+The accompanying code is intentionally organized around the same methodological structure as this note.  The mathematical model is separated from the solvers so that FBSM, DDQN, compact CTDE, node-SIPS MAPPO, and shared evaluation metrics can be compared on the same cyber-control timing convention.
 
 \begin{longtable}{p{0.36\textwidth}p{0.54\textwidth}}
 \toprule
@@ -1098,7 +1085,7 @@ Python file & What it demonstrates \\
 {\footnotesize\texttt{fbsm\_malware\_baseline.py}} & Classical PMP/FBSM baseline for continuous malware control. \\
 {\footnotesize\texttt{ddqn\_cyber\_defense.py}} & Discrete-action DDQN defender against a scripted attacker. \\
 {\footnotesize\texttt{madrl\_ctde\_hybrid\_game.py}} & A compact CTDE attacker-defender Markov-game baseline. \\
-{\footnotesize\texttt{node\_siprs\_mappo.py}} & Community MAPPO on heterogeneous node-SIPRS dynamics. Observations include local state, boundary pressure, and known community risk/rate summaries; rewards use criticality-weighted infection and per-node action costs. \\
+{\footnotesize\texttt{node\_sips\_mappo.py}} & Community MAPPO on heterogeneous node-SIPS dynamics. Observations include local state, boundary pressure, and known community risk/rate summaries; rewards use criticality-weighted infection and per-node action costs. \\
 {\footnotesize\texttt{node\_level\_robustness.py}} & Node-level epidemic robustness experiment comparing DDQN aggregate feedback with nominal-parameter FBSM open-loop control. \\
 {\footnotesize\texttt{run\_training\_iterations.py}} & Produces convergence histories, policy-comparison metrics, game diagnostics, node-level epidemic robustness metrics, and training summaries. \\
 {\footnotesize\texttt{generate\_figures.py}} & Rebuilds the README figures, including neural-network and $t_k$ versus $\tau_j$ timing diagrams. \\
@@ -1107,7 +1094,7 @@ Python file & What it demonstrates \\
 
 \begin{boxednote}
 \textbf{Recommended implementation sequence.}
-First run the ODE environment and FBSM baseline. Then train DDQN against a scripted attacker. Only after these two parts are debugged should one move to compact CTDE, node-SIPRS MAPPO, or node-level epidemic robustness experiments. Use the metric and figure scripts to compare learned policies against fixed, rule-based, and nominal-parameter optimal-control baselines.
+First run the ODE environment and FBSM baseline. Then train DDQN against a scripted attacker. Only after these two parts are debugged should one move to compact CTDE, node-SIPS MAPPO, or node-level epidemic robustness experiments. Use the metric and figure scripts to compare learned policies against fixed, rule-based, and nominal-parameter optimal-control baselines.
 \end{boxednote}
 
 \appendix
@@ -1119,7 +1106,7 @@ A feedforward neural network represents a function by composing affine maps and 
     h^{(\ell+1)} &= \sigma\left(W^{(\ell)}h^{(\ell)}+b^{(\ell)}\right),\\
     y &= W^{(L)}h^{(L)}+b^{(L)}.
 \end{align}
-In cyber-control applications, the input $s$ may be an observation such as $[V,C,P,z]$, and the output may be Q-values, action probabilities, continuous controls, or value estimates. The parameters are all matrices and vectors
+In cyber-control applications, the input $s$ may be an observation such as $[V,C,P]$ plus contextual features, and the output may be Q-values, action probabilities, continuous controls, or value estimates. The parameters are all matrices and vectors
 \begin{equation}
     \Theta=\{W^{(\ell)},b^{(\ell)}\}_{\ell=0}^{L}.
 \end{equation}
@@ -1386,7 +1373,7 @@ $x(t_k^+)=G(x(t_k^-),a_k)$.
 
 \begin{boxednote}
 \textbf{Where the full implementation lives.}
-The executable implementation is in the repository files \texttt{cyber\_hybrid\_env.py}, \texttt{ddqn\_cyber\_defense.py}, \texttt{madrl\_ctde\_hybrid\_game.py}, and \texttt{evaluation\_metrics.py}.  The tutorial note keeps only the mathematical mapping and the reporting checklist.
+The executable implementation is in the repository files \texttt{cyber\_hybrid\_env.py}, \texttt{ddqn\_cyber\_defense.py}, \texttt{madrl\_ctde\_hybrid\_game.py}, and \texttt{evaluation\_metrics.py}.  This guide keeps the mathematical mapping and reporting checklist concise.
 \end{boxednote}
 
 \begin{thebibliography}{99}

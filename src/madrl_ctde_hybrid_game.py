@@ -14,8 +14,8 @@ The Markov-game step is sampled-data: both agents observe at t_k, choose joint
 actions, the environment applies any impulse jump, integrates the ODE until
 t_{k+1}, and returns the next observation and both rewards.
 
-For PPO-style cooperative defenders on node-level SIPRS dynamics, use
-``node_siprs_mappo.py``.  This file focuses on the two-player interaction loop
+For PPO-style cooperative defenders on node-level SIPS dynamics, use
+``node_sips_mappo.py``.  This file focuses on the two-player interaction loop
 and does not claim to be a full MAPPO implementation.
 """
 from __future__ import annotations

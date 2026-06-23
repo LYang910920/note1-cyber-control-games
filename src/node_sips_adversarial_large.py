@@ -2,11 +2,11 @@
 Copyright (c) 2026 Luxing Yang.
 Licensed under the MIT License. See LICENSE in the repository root.
 
-Large heterogeneous node-SIPRS attacker-defender benchmark.
+Large heterogeneous node-SIPS attacker-defender benchmark.
 
-This file is a bounded, learning-ready bridge from the cooperative node-SIPRS
+This file is a bounded, learning-ready bridge from the cooperative node-SIPS
 MAPPO example to larger attacker-defender graph games.  It keeps the same
-foundation SIPRS equations, uses sparse graphs, and trains simple community
+foundation SIPS equations, uses sparse graphs, and trains simple community
 softmax policies by self-play.  The policy update is intentionally small so the
 environment contract, metrics, and response matrix stay easy to inspect before
 replacing the learners with MAPPO, MADDPG, or another MARL library.
@@ -26,17 +26,17 @@ from scipy import sparse as sp
 
 from cybercontrol.heterogeneity import node_heterogeneity_summary
 from cybercontrol.network_models import (
-    community_correlated_node_siprs_params,
+    community_correlated_node_sips_params,
     contiguous_community_index,
-    node_siprs_rhs_numpy,
+    node_sips_rhs_numpy,
     normalize_adjacency,
 )
 from cybercontrol.numerics import project_compartments, rk4_integrate
 
 
 @dataclass
-class LargeAdversarialSIPRSConfig:
-    """Large sparse node-SIPRS attacker-defender configuration."""
+class LargeAdversarialSIPSConfig:
+    """Large sparse node-SIPS attacker-defender configuration."""
 
     nodes: int = 512
     communities: int = 8
@@ -47,8 +47,7 @@ class LargeAdversarialSIPRSConfig:
     initial_infected: float = 0.06
     beta: float = 0.86
     gamma: float = 0.15
-    omega_p: float = 0.03
-    omega_r: float = 0.02
+    omega: float = 0.03
     patch_rate: float = 0.32
     clean_rate: float = 0.42
     attack_boost: float = 0.65
@@ -62,7 +61,7 @@ class LargeAdversarialSIPRSConfig:
     seed: int = 29
 
 
-def build_sparse_scale_free_graph(cfg: LargeAdversarialSIPRSConfig) -> sp.csr_matrix:
+def build_sparse_scale_free_graph(cfg: LargeAdversarialSIPSConfig) -> sp.csr_matrix:
     """Return a row-normalized sparse Barabasi-Albert graph in model convention."""
 
     attachment = max(1, min(cfg.nodes - 1, int(round(cfg.mean_degree / 2.0))))
@@ -119,32 +118,31 @@ def _sample_without_replacement(
     return np.asarray(chosen, dtype=int), gradient
 
 
-class LargeAdversarialSIPRSEnv:
-    """Sparse node-SIPRS Markov game with community attacker/defender actions."""
+class LargeAdversarialSIPSEnv:
+    """Sparse node-SIPS Markov game with community attacker/defender actions."""
 
     DEFENDER_POLICIES = ("none", "uniform", "degree", "risk", "oracle", "budget_random", "learned")
     ATTACKER_POLICIES = ("none", "uniform", "degree", "risk", "oracle", "budget_random", "learned")
 
-    def __init__(self, cfg: LargeAdversarialSIPRSConfig | None = None):
-        self.cfg = cfg or LargeAdversarialSIPRSConfig()
+    def __init__(self, cfg: LargeAdversarialSIPSConfig | None = None):
+        self.cfg = cfg or LargeAdversarialSIPSConfig()
         self.rng = np.random.default_rng(self.cfg.seed)
         self.community = contiguous_community_index(self.cfg.nodes, self.cfg.communities)
         self.adjacency = build_sparse_scale_free_graph(self.cfg)
         self.degree = np.asarray(self.adjacency.getnnz(axis=1), dtype=np.float64)
-        self.params = community_correlated_node_siprs_params(
+        self.params = community_correlated_node_sips_params(
             self.community,
             strength=self.cfg.heterogeneity_strength,
             beta=self.cfg.beta,
             gamma=self.cfg.gamma,
-            omega_p=self.cfg.omega_p,
-            omega_r=self.cfg.omega_r,
+            omega=self.cfg.omega,
         )
         self.resolved_params = self.params.resolve(self.cfg.nodes)
         self.k = 0
         self.state = self._initial_state()
 
     def _initial_state(self) -> np.ndarray:
-        x = np.zeros((self.cfg.nodes, 4), dtype=np.float64)
+        x = np.zeros((self.cfg.nodes, 3), dtype=np.float64)
         x[:, 0] = 1.0 - self.cfg.initial_infected
         x[:, 1] = self.cfg.initial_infected
         high_degree = np.argsort(self.degree)[-max(1, self.cfg.nodes // 25) :]
@@ -223,7 +221,12 @@ class LargeAdversarialSIPRSEnv:
         return patch, clean, boost, defense_cost, attack_cost
 
     def step(self, defender_communities: np.ndarray, attacker_communities: np.ndarray):
-        """Apply simultaneous community actions and integrate one decision interval."""
+        """Apply simultaneous community actions and integrate one decision interval.
+
+        Defender actions set community patch/clean rates. Attacker actions add
+        a temporary beta boost for the same ODE interval. The state order is
+        ``[S,I,P]`` and patching, recovery, and cleaning all move mass into P.
+        """
 
         patch, clean, boost, defense_action_cost, attack_action_cost = self._rates(
             defender_communities,
@@ -231,8 +234,8 @@ class LargeAdversarialSIPRSEnv:
         )
 
         def rhs_flat(y, _t):
-            x = y.reshape(self.cfg.nodes, 4)
-            return node_siprs_rhs_numpy(
+            x = y.reshape(self.cfg.nodes, 3)
+            return node_sips_rhs_numpy(
                 x,
                 self.adjacency,
                 self.resolved_params,
@@ -247,9 +250,9 @@ class LargeAdversarialSIPRSEnv:
             t0=self.k * self.cfg.dt,
             dt=self.cfg.dt,
             substeps=self.cfg.substeps,
-            project=lambda y: project_compartments(y.reshape(self.cfg.nodes, 4)).reshape(-1),
+            project=lambda y: project_compartments(y.reshape(self.cfg.nodes, 3)).reshape(-1),
         )
-        self.state = y_next.reshape(self.cfg.nodes, 4)
+        self.state = y_next.reshape(self.cfg.nodes, 3)
         infected = self.state[:, 1]
         weighted_i = float(np.mean(self.resolved_params.criticality * infected))
         global_i = float(np.mean(infected))
@@ -270,7 +273,7 @@ class LargeAdversarialSIPRSEnv:
         return self.observation(), defender_payoff, attacker_payoff, done, info
 
 
-def _policy_scores(env: LargeAdversarialSIPRSEnv, role: str, policy: str) -> np.ndarray:
+def _policy_scores(env: LargeAdversarialSIPSEnv, role: str, policy: str) -> np.ndarray:
     infected = env.state[:, 1]
     susceptible = env.state[:, 0]
     risk = env.resolved_params.risk_score()
@@ -286,7 +289,7 @@ def _policy_scores(env: LargeAdversarialSIPRSEnv, role: str, policy: str) -> np.
 
 
 def choose_communities(
-    env: LargeAdversarialSIPRSEnv,
+    env: LargeAdversarialSIPSEnv,
     role: str,
     policy: str,
     rng: np.random.Generator,
@@ -318,7 +321,7 @@ def choose_communities(
 def rollout_game(
     defender_policy: str,
     attacker_policy: str,
-    cfg: LargeAdversarialSIPRSConfig,
+    cfg: LargeAdversarialSIPSConfig,
     *,
     seed: int | None = None,
     defender_logits: np.ndarray | None = None,
@@ -328,7 +331,7 @@ def rollout_game(
     """Roll out one attacker-defender game and return metrics plus score gradients."""
 
     run_seed = cfg.seed if seed is None else int(seed)
-    env = LargeAdversarialSIPRSEnv(replace(cfg, seed=run_seed))
+    env = LargeAdversarialSIPSEnv(replace(cfg, seed=run_seed))
     rng = np.random.default_rng(run_seed + 17_017)
     defender_grad = np.zeros(cfg.communities, dtype=np.float64)
     attacker_grad = np.zeros(cfg.communities, dtype=np.float64)
@@ -390,7 +393,7 @@ def _center_clip(logits: np.ndarray, bound: float = 6.0) -> np.ndarray:
 
 
 def train_self_play(
-    cfg: LargeAdversarialSIPRSConfig,
+    cfg: LargeAdversarialSIPSConfig,
     *,
     episodes: int = 40,
     lr: float = 0.08,
@@ -439,7 +442,7 @@ def train_self_play(
 
 
 def evaluate_response_matrix(
-    cfg: LargeAdversarialSIPRSConfig,
+    cfg: LargeAdversarialSIPSConfig,
     defender_logits: np.ndarray | None = None,
     attacker_logits: np.ndarray | None = None,
     *,
@@ -470,7 +473,7 @@ def evaluate_response_matrix(
 
 
 def evaluate_response_sweep(
-    cfg: LargeAdversarialSIPRSConfig,
+    cfg: LargeAdversarialSIPSConfig,
     defender_logits: np.ndarray | None = None,
     attacker_logits: np.ndarray | None = None,
     *,
@@ -574,7 +577,7 @@ def _parse_float_tuple(raw: str | None) -> tuple[float, ...]:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Run a large heterogeneous node-SIPRS attacker-defender benchmark.")
+    parser = argparse.ArgumentParser(description="Run a large heterogeneous node-SIPS attacker-defender benchmark.")
     parser.add_argument("--smoke", action="store_true")
     parser.add_argument("--nodes", type=int, default=512)
     parser.add_argument("--communities", type=int, default=8)
@@ -602,7 +605,7 @@ def main() -> None:
         args.communities = 6
         args.horizon = 6
         args.episodes = 4
-    cfg = LargeAdversarialSIPRSConfig(
+    cfg = LargeAdversarialSIPSConfig(
         nodes=args.nodes,
         communities=args.communities,
         horizon=args.horizon,

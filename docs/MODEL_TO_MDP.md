@@ -27,7 +27,7 @@ Notation used throughout this repo:
 
 The checked-in environment uses a fixed `EnvConfig.dt` because that is easiest to read and test.  The mathematical conversion does not require fixed intervals.  A nonuniform schedule `0=t_0<t_1<...<t_K=T` is valid if the simulator and reward use the matching `Delta t_k`.
 
-![Timing semantics](../docs/assets/timing_semantics.png)
+![Action timing](../docs/assets/action_timing.png)
 
 ## Three Control Types
 
@@ -105,7 +105,7 @@ r_A,k      = attacker reward
 s_{k+1}    = next simulator state
 ```
 
-The CTDE script uses centralized critics that see the state and both actions during training.  The actors are decentralized policies that map observations to defender or attacker actions.  The node-SIPRS MAPPO script uses the same decision-grid idea but trains cooperative community defenders with PPO-style clipped updates.  The large node-SIPRS attacker-defender script keeps both players at the community level: defenders choose patch/clean communities under a budget, attackers choose communities receiving a temporary infection-pressure boost, and the response matrix evaluates unilateral policy changes on the same simulator.
+The CTDE script uses centralized critics that see the state and both actions during training.  The actors are decentralized policies that map observations to defender or attacker actions.  The node-SIPS MAPPO script uses the same decision-grid idea but trains cooperative community defenders with PPO-style clipped updates.  The large node-SIPS attacker-defender script keeps both players at the community level: defenders choose patch/clean communities under a budget, attackers choose communities receiving a temporary infection-pressure boost, and the response matrix evaluates unilateral policy changes on the same simulator.
 
 ## Code Checklist
 

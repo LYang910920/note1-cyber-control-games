@@ -1,4 +1,4 @@
-"""Generate static figures for the Note 1 README and tutorial notes.
+"""Generate static figures for the Note 1 README and guide notes.
 
 Copyright (c) 2026 Luxing Yang.
 Licensed under the MIT License. See LICENSE in the repository root.
@@ -88,7 +88,6 @@ def plot_hybrid_rollout(output_dir: Path) -> None:
     axes[0].plot(t, states[:, 0], label="Susceptible", linestyle="-")
     axes[0].plot(t, states[:, 1], label="Compromised", linestyle="--")
     axes[0].plot(t, states[:, 2], label="Recovered/protected", linestyle="-.")
-    axes[0].plot(t, states[:, 3], label="Deception level", linestyle=":")
     panel_label(axes[0], "(a) hybrid state trajectory")
     style_axis(axes[0], ylabel="State", legend=True)
 
@@ -102,7 +101,7 @@ def plot_hybrid_rollout(output_dir: Path) -> None:
         fig,
         output_dir / "hybrid_policy_rollout",
         metadata={
-            "model": "hybrid malware/deception environment",
+            "model": "sampled SIR malware environment with action-dependent deception",
             "control_type": "hybrid sampled continuous-plus-impulse policy",
             "caption_hint": "Hybrid rollout under sampled defender actions.",
         },
@@ -227,54 +226,76 @@ def plot_neural_architectures(output_dir: Path) -> None:
     plt.close(fig)
 
 
-def plot_timing_semantics(output_dir: Path) -> None:
-    """Show the difference between action points and model impulse points."""
+def plot_action_timing(output_dir: Path) -> None:
+    """Show policy action epochs, ODE substeps, and original impulse times."""
     with guide_style():
-        fig, ax = plt.subplots(figsize=(11, 3.8))
+        fig, ax = plt.subplots(figsize=(11, 4.6))
     action_times = np.array([0.0, 1.15, 2.75, 4.0, 5.35])
     impulse_times = np.array([0.55, 2.75, 4.75])
+    substep_counts = [3, 4, 3, 4]
 
-    ax.hlines(0, action_times[0] - 0.2, action_times[-1] + 0.35, color="#333333", linewidth=1.6)
-    ax.annotate("", xy=(action_times[-1] + 0.42, 0), xytext=(action_times[-1] + 0.12, 0),
-                arrowprops={"arrowstyle": "->", "lw": 1.6, "color": "#333333"})
+    y_action, y_flow, y_impulse = 1.2, 0.0, -1.2
+    x0, x1 = action_times[0] - 0.2, action_times[-1] + 0.35
+    for y, color in ((y_action, "#4c78a8"), (y_flow, "#666666"), (y_impulse, "#e45756")):
+        ax.hlines(y, x0, x1, color=color, linewidth=1.4, alpha=0.9)
+        ax.annotate(
+            "",
+            xy=(action_times[-1] + 0.42, y),
+            xytext=(action_times[-1] + 0.12, y),
+            arrowprops={"arrowstyle": "->", "lw": 1.5, "color": color},
+        )
+
+    ax.text(x0 - 0.08, y_action, "decision epochs", ha="right", va="center", fontsize=9.5, color="#234f7f")
+    ax.text(x0 - 0.08, y_flow, "ODE substeps", ha="right", va="center", fontsize=9.5, color="#444444")
+    ax.text(x0 - 0.08, y_impulse, "impulse times", ha="right", va="center", fontsize=9.5, color="#a83232")
 
     for idx, t in enumerate(action_times):
-        ax.vlines(t, -0.22, 0.22, color="#4c78a8", linewidth=2.4)
-        ax.scatter([t], [0], s=60, color="#4c78a8", zorder=3)
-        ax.text(t, -0.42, f"$t_{idx}$", ha="center", va="top", fontsize=11, color="#234f7f")
-        ax.text(t, 0.38, "observe\nchoose action", ha="center", va="bottom", fontsize=8.5)
+        ax.vlines(t, y_action - 0.16, y_action + 0.16, color="#4c78a8", linewidth=2.4)
+        ax.scatter([t], [y_action], s=60, color="#4c78a8", zorder=3)
+        ax.text(t, y_action + 0.24, f"$t_{idx}$", ha="center", va="bottom", fontsize=11, color="#234f7f")
+        ax.text(t, y_action - 0.28, "observe\nchoose action", ha="center", va="top", fontsize=8.2)
 
     for idx in range(len(action_times) - 1):
         left, right = action_times[idx], action_times[idx + 1]
-        ax.annotate("", xy=(right - 0.08, -0.68), xytext=(left + 0.08, -0.68),
-                    arrowprops={"arrowstyle": "<->", "lw": 1.1, "color": "#666666"})
-        ax.text((left + right) / 2, -0.86, f"$\\Delta t_{idx}$", ha="center", va="top", fontsize=10)
-        ax.text((left + right) / 2, 0.08, "ODE flow", ha="center", va="bottom", fontsize=8.5, color="#666666")
+        ax.annotate(
+            "",
+            xy=(right - 0.08, y_flow - 0.22),
+            xytext=(left + 0.08, y_flow - 0.22),
+            arrowprops={"arrowstyle": "<->", "lw": 1.1, "color": "#666666"},
+        )
+        ax.text((left + right) / 2, y_flow - 0.38, f"$\\Delta t_{idx}$", ha="center", va="top", fontsize=10)
+        substeps = np.linspace(left, right, substep_counts[idx] + 2)[1:-1]
+        ax.scatter(substeps, np.full_like(substeps, y_flow), s=24, color="#666666", zorder=3)
+        ax.text((left + right) / 2, y_flow + 0.18, "RK4/internal flow", ha="center", va="bottom", fontsize=8.5, color="#444444")
 
     for j, tau in enumerate(impulse_times, start=1):
-        ax.vlines(tau, -0.05, 0.72, color="#e45756", linewidth=2.0, linestyles="--")
-        ax.scatter([tau], [0.72], marker="v", s=80, color="#e45756", zorder=4)
+        ax.vlines(tau, y_impulse - 0.18, y_impulse + 0.18, color="#e45756", linewidth=2.0, linestyles="--")
+        ax.scatter([tau], [y_impulse], marker="v", s=80, color="#e45756", zorder=4)
         label = f"$\\tau_{j}$"
         if np.any(np.isclose(tau, action_times)):
             label += " = action point"
         else:
             label += " inside transition"
-        ax.text(tau, 0.88, label, ha="center", va="bottom", fontsize=9.5, color="#a83232")
+        ax.text(tau, y_impulse - 0.26, label, ha="center", va="top", fontsize=9.5, color="#a83232")
 
-    ax.text(action_times[0] - 0.1, 1.28, "$t_k$: MDP/MG action or observation points", color="#234f7f", fontsize=10)
-    ax.text(action_times[0] - 0.1, 1.08, "$\\tau_j$: original model impulse or event points", color="#a83232", fontsize=10)
-    ax.text(action_times[0] - 0.1, -1.22,
-            "Action intervals may be nonuniform. Zero-order hold is common, but the action map can also be event-triggered or continuously evaluated.",
-            fontsize=9.2, color="#333333")
+    ax.text(action_times[0] - 0.1, 2.0, "$t_k$: MDP/MG observation and action points", color="#234f7f", fontsize=10)
+    ax.text(action_times[0] - 0.1, 1.78, "$\\tau_j$: impulse/event times in the original hybrid model", color="#a83232", fontsize=10)
+    ax.text(
+        action_times[0] - 0.1,
+        -1.92,
+        "Actions are held or mapped over each interval. Internal ODE substeps are solver operations, not extra policy decisions.",
+        fontsize=9.2,
+        color="#333333",
+    )
 
-    panel_label(ax, "Timing semantics: action points $t_k$ and impulse points $\\tau_j$", x=0.0, y=0.97)
-    ax.set_xlim(action_times[0] - 0.35, action_times[-1] + 0.55)
-    ax.set_ylim(-1.45, 1.55)
+    panel_label(ax, "Three-lane timing: decisions, ODE substeps, and impulses", x=0.0, y=0.98)
+    ax.set_xlim(action_times[0] - 0.95, action_times[-1] + 0.55)
+    ax.set_ylim(-2.15, 2.25)
     ax.axis("off")
     fig.tight_layout()
     save_guide_figure(
         fig,
-        output_dir / "timing_semantics",
+        output_dir / "action_timing",
         formats=("png", "pdf"),
         metadata={
             "figure_type": "guide diagram",
@@ -291,7 +312,7 @@ def main() -> None:
     plot_hybrid_rollout(output_dir)
     plot_hybrid_policy_comparison(output_dir)
     plot_neural_architectures(output_dir)
-    plot_timing_semantics(output_dir)
+    plot_action_timing(output_dir)
     print(f"Wrote figures to {output_dir}")
 
 

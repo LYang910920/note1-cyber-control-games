@@ -9,9 +9,9 @@ from cyber_dynamics import MalwareParams, controlled_sir_rhs, project_simplex3, 
 from cyber_hybrid_env import HybridCyberDefenseEnv, scripted_attacker
 from evaluation_metrics import evaluate_game_response_matrix, evaluate_policy_suite
 from fbsm_malware_baseline import solve_fbsm
-from node_siprs_adversarial_large import (
-    LargeAdversarialSIPRSConfig,
-    LargeAdversarialSIPRSEnv,
+from node_sips_adversarial_large import (
+    LargeAdversarialSIPSConfig,
+    LargeAdversarialSIPSEnv,
     evaluate_response_matrix,
     evaluate_response_sweep,
     summarize_response_rows,
@@ -23,7 +23,7 @@ from node_level_robustness import (
     rollout_node_policy,
     summarize_node_rollout,
 )
-from node_siprs_mappo import NodeSIPRSEnv, NodeSIPRSEnvConfig, evaluate_policy_baselines, train_mappo
+from node_sips_mappo import NodeSIPSEnv, NodeSIPSEnvConfig, evaluate_policy_baselines, train_mappo
 from scenario_profiles import describe_scenarios, describe_training_hyperparameters, get_scenario
 
 
@@ -46,8 +46,8 @@ class CoreModelTests(unittest.TestCase):
         obs = env.reset()
         next_obs, rewards, done, info = env.step(defender_action=(env.DEF_PATCH, 0.6), attacker_action=scripted_attacker(env, 0))
 
-        self.assertEqual(obs.shape, (4,))
-        self.assertEqual(next_obs.shape, (4,))
+        self.assertEqual(obs.shape, (3,))
+        self.assertEqual(next_obs.shape, (3,))
         self.assertIn("defender", rewards)
         self.assertIn("attacker", rewards)
         self.assertIsInstance(done, bool)
@@ -60,7 +60,7 @@ class CoreModelTests(unittest.TestCase):
 
     def test_isolation_action_creates_impulse_jump(self):
         env = HybridCyberDefenseEnv(seed=7)
-        env.reset(x0=np.array([0.75, 0.20, 0.05, 0.0]))
+        env.reset(x0=np.array([0.75, 0.20, 0.05]))
         _, _, _, info = env.step(defender_action=(env.DEF_ISOLATE, 0.8), attacker_action=scripted_attacker(env, 0))
 
         self.assertTrue(info["jump_applied"])
@@ -105,28 +105,28 @@ class CoreModelTests(unittest.TestCase):
         rollout = rollout_node_policy("unit-test patch policy", patch_policy, seed=5, cfg=cfg)
         rows = summarize_node_rollout(rollout, beta_assumed=0.5)
 
-        self.assertEqual(rollout["observations"].shape, (5, 4))
+        self.assertEqual(rollout["observations"].shape, (5, 3))
         self.assertEqual(len(rollout["costs"]), 4)
         self.assertGreaterEqual(rows["cumulative_compromised"], 0.0)
         self.assertEqual(rows["state_dimension"], 72)
         self.assertGreater(rows["node_pmp_unknown_proxy"], rows["state_dimension"])
 
-    def test_node_siprs_environment_contract(self):
-        cfg = NodeSIPRSEnvConfig(nodes=18, communities=3, horizon=3, substeps=2)
-        env = NodeSIPRSEnv(cfg)
+    def test_node_sips_environment_contract(self):
+        cfg = NodeSIPSEnvConfig(nodes=18, communities=3, horizon=3, substeps=2)
+        env = NodeSIPSEnv(cfg)
         obs = env.reset(seed=9)
         next_obs, rewards, done, info = env.step(np.array([0, 1, 2]))
 
-        self.assertEqual(obs.shape, (3, 13))
-        self.assertEqual(next_obs.shape, (3, 13))
+        self.assertEqual(obs.shape, (3, 12))
+        self.assertEqual(next_obs.shape, (3, 12))
         self.assertEqual(rewards.shape, (3,))
         self.assertFalse(done)
         self.assertLess(info["mass_error"], 1e-8)
         self.assertGreater(info["mean_risk_score"], 0.0)
         self.assertAlmostEqual(float(env.state.sum(axis=1).max()), 1.0, places=8)
 
-    def test_node_siprs_policy_baselines_cover_unseen_profiles(self):
-        cfg = NodeSIPRSEnvConfig(nodes=12, communities=3, horizon=3, substeps=2, seed=4)
+    def test_node_sips_policy_baselines_cover_unseen_profiles(self):
+        cfg = NodeSIPSEnvConfig(nodes=12, communities=3, horizon=3, substeps=2, seed=4)
         rows = evaluate_policy_baselines(base_cfg=cfg, seeds=(31,), strengths=(0.15, 0.45), device="cpu")
         labels = {row["policy"] for row in rows}
 
@@ -137,7 +137,7 @@ class CoreModelTests(unittest.TestCase):
             self.assertLess(row["mass_error"], 1e-8)
             self.assertIn("cumulative_infected_exposure", row)
 
-    def test_node_siprs_mappo_smoke_history(self):
+    def test_node_sips_mappo_smoke_history(self):
         try:
             import torch  # noqa: F401
         except ImportError:
@@ -168,9 +168,9 @@ class CoreModelTests(unittest.TestCase):
         self.assertEqual(len(history), 1)
         self.assertLess(history[0]["mass_error"], 1e-8)
 
-    def test_large_node_siprs_adversarial_contract(self):
-        cfg = LargeAdversarialSIPRSConfig(nodes=48, communities=4, horizon=3, substeps=1, seed=8)
-        env = LargeAdversarialSIPRSEnv(cfg)
+    def test_large_node_sips_adversarial_contract(self):
+        cfg = LargeAdversarialSIPSConfig(nodes=48, communities=4, horizon=3, substeps=1, seed=8)
+        env = LargeAdversarialSIPSEnv(cfg)
         obs = env.reset(seed=8)
         next_obs, defender_payoff, attacker_payoff, done, info = env.step(
             np.array([0, 1]),
@@ -184,8 +184,8 @@ class CoreModelTests(unittest.TestCase):
         self.assertTrue(np.isfinite(attacker_payoff))
         self.assertLess(info["mass_error"], 1e-8)
 
-    def test_large_node_siprs_self_play_response_matrix(self):
-        cfg = LargeAdversarialSIPRSConfig(nodes=40, communities=4, horizon=2, substeps=1, seed=9)
+    def test_large_node_sips_self_play_response_matrix(self):
+        cfg = LargeAdversarialSIPSConfig(nodes=40, communities=4, horizon=2, substeps=1, seed=9)
         history, defender_logits, attacker_logits = train_self_play(cfg, episodes=2, lr=0.05, seed=9)
         rows = evaluate_response_matrix(cfg, defender_logits, attacker_logits, seeds=(21,))
 
@@ -196,8 +196,8 @@ class CoreModelTests(unittest.TestCase):
             self.assertLess(row["mass_error"], 1e-8)
             self.assertIn("cumulative_infected_exposure", row)
 
-    def test_large_node_siprs_response_sweep_summary(self):
-        cfg = LargeAdversarialSIPRSConfig(nodes=36, communities=4, horizon=2, substeps=1, seed=12)
+    def test_large_node_sips_response_sweep_summary(self):
+        cfg = LargeAdversarialSIPSConfig(nodes=36, communities=4, horizon=2, substeps=1, seed=12)
         rows = evaluate_response_sweep(cfg, seeds=(21,), strengths=(0.2, 0.4), sizes=(36, 44))
         summary = summarize_response_rows(rows)
 

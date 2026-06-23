@@ -301,7 +301,7 @@ Open `artifacts/experiments/training_diagnostic_glossary.md` before reading the 
 
 | Item | Setting |
 |---|---|
-| Model | Hybrid malware/deception state `[S,I,R,z]` |
+| Model | Hybrid malware/deception state `[S,I,R]` |
 | Decision timing | observe at action point `t_k`, apply any impulse jump, integrate ODE to `t_{{k+1}}^-` |
 | Defender actions | none, patch, clean, deceive, isolate |
 | Attacker actions | scan, exploit, lateral, stealth |
@@ -376,7 +376,7 @@ Use this page as the first stop after running `python scripts/run_training_itera
 
 | Item | Value |
 |---|---|
-| Model | Hybrid malware/deception `[S,I,R,z]` |
+| Model | Hybrid malware/deception `[S,I,R]` |
 | Default decision interval | `Delta t = {policy_metrics[0]["decision_dt"]:.2f}` in this run; nonuniform `Delta t_k` is also valid |
 | Solver substeps | `{policy_metrics[0]["rk4_substeps"]}` RK4 substeps per decision interval |
 | Observation convention | policy sees pre-jump `x(t_k^-)`; next observation is `x(t_{{k+1}}^-)` |
@@ -430,7 +430,7 @@ In this section, **node-level** means each graph node carries a local S/I/R epid
 | Policy comparison CSV | `artifacts/experiments/policy_comparison_metrics.csv` |
 | Game matrix CSV | `artifacts/experiments/game_response_metrics.csv` |
 | Node-level epidemic robustness CSV | `artifacts/experiments/node_level_robustness_metrics.csv` |
-| Timing diagram and explanation | `docs/assets/timing_semantics.png`, `docs/MODEL_TO_MDP.md` |
+| Timing diagram and explanation | `docs/assets/action_timing.png`, `docs/MODEL_TO_MDP.md` |
 """
     path.write_text(text)
 

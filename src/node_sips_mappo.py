@@ -2,9 +2,9 @@
 Copyright (c) 2026 Luxing Yang.
 Licensed under the MIT License. See LICENSE in the repository root.
 
-Node-level SIPRS community-defense environment and cooperative MAPPO baseline.
+Node-level SIPS community-defense environment and cooperative MAPPO baseline.
 
-The environment uses the canonical ``cybercontrol.network_models`` SIPRS
+The environment uses the canonical ``cybercontrol.network_models`` SIPS
 equations.  Agents are regional defenders.  Each chooses one sampled-data mode
 (``none``, ``patch``, or ``clean``) per decision epoch; the continuous node ODE
 then flows until the next decision point.
@@ -21,9 +21,9 @@ import numpy as np
 
 from cybercontrol.heterogeneity import node_heterogeneity_summary
 from cybercontrol.network_models import (
-    community_correlated_node_siprs_params,
+    community_correlated_node_sips_params,
     contiguous_community_index,
-    node_siprs_rhs_numpy,
+    node_sips_rhs_numpy,
     normalize_adjacency,
 )
 from cybercontrol.numerics import project_compartments, rk4_integrate
@@ -31,8 +31,8 @@ from cybercontrol.torch_utils import MLP, configure_torch
 
 
 @dataclass
-class NodeSIPRSEnvConfig:
-    """Deterministic node-SIPRS profile for bounded MAPPO experiments."""
+class NodeSIPSEnvConfig:
+    """Deterministic node-SIPS profile for bounded MAPPO experiments."""
 
     nodes: int = 48
     communities: int = 3
@@ -43,8 +43,7 @@ class NodeSIPRSEnvConfig:
     initial_infected: float = 0.08
     beta: float = 0.85
     gamma: float = 0.16
-    omega_p: float = 0.035
-    omega_r: float = 0.025
+    omega: float = 0.035
     patch_rate: float = 0.35
     clean_rate: float = 0.45
     heterogeneity_strength: float = 0.35
@@ -54,7 +53,7 @@ class NodeSIPRSEnvConfig:
     seed: int = 17
 
 
-def build_community_graph(cfg: NodeSIPRSEnvConfig, rng: np.random.Generator) -> np.ndarray:
+def build_community_graph(cfg: NodeSIPSEnvConfig, rng: np.random.Generator) -> np.ndarray:
     """Build a small graph with stronger within-community connectivity."""
 
     n = cfg.nodes
@@ -74,26 +73,25 @@ def build_community_graph(cfg: NodeSIPRSEnvConfig, rng: np.random.Generator) -> 
     return normalize_adjacency(A)
 
 
-class NodeSIPRSEnv:
-    """Deterministic node-probability SIPRS environment for regional defenders."""
+class NodeSIPSEnv:
+    """Deterministic node-probability SIPS environment for regional defenders."""
 
     ACTIONS = ("none", "patch", "clean")
 
-    def __init__(self, cfg: NodeSIPRSEnvConfig | None = None):
-        self.cfg = cfg or NodeSIPRSEnvConfig()
+    def __init__(self, cfg: NodeSIPSEnvConfig | None = None):
+        self.cfg = cfg or NodeSIPSEnvConfig()
         self.rng = np.random.default_rng(self.cfg.seed)
         self.community = contiguous_community_index(self.cfg.nodes, self.cfg.communities)
         self.adjacency = build_community_graph(self.cfg, self.rng)
-        self.params = community_correlated_node_siprs_params(
+        self.params = community_correlated_node_sips_params(
             self.community,
             strength=self.cfg.heterogeneity_strength,
             beta=self.cfg.beta,
             gamma=self.cfg.gamma,
-            omega_p=self.cfg.omega_p,
-            omega_r=self.cfg.omega_r,
+            omega=self.cfg.omega,
         )
         self.resolved_params = self.params.resolve(self.cfg.nodes)
-        self.obs_dim = 13
+        self.obs_dim = 12
         self.n_agents = self.cfg.communities
         self.n_actions = len(self.ACTIONS)
         self.reset()
@@ -106,7 +104,7 @@ class NodeSIPRSEnv:
             self.adjacency = build_community_graph(self.cfg, self.rng)
         self.k = 0
         self.prev_actions = np.zeros(self.n_agents, dtype=np.float64)
-        x = np.zeros((self.cfg.nodes, 4), dtype=np.float64)
+        x = np.zeros((self.cfg.nodes, 3), dtype=np.float64)
         x[:, 0] = 1.0 - self.cfg.initial_infected
         x[:, 1] = self.cfg.initial_infected
         jitter = self.rng.normal(0.0, 0.01, size=self.cfg.nodes)
@@ -154,14 +152,20 @@ class NodeSIPRSEnv:
         return patch, clean
 
     def step(self, actions: np.ndarray):
-        """Apply community actions and integrate the node SIPRS ODE."""
+        """Apply community actions and integrate the node SIPS ODE.
+
+        Transition order: observe ``x(t_k^-)``; decode one action per community;
+        hold patch/clean rates constant over ``[t_k,t_{k+1})``; integrate the
+        SIPS ODE with RK4 solver substeps; return ``x(t_{k+1}^-)``. Solver
+        substeps are not additional policy decisions.
+        """
 
         actions = np.asarray(actions, dtype=np.int64)
         patch, clean = self._action_rates(actions)
 
         def rhs_flat(y, t):
-            x = y.reshape(self.cfg.nodes, 4)
-            return node_siprs_rhs_numpy(x, self.adjacency, self.params, patch=patch, clean=clean).reshape(-1)
+            x = y.reshape(self.cfg.nodes, 3)
+            return node_sips_rhs_numpy(x, self.adjacency, self.params, patch=patch, clean=clean).reshape(-1)
 
         y_next, _ = rk4_integrate(
             rhs_flat,
@@ -169,9 +173,9 @@ class NodeSIPRSEnv:
             t0=self.k * self.cfg.dt,
             dt=self.cfg.dt,
             substeps=self.cfg.substeps,
-            project=lambda y: project_compartments(y.reshape(self.cfg.nodes, 4)).reshape(-1),
+            project=lambda y: project_compartments(y.reshape(self.cfg.nodes, 3)).reshape(-1),
         )
-        self.state = y_next.reshape(self.cfg.nodes, 4)
+        self.state = y_next.reshape(self.cfg.nodes, 3)
         local_rewards = []
         global_i = float(self.state[:, 1].mean())
         for m, action in enumerate(actions):
@@ -198,13 +202,13 @@ class NodeSIPRSEnv:
         return self.observation(), np.asarray(local_rewards, dtype=np.float32), done, info
 
 
-def _community_scores(env: NodeSIPRSEnv, values: np.ndarray) -> np.ndarray:
+def _community_scores(env: NodeSIPSEnv, values: np.ndarray) -> np.ndarray:
     """Average node scores over defender communities."""
 
     return np.asarray([float(np.mean(values[env.community == m])) for m in range(env.n_agents)], dtype=np.float64)
 
 
-def _single_budget_action(env: NodeSIPRSEnv, community: int) -> np.ndarray:
+def _single_budget_action(env: NodeSIPSEnv, community: int) -> np.ndarray:
     """Use one community-level intervention budget in a transparent way."""
 
     actions = np.zeros(env.n_agents, dtype=np.int64)
@@ -214,7 +218,7 @@ def _single_budget_action(env: NodeSIPRSEnv, community: int) -> np.ndarray:
     return actions
 
 
-def baseline_actions(env: NodeSIPRSEnv, policy: str, rng: np.random.Generator) -> np.ndarray:
+def baseline_actions(env: NodeSIPSEnv, policy: str, rng: np.random.Generator) -> np.ndarray:
     """Return a transparent baseline action vector for the current state.
 
     The non-learning baselines use one active community per decision epoch so
@@ -235,7 +239,7 @@ def baseline_actions(env: NodeSIPRSEnv, policy: str, rng: np.random.Generator) -
     elif policy == "budget_random":
         community = int(rng.integers(0, env.n_agents))
     else:
-        raise ValueError(f"unknown node-SIPRS baseline policy: {policy}")
+        raise ValueError(f"unknown node-SIPS baseline policy: {policy}")
     return _single_budget_action(env, community)
 
 
@@ -249,10 +253,10 @@ def learned_actions(actor, obs: np.ndarray, device: str) -> np.ndarray:
         return torch.argmax(logits, dim=-1).cpu().numpy().astype(np.int64)
 
 
-def rollout_policy(policy: str, cfg: NodeSIPRSEnvConfig, *, actor=None, device: str = "cpu") -> dict[str, float | int | str]:
-    """Roll out one policy on a held-out node-SIPRS profile."""
+def rollout_policy(policy: str, cfg: NodeSIPSEnvConfig, *, actor=None, device: str = "cpu") -> dict[str, float | int | str]:
+    """Roll out one policy on a held-out node-SIPS profile."""
 
-    env = NodeSIPRSEnv(cfg)
+    env = NodeSIPSEnv(cfg)
     obs = env.reset(seed=cfg.seed)
     rng = np.random.default_rng(cfg.seed + 9_001)
     cumulative_reward = 0.0
@@ -295,14 +299,14 @@ def rollout_policy(policy: str, cfg: NodeSIPRSEnvConfig, *, actor=None, device: 
 def evaluate_policy_baselines(
     *,
     actor=None,
-    base_cfg: NodeSIPRSEnvConfig | None = None,
+    base_cfg: NodeSIPSEnvConfig | None = None,
     seeds: tuple[int, ...] = (101, 102, 103, 104, 105),
     strengths: tuple[float, ...] = (0.2, 0.35, 0.5),
     device: str = "cpu",
 ) -> list[dict[str, float | int | str]]:
     """Compare transparent baselines and an optional learned actor on unseen profiles."""
 
-    base_cfg = base_cfg or NodeSIPRSEnvConfig()
+    base_cfg = base_cfg or NodeSIPSEnvConfig()
     policies = ["uniform", "degree", "risk", "oracle", "budget_random"]
     if actor is not None:
         policies.append("learned_mappo")
@@ -350,20 +354,20 @@ def compute_gae(rewards, values, dones, last_value, gamma: float, lam: float):
 
 
 def train_mappo(args):
-    """Train a cooperative MAPPO defender on node SIPRS dynamics."""
+    """Train a cooperative MAPPO defender on node SIPS dynamics."""
 
     torch, device, _ = configure_torch(seed=args.seed, device=args.device, threads=1)
     import torch.nn.functional as F
     from torch.distributions import Categorical
 
-    cfg = NodeSIPRSEnvConfig(
+    cfg = NodeSIPSEnvConfig(
         nodes=args.nodes,
         communities=args.communities,
         horizon=args.horizon,
         seed=args.seed,
         heterogeneity_strength=args.heterogeneity_strength,
     )
-    env = NodeSIPRSEnv(cfg)
+    env = NodeSIPSEnv(cfg)
     actor = MLP(env.obs_dim, env.n_actions, width=args.hidden, depth=2).to(device)
     critic = MLP(env.obs_dim * env.n_agents, 1, width=args.hidden, depth=2).to(device)
     actor._cybercontrol_device = device
@@ -442,7 +446,7 @@ def train_mappo(args):
 
 
 def build_parser():
-    parser = argparse.ArgumentParser(description="Train a cooperative MAPPO baseline on node-level SIPRS.")
+    parser = argparse.ArgumentParser(description="Train a cooperative MAPPO baseline on node-level SIPS.")
     parser.add_argument("--smoke", action="store_true")
     parser.add_argument("--nodes", type=int, default=48)
     parser.add_argument("--communities", type=int, default=3)
@@ -490,7 +494,7 @@ if __name__ == "__main__":
             writer.writerows(history)
         print(f"wrote {args.output_csv}")
     if args.policy_csv is not None:
-        eval_cfg = NodeSIPRSEnvConfig(
+        eval_cfg = NodeSIPSEnvConfig(
             nodes=args.nodes,
             communities=args.communities,
             horizon=args.horizon,

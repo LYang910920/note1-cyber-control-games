@@ -2,9 +2,9 @@
 Copyright (c) 2026 Luxing Yang.
 Licensed under the MIT License. See LICENSE in the repository root.
 
-Hybrid cyber-defense environment for ODE-RL, DDQN, PPO, SAC, and MADRL examples.
+Sampled SIR cyber-defense environment for ODE-RL, DDQN, PPO, SAC, and MADRL examples.
 
-The environment illustrates the three control types used in the tutorial notes:
+The environment illustrates three control types used in the repository guides:
   * continuous flow control: selected action changes ODE rates over an interval;
   * impulsive control: selected action causes an immediate jump x(t_k+) = G(x(t_k-),a_k);
   * hybrid action: a discrete mode plus a continuous intensity in [0,1].
@@ -33,7 +33,7 @@ Action = Union[int, Tuple[int, float]]
 
 @dataclass
 class EnvConfig:
-    # dt is the fixed sampled-data decision interval used by this tutorial
+    # dt is the fixed sampled-data decision interval used by the examples.
     # environment: t_k = k * dt.  The tutorial also discusses nonuniform
     # intervals Delta t_k = t_{k+1} - t_k; those require carrying the next
     # action time in the environment state or scheduler.
@@ -84,11 +84,11 @@ class HybridCyberDefenseEnv:
         self.cfg = config if config is not None else EnvConfig()
         self.rng = np.random.default_rng(seed)
         self.t = 0
-        self.state = np.array([0.95, 0.05, 0.0, 0.0], dtype=np.float64)
+        self.state = np.array([0.95, 0.05, 0.0], dtype=np.float64)
 
     @property
     def obs_dim(self) -> int:
-        return 4
+        return 3
 
     @property
     def n_defender_actions(self) -> int:
@@ -106,10 +106,9 @@ class HybridCyberDefenseEnv:
             I0 = self.rng.uniform(0.02, 0.10)
             R0 = self.rng.uniform(0.0, 0.05)
             S0 = max(1e-6, 1.0 - I0 - R0)
-            z0 = self.rng.uniform(0.0, 0.05)
-            self.state = project_simplex3(np.array([S0, I0, R0, z0], dtype=np.float64))
+            self.state = project_simplex3(np.array([S0, I0, R0], dtype=np.float64))
         else:
-            self.state = np.array([0.95, 0.05, 0.0, 0.0], dtype=np.float64)
+            self.state = np.array([0.95, 0.05, 0.0], dtype=np.float64)
         return self.observe()
 
     def observe(self):
@@ -143,11 +142,9 @@ class HybridCyberDefenseEnv:
         mode, v = self.decode_action(action)
         attack_boost = [0.10, 0.50, 0.70, 0.20][mode] * v
         stealth_factor = 0.5 if mode == self.ATK_STEALTH else 1.0
-        learn = self.cfg.params.zeta * v if mode in (self.ATK_SCAN, self.ATK_STEALTH) else 0.0
         return {
             "beta": self.cfg.params.beta0 * (1.0 + attack_boost),
             "stealth_factor": stealth_factor,
-            "deception_learning": learn,
             "mode": mode,
             "intensity": v,
             "cost": self.cfg.attack_costs[mode] * v * v,
@@ -209,7 +206,7 @@ class HybridCyberDefenseEnv:
                 + self.cfg.usability_cost * removed_by_impulse
             )
         defender_reward = -(self.cfg.dt * running_defense_cost + impulse_cost)
-        attacker_reward = float(self.cfg.dt * (8.0 * I_mean + 1.0 * S_mean - 2.0 * next_state[3] - apar["cost"]))
+        attacker_reward = float(self.cfg.dt * (8.0 * I_mean + 1.0 * S_mean - apar["cost"]))
         done = bool(self.t >= self.cfg.horizon or next_state[1] < 1e-5 or next_state[1] > 0.95)
         info = {
             "decision_epoch": epoch,

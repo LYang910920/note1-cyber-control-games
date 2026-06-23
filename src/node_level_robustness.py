@@ -60,13 +60,13 @@ def build_erdos_graph(nodes: int, mean_degree: float, rng: np.random.Generator) 
     return graph.astype(np.float64)
 
 
-def aggregate_observation(state: np.ndarray, deception_level: float = 0.0) -> np.ndarray:
-    """Return the aggregate [S, I, R, z] observation used by feedback policies."""
+def aggregate_observation(state: np.ndarray) -> np.ndarray:
+    """Return the aggregate [S, I, R] observation used by feedback policies."""
     n = len(state)
     susceptible = float(np.count_nonzero(state == 0) / n)
     infected = float(np.count_nonzero(state == 1) / n)
     protected = float(np.count_nonzero(state == 2) / n)
-    return np.array([susceptible, infected, protected, deception_level], dtype=np.float64)
+    return np.array([susceptible, infected, protected], dtype=np.float64)
 
 
 def action_from_defender_mode(mode: int) -> ActionDict:
@@ -170,7 +170,7 @@ def rollout_node_policy(
     """Roll out one node-level policy.
 
     A rollout is one forward simulation on one random graph seed.  The returned
-    observations are aggregate S/I/R/z summaries over the node states at each
+    observations are aggregate S/I/R summaries over the node states at each
     action epoch.
     """
     cfg = cfg or NodeSimConfig()
@@ -190,7 +190,7 @@ def rollout_node_policy(
         obs = observations[-1]
         action = policy(k, obs)
         state, info = node_step(state, graph, action, k, cfg, rng)
-        observations.append(aggregate_observation(state, float(action.get("deceive", 0.0))))
+        observations.append(aggregate_observation(state))
         costs.append(info["action_cost"])
         actions.append(str(action.get("label", "unknown")))
         beta_values.append(info["effective_beta"])

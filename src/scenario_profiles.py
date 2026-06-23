@@ -55,7 +55,7 @@ def tutorial_hybrid_small() -> EnvConfig:
         dt=1.0,
         substeps=10,
         horizon=100,
-        params=HybridParams(beta0=0.65, gamma=0.05, omega=0.01, chi=0.70, xi=0.04, zeta=0.08),
+        params=HybridParams(beta0=0.65, gamma=0.05, omega=0.01, chi=0.70),
         randomize_initial_state=False,
     )
 
@@ -66,7 +66,7 @@ def impulse_visible_defense() -> EnvConfig:
         dt=1.0,
         substeps=12,
         horizon=80,
-        params=HybridParams(beta0=0.80, gamma=0.04, omega=0.015, chi=0.65, xi=0.04, zeta=0.10),
+        params=HybridParams(beta0=0.80, gamma=0.04, omega=0.015, chi=0.65),
         c_isolate=1.4,
         usability_cost=1.8,
         randomize_initial_state=True,
@@ -79,7 +79,7 @@ def paper_network_bridge() -> EnvConfig:
         dt=0.5,
         substeps=8,
         horizon=160,
-        params=HybridParams(beta0=0.75, gamma=0.06, omega=0.02, chi=0.55, xi=0.03, zeta=0.12),
+        params=HybridParams(beta0=0.75, gamma=0.06, omega=0.02, chi=0.55),
         w_I=12.0,
         c_deceive=1.2,
         c_isolate=2.4,
@@ -91,7 +91,7 @@ SCENARIOS: dict[str, CyberScenarioProfile] = {
     "tutorial-hybrid-small": CyberScenarioProfile(
         name="tutorial-hybrid-small",
         question="Can the full continuous/impulse/hybrid loop run end to end?",
-        state_level="aggregate S/I/R/z compartments",
+        state_level="aggregate S/I/R compartments",
         timing="fixed sampled-data decisions t_k with RK4 substeps inside each interval",
         control_type="hybrid: continuous rates plus optional impulse isolation",
         first_files_to_edit=("src/cyber_dynamics.py", "src/cyber_hybrid_env.py"),
@@ -101,7 +101,7 @@ SCENARIOS: dict[str, CyberScenarioProfile] = {
     "impulse-visible-defense": CyberScenarioProfile(
         name="impulse-visible-defense",
         question="What happens when impulsive isolation has a visible state jump?",
-        state_level="aggregate S/I/R/z compartments",
+        state_level="aggregate S/I/R compartments",
         timing="fixed t_k decisions; impulse is applied before continuous ODE flow",
         control_type="impulse-dominant hybrid control",
         first_files_to_edit=("src/cyber_hybrid_env.py", "src/evaluation_metrics.py"),
@@ -116,7 +116,7 @@ SCENARIOS: dict[str, CyberScenarioProfile] = {
         control_type="hybrid control with stochastic initial states",
         first_files_to_edit=(
             "src/node_level_robustness.py",
-            "src/node_siprs_adversarial_large.py",
+            "src/node_sips_adversarial_large.py",
             "src/madrl_ctde_hybrid_game.py",
         ),
         paper_extension="Move the state from aggregate compartments to graph/node features and run multi-seed stress tests.",
@@ -217,15 +217,15 @@ TRAINING_HYPERPARAMETERS: tuple[TrainingHyperparameterProfile, ...] = (
         source="src/node_level_robustness.py and scripts/run_training_iterations.py::run_node_level_robustness",
     ),
     TrainingHyperparameterProfile(
-        name="node-siprs-mappo-smoke",
-        method="cooperative community MAPPO on canonical node SIPRS",
+        name="node-sips-mappo-smoke",
+        method="cooperative community MAPPO on canonical node SIPS",
         hyperparameters=(
-            ("command", "python src/node_siprs_mappo.py --smoke --device cpu"),
+            ("command", "python src/node_sips_mappo.py --smoke --device cpu"),
             ("nodes", "24 in smoke; 48 by default"),
             ("communities", "3"),
-            ("compartments", "S/I/P/R"),
+            ("compartments", "S/I/P"),
             ("heterogeneity", "community-correlated rates/costs/bounds, strength=0.35 by default"),
-            ("observation", "13 features per community including known risk/rate summaries"),
+            ("observation", "12 features per community including known risk/rate summaries"),
             ("horizon", "6 in smoke; 18 by default"),
             ("rollout_steps", "6 in smoke; 18 by default"),
             ("ppo_epochs", "2 in smoke; 3 by default"),
@@ -234,13 +234,13 @@ TRAINING_HYPERPARAMETERS: tuple[TrainingHyperparameterProfile, ...] = (
             ("gamma / GAE lambda", "0.97 / 0.95"),
             ("clip_eps", "0.2"),
         ),
-        source="src/node_siprs_mappo.py",
+        source="src/node_sips_mappo.py",
     ),
     TrainingHyperparameterProfile(
-        name="large-node-siprs-attacker-defender",
-        method="large sparse node-SIPRS attacker-defender benchmark",
+        name="large-node-sips-attacker-defender",
+        method="large sparse node-SIPS attacker-defender benchmark",
         hyperparameters=(
-            ("command", "python src/node_siprs_adversarial_large.py --smoke"),
+            ("command", "python src/node_sips_adversarial_large.py --smoke"),
             ("nodes", "96 in smoke; 512 by default"),
             ("communities", "6 in smoke; 8 by default"),
             ("graph", "sparse Barabasi-Albert, row-normalized"),
@@ -250,7 +250,7 @@ TRAINING_HYPERPARAMETERS: tuple[TrainingHyperparameterProfile, ...] = (
             ("held-out evaluation", "--eval-seeds, --eval-strengths, and --size-sweep"),
             ("summary output", "--summary-csv groups payoff and infection metrics by size/strength/policy pair"),
         ),
-        source="src/node_siprs_adversarial_large.py",
+        source="src/node_sips_adversarial_large.py",
     ),
 )
 
