@@ -573,8 +573,8 @@ def plot_node_level_advantage(output_path: Path, rollouts: list[dict], rows: lis
     ax.bar(x, [v[0] for v in cumulative], yerr=[v[1] for v in cumulative],
            color=[colors.get(p, "#4c78a8") for p in policies], alpha=0.85, capsize=4)
     ax.set_xticks(x, labels, rotation=18, ha="right")
-    ax.set_ylabel("Mean exposure")
-    panel_label(ax, "(b) exposure under mismatch")
+    ax.set_ylabel("Mean cumulative infected exposure")
+    panel_label(ax, "(b) cumulative exposure under mismatch")
     ax.grid(axis="y", alpha=0.25)
 
     peak = [mean_metric(p, "peak_compromised") for p in policies]
@@ -627,7 +627,7 @@ def plot_node_level_advantage(output_path: Path, rollouts: list[dict], rows: lis
         metadata={
             "figure_type": "node-level robustness comparison",
             "model": "node-level epidemic SIR graph model",
-            "caption_hint": "Curves are aggregate infected-node shares averaged across graph seeds.",
+            "caption_hint": "Curves are aggregate infected-node shares; exposure bars are time-summed infected shares averaged across graph seeds.",
         },
     )
     plt.close(fig)

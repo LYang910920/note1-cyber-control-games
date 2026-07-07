@@ -102,7 +102,7 @@ def plot_sampled_impulse_rollout(output_dir: Path) -> None:
     axes[0].plot(t, states[:, 1], label="Compromised", linestyle="--")
     axes[0].plot(t, states[:, 2], label="Recovered/protected", linestyle="-.")
     panel_label(axes[0], "(a) sampled-flow state trajectory")
-    style_axis(axes[0], ylabel="State", legend=True)
+    style_axis(axes[0], ylabel="Population share", legend=True)
 
     axes[1].step(np.arange(len(actions)), actions, where="post", color="black")
     axes[1].set_yticks([env.DEF_PATCH, env.DEF_CLEAN, env.DEF_ISOLATE])
@@ -155,7 +155,7 @@ def plot_sampled_impulse_policy_comparison(output_dir: Path) -> None:
     ax = axes[0, 1]
     ax.bar(x, [row["cumulative_compromised"] for row in metrics], color=colors, alpha=0.85)
     panel_label(ax, "(b) exposure")
-    ax.set_ylabel("sum I_k * Delta t (lower is better)")
+    ax.set_ylabel("Cumulative exposure, sum I_k * Delta t")
     ax.set_xticks(x, labels, rotation=20, ha="right")
     ax.grid(axis="y", alpha=0.25)
 
@@ -197,7 +197,7 @@ def plot_sampled_impulse_policy_comparison(output_dir: Path) -> None:
         metadata={
             "model": "sampled SIR malware/deception environment",
             "control_type": "sampled flow plus optional impulse policy comparison",
-            "caption_hint": "Same-model comparison of sampled defender policies.",
+            "caption_hint": "Same-model sampled defender comparison; exposure is the time-summed compromised share.",
         },
     )
     plt.close(fig)
