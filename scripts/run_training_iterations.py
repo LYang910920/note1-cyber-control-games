@@ -437,7 +437,7 @@ In this section, **node-level** means each graph node carries a local S/I/R epid
 
 def plot_training_diagnostics(output_path: Path, fbsm: list[dict], ddqn: list[dict], madrl: list[dict], policy_metrics: list[dict]) -> None:
     with publication_style():
-        fig, axes = plt.subplots(2, 2, figsize=(7.16, 5.2))
+        fig, axes = plt.subplots(2, 2, figsize=(7.16, 5.85))
     axes = axes.ravel()
 
     axes[0].semilogy([r["iteration"] for r in fbsm], [r["max_control_change"] for r in fbsm], color="black")
@@ -532,12 +532,17 @@ def plot_node_level_advantage(output_path: Path, rollouts: list[dict], rows: lis
         NODE_DDQN_LABEL: "#4c78a8",
     }
     display_names = {
-        NODE_NO_DEFENSE_LABEL: "No defense\n(node S/I/R)",
-        NODE_FBSM_LABEL: "Nominal FBSM\nopen-loop patching",
-        NODE_DDQN_LABEL: "DDQN feedback\naggregate state",
+        NODE_NO_DEFENSE_LABEL: "No defense",
+        NODE_FBSM_LABEL: "Nominal FBSM",
+        NODE_DDQN_LABEL: "DDQN feedback",
+    }
+    tick_names = {
+        NODE_NO_DEFENSE_LABEL: "No defense\nnode S/I/R",
+        NODE_FBSM_LABEL: "Nominal FBSM\nopen-loop",
+        NODE_DDQN_LABEL: "DDQN feedback\naggregate",
     }
     with publication_style():
-        fig, axes = plt.subplots(2, 2, figsize=(7.16, 5.2))
+        fig, axes = plt.subplots(2, 2, figsize=(8.4, 6.2))
     axes = axes.ravel()
 
     ax = axes[0]
@@ -553,22 +558,22 @@ def plot_node_level_advantage(output_path: Path, rollouts: list[dict], rows: lis
     style_axis(
         ax,
         xlabel="Action epoch k in node-level simulator",
-        ylabel="Aggregate infected-node share I_k",
+        ylabel="Infected-node share",
     )
-    ax.legend(title="Policy deployed on graph", fontsize=7.5, title_fontsize=8, frameon=False)
+    handles, legend_labels = ax.get_legend_handles_labels()
 
     def mean_metric(policy: str, key: str) -> tuple[float, float]:
         vals = np.asarray([row[key] for row in rows if row["policy"] == policy], dtype=float)
         return float(vals.mean()), float(vals.std())
 
-    labels = [display_names.get(p, p) for p in policies]
+    labels = [tick_names.get(p, p) for p in policies]
     x = np.arange(len(policies))
     cumulative = [mean_metric(p, "cumulative_compromised") for p in policies]
     ax = axes[1]
     ax.bar(x, [v[0] for v in cumulative], yerr=[v[1] for v in cumulative],
            color=[colors.get(p, "#4c78a8") for p in policies], alpha=0.85, capsize=4)
     ax.set_xticks(x, labels, rotation=18, ha="right")
-    ax.set_ylabel("Mean cumulative infected-node exposure")
+    ax.set_ylabel("Mean exposure")
     panel_label(ax, "(b) exposure under mismatch")
     ax.grid(axis="y", alpha=0.25)
 
@@ -577,7 +582,7 @@ def plot_node_level_advantage(output_path: Path, rollouts: list[dict], rows: lis
     ax.bar(x, [v[0] for v in peak], yerr=[v[1] for v in peak],
            color=[colors.get(p, "#4c78a8") for p in policies], alpha=0.85, capsize=4)
     ax.set_xticks(x, labels, rotation=18, ha="right")
-    ax.set_ylabel("Mean peak infected-node share")
+    ax.set_ylabel("Mean peak I")
     panel_label(ax, "(c) burst robustness")
     ax.grid(axis="y", alpha=0.25)
 
@@ -590,25 +595,31 @@ def plot_node_level_advantage(output_path: Path, rollouts: list[dict], rows: lis
     ax.set_yscale("log")
     panel_label(ax, "(d) node-level PMP/FBSM size proxy")
     ax.set_xlabel("Nodes")
-    ax.set_ylabel("Approx. state+costate variables")
+    ax.set_ylabel("State+costate variables")
     ax.grid(alpha=0.25, which="both")
 
     beta_assumed = rows[0]["beta_assumed_by_fbsm"]
     beta_true = rows[0]["beta_true_base"]
     burst = rows[0]["burst_multiplier"]
-    fig.text(
-        0.5,
-        0.025,
-        "Caption: node-level epidemic model means each graph node is S, I, or R; curves show aggregate infected-node share over 8 random graph seeds. "
-        f"Robustness here means exposure under mismatch: the FBSM schedule uses nominal beta={beta_assumed:.2f}, while the deployed simulator uses true beta={beta_true:.2f} and burst multiplier={burst:.2f}. "
-        "The lower-right panel is an unknown-count proxy for full node-level PMP/FBSM, not a measured runtime.",
-        ha="center",
-        va="bottom",
-        fontsize=9,
-        color="#333333",
-        wrap=True,
+    fig.legend(
+        handles,
+        legend_labels,
+        loc="upper center",
+        bbox_to_anchor=(0.5, 0.975),
+        ncol=3,
+        fontsize=7.2,
+        frameon=False,
     )
-    fig.tight_layout(rect=(0, 0.08, 1, 1))
+    add_caption(
+        fig,
+        "Node-level S/I/R means each graph node has a state. Curves average infected-node share over 8 graph seeds; "
+        f"FBSM uses nominal beta={beta_assumed:.2f}, while deployment uses true beta={beta_true:.2f} with burst multiplier={burst:.2f}. "
+        "The size panel is an unknown-count proxy, not runtime.",
+        width=132,
+        y=0.018,
+        fontsize=7.4,
+    )
+    fig.tight_layout(rect=(0.02, 0.12, 1, 0.89), h_pad=1.4, w_pad=2.2)
     output_path.parent.mkdir(exist_ok=True)
     save_publication_figure(
         fig,

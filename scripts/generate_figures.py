@@ -40,6 +40,15 @@ from evaluation_metrics import evaluate_policy_suite
 from fbsm_malware_baseline import solve_fbsm
 
 
+def policy_display_label(name: str) -> str:
+    """Return a compact plot label without splitting domain terms."""
+
+    replacements = {
+        "Rule threshold isolate/deceive/patch": "Rule threshold\nisolate/deceive/patch",
+    }
+    return replacements.get(name, name)
+
+
 def plot_fbsm(output_dir: Path) -> None:
     t, x, u, _, objective = solve_fbsm(T=24.0, n=120, max_iter=30)
     with publication_style():
@@ -118,11 +127,11 @@ def plot_sampled_impulse_policy_comparison(output_dir: Path) -> None:
     colors = list(PUBLICATION_COLORS[:4])
     linestyles = list(PUBLICATION_LINESTYLES[:4])
     markers = list(PUBLICATION_MARKERS[:4])
-    labels = [textwrap.fill(row["policy"], width=18) for row in metrics]
+    labels = [policy_display_label(row["policy"]) for row in metrics]
     x = np.arange(len(labels))
 
     with publication_style():
-        fig, axes = plt.subplots(2, 2, figsize=(7.16, 5.2))
+        fig, axes = plt.subplots(2, 2, figsize=(7.16, 5.85))
     ax = axes[0, 0]
     for idx, rollout in enumerate(rollouts):
         states = rollout["states"]
@@ -131,7 +140,7 @@ def plot_sampled_impulse_policy_comparison(output_dir: Path) -> None:
         ax.plot(
             t,
             states[:, 1],
-            label=textwrap.fill(rollout["label"], width=18),
+            label=policy_display_label(rollout["label"]),
             color=colors[idx],
             linestyle=linestyles[idx],
             marker=markers[idx],
@@ -140,7 +149,8 @@ def plot_sampled_impulse_policy_comparison(output_dir: Path) -> None:
             markersize=4,
         )
     panel_label(ax, "(a) compromised state")
-    style_axis(ax, xlabel="Action/observation epoch k", ylabel="Compromised share I", legend=True)
+    style_axis(ax, xlabel="Action/observation epoch k", ylabel="Compromised share I")
+    handles, legend_labels = ax.get_legend_handles_labels()
 
     ax = axes[0, 1]
     ax.bar(x, [row["cumulative_compromised"] for row in metrics], color=colors, alpha=0.85)
@@ -157,19 +167,30 @@ def plot_sampled_impulse_policy_comparison(output_dir: Path) -> None:
     ax.set_ylabel("Compromised share")
     ax.set_xticks(x, labels, rotation=20, ha="right")
     ax.grid(axis="y", alpha=0.25)
-    ax.legend(fontsize=8)
+    ax.legend(fontsize=7.5, frameon=False, loc="upper right")
 
     ax = axes[1, 1]
     costs = [row["total_defender_cost"] for row in metrics]
     ax.barh(labels, costs, color=colors, alpha=0.85)
+    max_cost = max(costs)
+    label_x = max_cost * 1.06
     for idx, row in enumerate(metrics):
-        note = f'impulses={row["impulse_events"]}'
-        ax.text(costs[idx], idx, f" {note}", va="center", fontsize=8)
+        note = f'{row["impulse_events"]} impulses'
+        ax.text(label_x, idx, note, va="center", fontsize=7.5)
     panel_label(ax, "(d) cost and impulses")
     ax.set_xlabel("Total defender cost (lower is better)")
-    ax.set_xlim(0, max(costs) * 1.18)
+    ax.set_xlim(0, max_cost * 1.42)
     ax.grid(axis="x", alpha=0.25)
-    fig.tight_layout()
+    fig.legend(
+        handles,
+        legend_labels,
+        loc="upper center",
+        bbox_to_anchor=(0.5, 0.995),
+        ncol=2,
+        fontsize=7.4,
+        frameon=False,
+    )
+    fig.tight_layout(rect=(0, 0, 1, 0.91), h_pad=1.2, w_pad=1.0)
     save_publication_figure(
         fig,
         output_dir / "sampled_impulse_policy_comparison",
