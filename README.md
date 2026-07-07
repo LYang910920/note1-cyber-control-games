@@ -1,14 +1,18 @@
-# Cyber Control and Game Learning
+# Network Control Tutorial Family: Note 1
 
-Executable code for cyber optimal control, sampled-data reinforcement learning, and attacker-defender game learning. This is the second repository in the family. It uses the foundation package `cybercontrol` for shared dynamics, integration, plotting, and neural helper blocks; this repository keeps the environment and learning code.
+**Cyber Control and Game Learning**
+
+Executable code for cyber optimal control, sampled-data reinforcement learning, and attacker-defender game learning. This is the second repository in the Network Control Tutorial Family. It uses the foundation package `cybercontrol` for shared dynamics, integration, plotting, and neural helper blocks; this repository keeps the environment and learning code.
 
 ## Repository Family
 
-| Order | Repository | Role |
-|---:|---|---|
-| 0 | [network-control-differential-games](https://github.com/LYang910920/network-control-differential-games) | Foundation notation, shared `cybercontrol` package, continuous-time, impulse, continuous-impulsive examples, degree-vs-node scalability, and reference smoke runs. |
-| 1 | `note1-cyber-control-games` | FBSM baseline, sampled-data MDP conversion, DDQN defense, CTDE attacker-defender learning, cooperative node-SIPS MAPPO, and larger node-SIPS attacker-defender benchmarks. |
-| 2 | [note2-pinn-pidl-cyber-control](https://github.com/LYang910920/note2-pinn-pidl-cyber-control) | PINN/PIDL inverse learning, neural control, PMP-informed losses, and graph-state residual examples. |
+| Order | Family name | Current repository | Role |
+|---:|---|---|---|
+| 0 | Foundation: Network Control and Differential Games | [network-control-differential-games](https://github.com/LYang910920/network-control-differential-games) | Shared notation, `cybercontrol`, continuous-time, impulse, continuous-impulsive examples, degree-vs-node scalability, and reference smoke runs. |
+| 1 | Note 1: Cyber Control and Game Learning | `note1-cyber-control-games` | FBSM baseline, sampled-data MDP conversion, DDQN defense, CTDE attacker-defender learning, cooperative node-SIPS MAPPO, and larger node-SIPS attacker-defender benchmarks. |
+| 2 | Note 2: Physics-Informed Cyber Control | [note2-pinn-pidl-cyber-control](https://github.com/LYang910920/note2-pinn-pidl-cyber-control) | PINN/PIDL inverse learning, neural control, PMP-informed losses, and graph-state residual examples. |
+
+The GitHub repository slugs are kept stable for existing links. The family names above are the display names used in the PDFs and documentation.
 
 ## 5-Minute Quick Start
 

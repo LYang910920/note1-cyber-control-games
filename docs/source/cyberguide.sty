@@ -24,12 +24,12 @@
 \usepackage{microtype}
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta,positioning,shapes.geometric}
-\definecolor{DeepBlue}{RGB}{20,42,92}
-\definecolor{SoftBlue}{RGB}{239,246,255}
+\definecolor{DeepBlue}{HTML}{1F4E79}
+\definecolor{SoftBlue}{HTML}{EAF3F8}
 \definecolor{SoftGreen}{RGB}{236,248,241}
 \definecolor{SoftYellow}{RGB}{255,247,230}
 \definecolor{SoftGray}{RGB}{247,247,247}
-\definecolor{CodeGray}{RGB}{248,248,248}
+\definecolor{CodeGray}{HTML}{F7F7F9}
 \definecolor{DarkGreen}{RGB}{0,100,80}
 \definecolor{RuleGray}{RGB}{217,226,236}
 \hypersetup{colorlinks=true,linkcolor=DeepBlue,citecolor=DeepBlue,urlcolor=DeepBlue}
@@ -39,16 +39,16 @@
 \emergencystretch=2em
 \setlist[itemize]{leftmargin=1.4em,itemsep=0.2em,topsep=0.2em}
 \setlist[enumerate]{leftmargin=1.6em,itemsep=0.2em,topsep=0.2em}
-\titleformat{\section}{\normalfont\Large\bfseries\color{DeepBlue}}{\thesection.}{0.6em}{}
-\titleformat{\subsection}{\normalfont\large\bfseries\color{DeepBlue}}{\thesubsection}{0.6em}{}
-\titleformat{\subsubsection}{\normalfont\normalsize\bfseries\color{DeepBlue}}{\thesubsubsection}{0.6em}{}
+\titleformat{\section}{\normalfont\Large\bfseries\sffamily\color{DeepBlue}}{\thesection.}{0.6em}{}
+\titleformat{\subsection}{\normalfont\large\bfseries\sffamily\color{DeepBlue}}{\thesubsection}{0.6em}{}
+\titleformat{\subsubsection}{\normalfont\normalsize\bfseries\sffamily\color{DeepBlue}}{\thesubsubsection}{0.6em}{}
 \titlespacing*{\section}{0pt}{1.0em}{0.45em}
 \titlespacing*{\subsection}{0pt}{0.8em}{0.35em}
 \titlespacing*{\subsubsection}{0pt}{0.6em}{0.25em}
 \pagestyle{fancy}
 \fancyhf{}
-\lhead{\small\leftmark}
-\rhead{\small\thepage/\pageref{LastPage}}
+\lhead{\small\sffamily\leftmark}
+\rhead{\small\sffamily\thepage/\pageref{LastPage}}
 \renewcommand{\headrulewidth}{0.4pt}
 \renewcommand{\footrulewidth}{0pt}
 \renewcommand{\arraystretch}{1.20}
@@ -82,10 +82,12 @@
 \newcommand{\tutorialtitle}[4]{%
 \begin{titlepage}
 \centering
-\vspace*{1.45cm}
-{\bfseries\LARGE\color{DeepBlue} #1\par}
-\vspace{0.45cm}
-{\Large #2\par}
+\vspace*{1.25cm}
+{\sffamily\bfseries\Large\color{DeepBlue} Network Control Tutorial Family\par}
+\vspace{0.35cm}
+{\sffamily\bfseries\Huge\color{DeepBlue} #1\par}
+\vspace{0.35cm}
+{\sffamily\Large #2\par}
 \vspace{0.6cm}
 {\large Lu-Xing Yang\par}
 \vspace{0.55cm}
