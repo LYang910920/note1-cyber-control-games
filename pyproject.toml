@@ -18,7 +18,7 @@ dependencies = [
     "matplotlib",
     "networkx",
     "torch",
-    "cybercontrol @ git+https://github.com/LYang910920/network-control-differential-games.git@ca8888f383a7ce7a1a3dc3f6a42841cc2160933e",
+    "cybercontrol @ git+https://github.com/LYang910920/network-control-differential-games.git@435a813a3fb995da80453c5dadfc0933443a3fea",
 ]
 
 [project.optional-dependencies]
