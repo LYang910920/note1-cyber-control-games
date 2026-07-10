@@ -8,9 +8,9 @@ import numpy as np
 from cybercontrol.models import MalwareParams, controlled_sir_rhs, sampled_sir_flow_rhs
 from cybercontrol.numerics import project_simplex3, rk4_integrate
 from cybergames.actions import mode_intensity
-from cybergames.envs import SampledContinuousImpulseCyberEnv, scripted_attacker
+from cybergames.envs import EnvConfig, SampledContinuousImpulseCyberEnv, scripted_attacker
 from cybergames.evaluation import evaluate_game_response_matrix, evaluate_policy_suite
-from cybergames.fbsm import solve_fbsm
+from cybergames.fbsm import rk4_state_step, solve_fbsm
 from cybergames.adversarial import train_static_logit_self_play
 from cybergames.adversarial_env import AdversarialSIPSEnv
 from cybergames.evaluation import (
@@ -25,6 +25,9 @@ from cybergames.robustness import (
     summarize_node_rollout,
 )
 from cybergames.configs import AdversarialSIPSConfig, MAPPOConfig, NodeSIPSEnvConfig
+from cybergames.ctde import CentralCritic
+from cybergames.ddqn import evaluate as evaluate_ddqn
+from cybergames.ddqn import make_q_network
 from cybergames.mappo import train_mappo
 from cybergames.node_env import NodeSIPSEnv
 from cybergames.node_evaluation import evaluate_policy_baselines
@@ -35,7 +38,11 @@ from cybergames.architectures import (
     StateConditionedCommunityPolicy,
     matched_graph_mappo_width,
 )
-from cybergames.self_play import SelfPlayConfig, train_state_conditioned_self_play
+from cybergames.self_play import (
+    SelfPlayConfig,
+    evaluate_fixed_policy_cross_play,
+    train_state_conditioned_self_play,
+)
 
 
 class CoreModelTests(unittest.TestCase):
@@ -102,6 +109,31 @@ class CoreModelTests(unittest.TestCase):
         self.assertFalse(info["jump_applied"])
         self.assertTrue(np.allclose(next_obs[:3], expected))
 
+    def test_interval_reward_is_stable_under_rk4_refinement(self):
+        x0 = np.array([0.82, 0.12, 0.06])
+        rewards = []
+        for substeps in (8, 64):
+            env = SampledContinuousImpulseCyberEnv(config=EnvConfig(substeps=substeps), seed=7)
+            env.reset(x0=x0)
+            _, reward, _, _ = env.step(
+                defender_action=mode_intensity(env.DEF_PATCH, 0.5),
+                attacker_action=env.ATK_EXPLOIT,
+            )
+            rewards.append(reward)
+
+        self.assertAlmostEqual(rewards[0]["defender"], rewards[1]["defender"], places=5)
+        self.assertAlmostEqual(rewards[0]["attacker"], rewards[1]["attacker"], places=5)
+
+    def test_fbsm_returns_state_replayed_under_returned_control(self):
+        t, x, u, _, _, _ = solve_fbsm(T=3.0, n=30, max_iter=8, tol=1e-7, return_history=True)
+        replay = np.zeros_like(x)
+        replay[0] = np.array([0.95, 0.05, 0.0])
+        h = float(t[1] - t[0])
+        for k in range(len(t) - 1):
+            replay[k + 1] = rk4_state_step(replay[k], u[k], h, 0.8, 0.15)
+
+        self.assertTrue(np.allclose(x, replay))
+
     def test_sampled_observation_exposes_decision_phase(self):
         env = SampledContinuousImpulseCyberEnv(seed=7)
         initial = env.reset(x0=np.array([0.82, 0.12, 0.06]))
@@ -111,6 +143,30 @@ class CoreModelTests(unittest.TestCase):
         self.assertTrue(np.allclose(initial[:3], later[:3]))
         self.assertNotEqual(initial[3], later[3])
         self.assertEqual(env.obs_dim, 4)
+
+    def test_ddqn_evaluation_seed_changes_randomized_initial_cases(self):
+        import torch
+
+        q_network = make_q_network(4, 5, hidden=8, depth=1)
+        for parameter in q_network.parameters():
+            torch.nn.init.zeros_(parameter)
+
+        first = evaluate_ddqn(q_network, episodes=3, seed=101, horizon=4)
+        second = evaluate_ddqn(q_network, episodes=3, seed=202, horizon=4)
+
+        self.assertNotEqual(first, second)
+
+    def test_ctde_critic_conditions_on_both_actions(self):
+        import torch
+
+        critic = CentralCritic(4, defender_actions=5, attacker_actions=4, hidden=8)
+        observation = torch.zeros(2, 4)
+        first = critic(observation, torch.tensor([0, 0]), torch.tensor([0, 0]))
+        second = critic(observation, torch.tensor([1, 1]), torch.tensor([2, 2]))
+
+        self.assertEqual(tuple(first.shape), (2,))
+        self.assertEqual(critic.input_dim, 13)
+        self.assertFalse(torch.allclose(first, second))
 
     def test_isolation_action_creates_impulse_jump(self):
         env = SampledContinuousImpulseCyberEnv(seed=7)
@@ -371,6 +427,13 @@ class CoreModelTests(unittest.TestCase):
         self.assertEqual(len(result.history), 1)
         self.assertEqual(result.history[0]["policy_type"], "state-conditioned actor-critic")
         self.assertLess(result.history[0]["mass_error"], 1e-8)
+        cross_play = evaluate_fixed_policy_cross_play(result, cfg, seeds=(22,))
+        self.assertEqual(len(cross_play), 11)
+        reference = [
+            row for row in cross_play if row["evaluation_type"] == "learned_profile_reference"
+        ]
+        self.assertEqual(len(reference), 1)
+        self.assertTrue(all(row["best_response_retraining"] is False for row in cross_play))
 
     def test_scenario_profiles_are_readable_extension_entries(self):
         profile = get_scenario("paper-network-bridge")

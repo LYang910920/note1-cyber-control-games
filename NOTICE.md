@@ -4,7 +4,7 @@ Copyright (c) 2026 Luxing Yang.
 
 This repository is the companion code for "Cyber Control and Game Learning." Unless a file states otherwise, the source code, LaTeX source, generated figures, and documentation in this repository are released under the MIT License in `LICENSE`.
 
-Python, shell, and workflow files include short copyright/license headers.  Those headers are reminders of the same MIT terms, not separate licenses.
+Some source files include short copyright/license headers. Those headers are reminders of the same MIT terms, not separate licenses; the root license applies when a file has no separate notice.
 
 The examples are teaching materials.  They are not calibrated cyber-risk products, operational security tools, or benchmark implementations.
 

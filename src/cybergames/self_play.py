@@ -85,7 +85,8 @@ def train_state_conditioned_self_play(
 
     This bounded baseline uses alternating role-specific policy gradients on
     complete trajectories. It is not presented as an equilibrium solver;
-    response and unilateral-deviation evaluation remain required.
+    fixed-policy cross-play is supplied here; best-response retraining remains
+    required before making an exploitability or equilibrium claim.
     """
 
     game.validate()
@@ -190,18 +191,26 @@ def train_state_conditioned_self_play(
     )
 
 
-def evaluate_unilateral_responses(
+def evaluate_fixed_policy_cross_play(
     result: SelfPlayResult,
     game: AdversarialSIPSConfig,
     *,
     seeds: tuple[int, ...] = (101, 102, 103),
 ) -> list[dict[str, float | int | str]]:
-    """Fix one learned role and vary the opponent over transparent baselines."""
+    """Compare fixed learned policies with each other and heuristic opponents.
+
+    These are held-out cross-play rollouts, not best-response retraining or an
+    exploitability estimate.
+    """
 
     baselines = ("uniform", "degree", "risk", "oracle", "budget_random")
     rows: list[dict[str, float | int | str]] = []
     for seed in seeds:
-        for learned_role, opponents in (("defender", baselines), ("attacker", baselines)):
+        for learned_role, opponents in (
+            ("both", ("learned",)),
+            ("defender", baselines),
+            ("attacker", baselines),
+        ):
             for opponent in opponents:
                 env = AdversarialSIPSEnv(game)
                 observation = env.reset(seed=seed)
@@ -214,24 +223,27 @@ def evaluate_unilateral_responses(
                     obs_tensor = torch.as_tensor(
                         observation, dtype=torch.float32, device=result.device
                     )
-                    if learned_role == "defender":
+                    if learned_role in {"both", "defender"}:
                         defender, _, _ = _sample_budgeted(
                             result.defender_actor(obs_tensor),
                             game.defender_budget,
                             deterministic=True,
                         )
-                        attacker, _ = choose_communities(env, "attacker", opponent, rng)
                         defender_np = defender.cpu().numpy()
-                        attacker_np = attacker
                     else:
                         defender, _ = choose_communities(env, "defender", opponent, rng)
+                        defender_np = defender
+
+                    if learned_role in {"both", "attacker"}:
                         attacker, _, _ = _sample_budgeted(
                             result.attacker_actor(obs_tensor),
                             game.attacker_budget,
                             deterministic=True,
                         )
-                        defender_np = defender
                         attacker_np = attacker.cpu().numpy()
+                    else:
+                        attacker, _ = choose_communities(env, "attacker", opponent, rng)
+                        attacker_np = attacker
                     observation, defender_reward, attacker_reward, done, last_info = env.step(
                         defender_np, attacker_np
                     )
@@ -242,6 +254,12 @@ def evaluate_unilateral_responses(
                         "seed": seed,
                         "fixed_learned_role": learned_role,
                         "opponent_policy": opponent,
+                        "evaluation_type": (
+                            "learned_profile_reference"
+                            if learned_role == "both"
+                            else "fixed_policy_cross_play"
+                        ),
+                        "best_response_retraining": False,
                         "defender_payoff": defender_return,
                         "attacker_payoff": attacker_return,
                         "final_global_infected": float(last_info["global_infected"]),

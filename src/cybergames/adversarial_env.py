@@ -3,8 +3,9 @@
 The state has shape ``(nodes, 3)`` and order ``[S, I, P]``. Each row remains
 on the probability simplex. Defender actions select communities for patching
 or cleaning; attacker actions select communities receiving a temporary
-infectivity boost during the next sampled-data interval. Neither action resets
-the state, so this is a sampled-flow Markov game rather than an impulse game.
+receiver-side transmission multiplier during the next sampled-data interval.
+Source-node infectivity is unchanged. Neither action resets the state, so this
+is a sampled-flow Markov game rather than an impulse game.
 """
 
 from __future__ import annotations
@@ -133,7 +134,7 @@ class AdversarialSIPSEnv:
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray, float, float]:
         patch = np.zeros(self.cfg.nodes, dtype=np.float64)
         clean = np.zeros(self.cfg.nodes, dtype=np.float64)
-        boost = np.zeros(self.cfg.nodes, dtype=np.float64)
+        receiver_boost = np.zeros(self.cfg.nodes, dtype=np.float64)
         defense_cost = 0.0
         attack_cost = 0.0
         for community in defender_communities:
@@ -157,9 +158,9 @@ class AdversarialSIPSEnv:
                 )
         for community in attacker_communities:
             mask = self.community == int(community)
-            boost[mask] = self.cfg.attack_boost
+            receiver_boost[mask] = self.cfg.attack_boost
             attack_cost += self.cfg.attack_cost
-        return patch, clean, boost, defense_cost, attack_cost
+        return patch, clean, receiver_boost, defense_cost, attack_cost
 
     def step(
         self,
@@ -168,7 +169,7 @@ class AdversarialSIPSEnv:
     ):
         """Integrate one interval under simultaneous sampled community actions."""
 
-        patch, clean, boost, defense_action_cost, attack_action_cost = self._rates(
+        patch, clean, receiver_boost, defense_action_cost, attack_action_cost = self._rates(
             defender_communities,
             attacker_communities,
         )
@@ -181,7 +182,7 @@ class AdversarialSIPSEnv:
                 self.resolved_params,
                 patch=patch,
                 clean=clean,
-                beta_boost=boost,
+                receiver_transmission_boost=receiver_boost,
             ).reshape(-1)
 
         values, _ = rk4_integrate(

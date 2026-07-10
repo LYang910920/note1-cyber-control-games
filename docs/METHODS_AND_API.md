@@ -11,7 +11,7 @@ The canonical node model is SIPS with state order `[S_i, I_i, P_i]` and
 `S_i + I_i + P_i = 1`. For node `i`, infection pressure is
 
 ```text
-lambda_i = susceptibility_i * sum_j A_ij * infectivity_j * I_j.
+lambda_i = beta_i * susceptibility_i * sum_j A_ij * infectivity_j * I_j.
 ```
 
 Patching moves susceptible mass to protected, cleaning moves infected mass to
@@ -45,15 +45,16 @@ joint action budget before stepping the ODE.
 
 The cooperative community reward combines local and global infection exposure
 with action cost. The attacker-defender environment has separate player rewards,
-separate budgets and an attacker infection-pressure boost. A training return is
-not an equilibrium certificate.
+separate budgets and an attacker multiplier on receiver-side transmission for
+selected communities. Source-node infectivity is unchanged. A training return
+is not an equilibrium certificate.
 
 | Setting | Observation | Action | Evidence |
 |---|---|---|---|
-| aggregate DDQN | SIR state plus known decision phase | discrete defender mode | deterministic evaluation return and state trajectory |
-| compact CTDE | player observations and global training state | parameterized attacker/defender actions | player returns and action traces |
+| aggregate DDQN | SIR state plus known decision phase | discrete defender mode | seeded randomized-initial-state return and rule baselines |
+| compact CTDE | player observations and global training state | parameterized attacker/defender actions | joint-action-conditioned player critics and returns |
 | budgeted MAPPO-style PPO | community SIPS state, boundary pressure and known risk/rate summaries | coordinated community intervention | held-out state metrics and baseline suite |
-| attacker-defender actor-critic | state-conditioned community features | separate bounded attack and defense selections | response matrix and unilateral deviations |
+| attacker-defender actor-critic | state-conditioned community features | separate bounded attack and defense selections | learned-profile reference and fixed-policy cross-play |
 
 ## Learning architectures
 
@@ -124,9 +125,10 @@ nonlearned policies:
 - learned MAPPO actor.
 
 Held-out evaluation changes profile seed and heterogeneity strength. The medium
-runner also evaluates the attacker-defender policy through unilateral response
-profiles. Paper extensions should add unseen graph families, sizes and budget
-stress rather than report training seeds only.
+runner also evaluates the attacker-defender policy through fixed-policy
+cross-play on independent seeds. This is not best-response retraining; paper
+extensions should add that diagnostic together with unseen graph families,
+sizes and budget stress.
 
 ## Public modules and migration
 
@@ -134,11 +136,14 @@ stress rather than report training seeds only.
 |---|---|---|
 | actions and semantics | `cybergames.actions` | `sampled_continuous_impulse_env.py` constants |
 | aggregate environment | `cybergames.envs` | `sampled_continuous_impulse_env.py` |
+| aggregate SIR dynamics and RK4 | `cybercontrol.models`, `cybercontrol.numerics` | `cyber_dynamics.py` |
+| continuous-control FBSM baseline | `cybergames.fbsm` | `fbsm_malware_baseline.py` |
 | DDQN | `cybergames.ddqn` | `ddqn_cyber_defense.py` |
 | compact CTDE | `cybergames.ctde` | `madrl_ctde_parameterized_game.py` |
 | node-SIPS environment | `cybergames.node_env` | `node_sips_mappo.py` |
 | budgeted cooperative PPO | `cybergames.mappo` | `node_sips_mappo.py` |
 | node-SIPS evaluation | `cybergames.node_evaluation` | `node_sips_mappo.py` |
+| node rollout and robustness summaries | `cybergames.robustness` | `node_level_robustness.py` |
 | attacker-defender simulator | `cybergames.adversarial_env` | `node_sips_adversarial_large.py` |
 | attacker-defender baselines | `cybergames.adversarial` | `node_sips_adversarial_large.py` |
 | state-conditioned self-play | `cybergames.self_play` | no previous public module |
@@ -147,4 +152,6 @@ stress rather than report training seeds only.
 
 Use `python -m cybergames` or the `cybergames` console script. `run_all.py` is a
 small deprecation entry point; new documentation and automation should not call
-the old flat modules.
+the old flat modules. Version 0.2 intentionally removed the duplicate flat
+implementations rather than retain parallel compatibility wrappers; the table
+above is the supported migration contract.

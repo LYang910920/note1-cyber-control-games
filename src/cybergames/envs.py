@@ -214,8 +214,27 @@ class SampledContinuousImpulseCyberEnv:
         self.state = next_state
         self.t += 1
 
-        I_mean = float(path[:, 1].mean())
-        S_mean = float(path[:, 0].mean())
+        substep_dt = self.cfg.dt / self.cfg.substeps
+
+        def interval_mean(values: np.ndarray) -> float:
+            if self.cfg.substeps >= 2 and self.cfg.substeps % 2 == 0:
+                integral = (
+                    substep_dt
+                    / 3.0
+                    * (
+                        values[0]
+                        + values[-1]
+                        + 4.0 * values[1:-1:2].sum()
+                        + 2.0 * values[2:-1:2].sum()
+                    )
+                )
+            else:
+                integrate = np.trapezoid if hasattr(np, "trapezoid") else np.trapz
+                integral = integrate(values, dx=substep_dt)
+            return float(integral / self.cfg.dt)
+
+        I_mean = interval_mean(path[:, 1])
+        S_mean = interval_mean(path[:, 0])
         running_defense_cost = (
             self.cfg.w_I * I_mean
             + self.cfg.w_S * S_mean
@@ -241,6 +260,11 @@ class SampledContinuousImpulseCyberEnv:
             "t_next_observe": t_start + self.cfg.dt,
             "decision_dt": self.cfg.dt,
             "solver_substeps": self.cfg.substeps,
+            "running_cost_quadrature": (
+                "composite_simpson"
+                if self.cfg.substeps >= 2 and self.cfg.substeps % 2 == 0
+                else "trapezoid"
+            ),
             "transition_order": "observe -> jump_map -> ODE flow -> next_observation",
             "observation_state": "pre_jump_state_at_t_k_minus",
             "next_observation_state": "state_at_t_k_plus_1_minus",

@@ -23,7 +23,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from .envs import SampledContinuousImpulseCyberEnv, scripted_attacker
+from .envs import EnvConfig, SampledContinuousImpulseCyberEnv, scripted_attacker
 
 from cybercontrol.nn import MLP as SharedMLP, parameter_count
 from cybercontrol.rl import ReplayBuffer
@@ -41,7 +41,10 @@ def make_q_network(in_dim, out_dim, hidden=128, depth=2):
 def evaluate(qnet, episodes=5, seed=1000, horizon=None):
     """Evaluate the greedy defender policy against the scripted attacker."""
     device = next(qnet.parameters()).device
-    env = SampledContinuousImpulseCyberEnv(seed=seed)
+    env = SampledContinuousImpulseCyberEnv(
+        config=EnvConfig(randomize_initial_state=True),
+        seed=seed,
+    )
     if horizon is not None:
         env.cfg.horizon = horizon
     returns = []

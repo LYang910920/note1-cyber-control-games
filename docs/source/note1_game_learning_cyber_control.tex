@@ -33,127 +33,6 @@ PMP and differential games define the continuous-time mathematical problem. RL/D
 
 
 
-\section{Notation and Method Selection}
-This note uses a small number of repeated symbols. The same notation is used across optimal control, differential games, RL, and PINN/PIDL so that the link among methods is visible.
-
-\begin{longtable}{p{0.20\textwidth}p{0.70\textwidth}}
-\toprule
-Symbol & Meaning \\
-\midrule
-$x(t)$ & continuous-time cyber state, for example malware compartments, APT asset states, or misinformation populations \\
-$u_D(t),u_A(t)$ & continuous-time defender and attacker controls \\
-$a_D^k,a_A^k$ & discrete-time actions selected at decision epoch $t_k$ \\
-$t_k$ & action/observation point in the sampled MDP or Markov game after conversion \\
-$\Delta t_k=t_{k+1}-t_k$ & action interval; fixed $\Delta t$ is a special case, not a requirement \\
-$\tau_j$ & impulse or event point already present in the original continuous-time or impulse model \\
-$\theta$ & physical or propagation parameters, such as infection, repair, forgetting, deception-decay, or correction rates \\
-$J_D,J_A$ & cumulative defender and attacker objectives in continuous time \\
-$H$ & Hamiltonian used by PMP or differential-game optimality conditions \\
-$\lambda(t)$ & costate or adjoint variable; it measures marginal value of changing the state \\
-$s_k$ & RL/DRL/MARL state at decision epoch $t_k$; usually derived from $x(t_k)$ and observations \\
-$r_k$ & reward over the interval $[t_k,t_{k+1}]$, usually negative running cost \\
-$\policy$ & policy mapping states to actions, e.g., $\policy_D(a_D|s)$ \\
-\bottomrule
-\end{longtable}
-
-\subsection{What each method consumes and outputs}
-A useful way to avoid confusion is to ask what each method consumes as input and what it returns as output.
-\begin{longtable}{p{0.18\textwidth}p{0.34\textwidth}p{0.34\textwidth}}
-\toprule
-Method & Main input & Main output \\
-\midrule
-PMP & ODE model, cost functional, constraints & optimality system: state, costate, stationarity, boundary conditions \\
-FBSM & PMP optimality system and initial guess for controls & open-loop trajectory $u^*(t)$ and state $x^*(t)$ \\
-RL/DQN & MDP simulator $(s,a,r,s')$ with discrete actions & feedback policy or Q-function $Q(s,a)$ \\
-PPO/SAC/DDPG & simulator with continuous-valued or stochastic actions & feedback actor $\policy(a|s)$ and critic \\
-MARL & Markov game simulator with multiple agents & attacker and defender policies, often with centralized critics \\
-Neural ODE & observed trajectories and differentiable ODE solver & learned dynamics $\dot{x}=f_\theta(x,u,t)$ or residual term $g_\theta$ \\
-PINN/PIDL & data, equations, constraints, priors, possibly PMP/HJI residuals & states, parameters, controls, costates, or value functions satisfying residual constraints \\
-\bottomrule
-\end{longtable}
-
-\begin{boxednote}
-\textbf{Practical selection rule.}
-Use PMP/FBSM when the model is known, continuous, and low- to moderate-dimensional. Use RL/DRL when actions are operational decisions and feedback policies are needed. Use MARL when the attacker adapts. Use Neural ODE when the dynamics are partly unknown. Use PINN/PIDL when equations and constraints are important and data are sparse, or when one wants a neural solver for PMP/HJB/HJI residual systems.
-\end{boxednote}
-
-
-\section{Game Concepts Before Learning: What Exactly Is Being Solved?}\label{sec:game-concepts}
-A source of confusion in recent learning-for-differential-games papers is that the word ``game'' may refer to several different mathematical objects. Before choosing PMP, FBSM, RL, DRL, MARL, MADRL, PINN, or PIDL, it is useful to identify the game type and the solution concept. Differential games extend optimal control from one decision maker to multiple strategic decision makers: each player controls the same evolving state, but each player evaluates the outcome through its own objective. This point is emphasized in classical dynamic-game theory \cite{isaacs1965,basar1999} and in cyber differential-game tutorials.
-
-\subsection{A compact taxonomy for cyber differential games}
-The following table is intended as a practical checklist for malware, APT, deception, and propaganda-war models.
-
-\begin{longtable}{p{0.21\textwidth}p{0.33\textwidth}p{0.36\textwidth}}
-\toprule
-Dimension & Meaning & Typical cyber interpretation \\
-\midrule
-Zero-sum vs general-sum & In a zero-sum game, $J_A=-J_D$. In a general-sum game, each player has a different payoff. & Malware attacker-defender games may be approximated as zero-sum. Propaganda, compliance, and insider-assisted APT games are often general-sum because costs, reputational effects, and operational benefits are not exact negatives. \\
-Deterministic vs stochastic & The state equation is an ODE or a stochastic process. & Most propagation models use deterministic ODEs for tractability. RL/MADRL can add stochasticity through random initial states, random attacks, noisy observations, or network sampling. \\
-Nash vs Stackelberg & In Nash games, players decide simultaneously. In Stackelberg games, a leader commits first and a follower responds. & Attacker-defender malware control is often modeled as Nash. Security investment, auditing, and compliance guidance can be Stackelberg if the organization commits first and employees or attackers respond. \\
-Open-loop vs feedback & Open-loop controls are functions of time. Feedback controls are functions of the observed state. & PMP/FBSM usually returns $u_i(t)$ for a fixed initial state. RL/MADRL usually returns $\pi_i(a_i|s)$ that adapts to the current state. \\
-Flow, impulse, and continuous--impulsive hybrid & Flow controls act through $\dot{x}=f(\cdot)$. Impulses create jumps $x(\tau^+)=G(x(\tau^-),v)$. Continuous--impulsive hybrid models combine flow controls and reset maps. & Propaganda spending, patching, or monitoring affect transition rates. Human incident response, media-literacy campaigns, isolation, and takedown actions may be better modeled as impulses. \\
-\bottomrule
-\end{longtable}
-
-\begin{boxednote}
-\textbf{Why this taxonomy matters for learning.}
-DQN, PPO, SAC, MADDPG, MAPPO, and other MADRL methods do not directly require the original PMP equations. They require an environment. The game taxonomy determines what the environment should contain: one agent or multiple agents; zero-sum or general-sum rewards; simultaneous or sequential actions; discrete modes, continuous-valued actions, or parameterized actions; flow-only transitions or impulse jumps.
-\end{boxednote}
-
-\subsection{Nash equilibrium in continuous time and in Markov games}
-For a two-player continuous-time differential game,
-\begin{equation}
-\dot{x}(t)=f(x(t),u_1(t),u_2(t),t),\quad x(0)=x_0,
-\end{equation}
-with objectives $J_1(u_1,u_2)$ and $J_2(u_1,u_2)$, an open-loop Nash equilibrium $(u_1^*,u_2^*)$ satisfies
-\begin{equation}
-J_1(u_1^*,u_2^*)\ge J_1(u_1,u_2^*)\quad \text{for all }u_1,
-\end{equation}
-\begin{equation}
-J_2(u_1^*,u_2^*)\ge J_2(u_1^*,u_2)\quad \text{for all }u_2,
-\end{equation}
-when the convention is payoff maximization. If the problem is written as cost minimization, the inequality directions are reversed. PMP gives necessary conditions for such equilibria by introducing one Hamiltonian and one costate system for each player. In nonzero-sum games these conditions are normally necessary rather than sufficient, so numerical comparison against alternative strategies remains important.
-
-After time discretization, state observation, action selection, and ODE/impulse simulation, the same strategic idea becomes a Markov game:
-\begin{equation}
-\mathcal{G}=\big(\mathcal{N},\mathcal{S},\{\mathcal{A}_i\}_{i\in\mathcal{N}},P,\{r_i\}_{i\in\mathcal{N}},\gamma\big).
-\end{equation}
-Here $\mathcal{N}$ is the player set, $\mathcal{S}$ is the state space, $\mathcal{A}_i$ is player $i$'s action space, $P(s'|s,a_1,\ldots,a_N)$ is the transition kernel, $r_i$ is the reward of player $i$, and $\gamma$ is a discount factor. A Markov-perfect Nash equilibrium is a profile of feedback policies $\pi_i^*(a_i|s)$ such that no player can improve its value by unilateral deviation:
-\begin{equation}
-V_i^{\pi_i^*,\pi_{-i}^*}(s)\ge V_i^{\pi_i,\pi_{-i}^*}(s),\quad \forall \pi_i,\; \forall s.
-\end{equation}
-This is the precise object that MARL and MADRL try to approximate.
-
-\subsection{How the HODGE propaganda-war paper fits this taxonomy}
-The HODGE/ORIENTATION framework is a useful example because it is not a simple continuous-control game. It combines a degree-based network model for dual competitive information spreading with a continuous--impulsive mechanism: continuous-time propaganda investment and discrete-time impulsive counter-propaganda investment \cite{cheng2024propaganda}. In words, propaganda is modeled as persistent influence over an interval, while counter-propaganda is modeled as targeted interventions at selected moments. This distinction is exactly the distinction between continuous flow control and impulse/jump control.
-
-A simplified abstraction is
-\begin{equation}
-\dot{x}(t)=f(x(t),u_R(t),u_B(t)),\quad t\notin \tau_R\cup\tau_B,
-\end{equation}
-\begin{equation}
-x(\tau_i^+)=G_R(x(\tau_i^-),v_R(\tau_i))\quad \text{or}\quad
-x(\tau_i^+)=G_B(x(\tau_i^-),v_B(\tau_i)),
-\end{equation}
-where $u_R,u_B$ are continuous propaganda investment rates and $v_R,v_B$ are impulsive counter-propaganda investment levels. The original HODGE algorithm approximates a Nash strategy profile by iteratively updating continuous and impulsive decisions. A learning-based extension would not simply ``replace PMP by MADRL.'' Instead, it would define a Markov game in which each party observes a state summary, selects continuous and/or impulsive investment actions at decision epochs, applies jump maps if an impulse is selected, integrates the degree-based ODE until the next decision epoch, and receives a reward based on narrative benefit minus investment cost.
-
-\begin{flowbox}
-\textbf{Continuous--impulsive propaganda game as a Markov game}\par
-Observe degree-based state summary $s_k$\par
-$\Downarrow$\par
-Red chooses $(m_R^k,v_R^k,u_R^k)$, Blue chooses $(m_B^k,v_B^k,u_B^k)$\par
-$\Downarrow$\par
-If $m_i^k$ is impulsive, apply jump map $G_i$\par
-$\Downarrow$\par
-Integrate ODE with continuous investments over $[t_k,t_{k+1}]$\par
-$\Downarrow$\par
-Compute rewards: influence benefit $-$ continuous cost $-$ impulse cost\par
-$\Downarrow$\par
-Update MADRL policies by self-play or CTDE
-\end{flowbox}
-
-
 \section{Cyber Dynamic Models: What Is Being Controlled?}
 \subsection{Controlled malware propagation}
 A basic malware or virus propagation model is
@@ -539,6 +418,127 @@ MARL learns policies $\pi_A$ and $\pi_D$ by repeated interaction.
 \subsection{What is preserved and what is lost?}
 This conversion preserves the state dynamics, intervention costs, and strategic interaction. However, it usually does not preserve the costate equations or Hamiltonian stationarity conditions unless these are explicitly added to the learning objective. Therefore, a DRL solver for the induced MDP is not automatically a solver for the PMP boundary-value problem. It is a feedback-policy solver for a discretized control/game problem.
 
+\section{Notation and Method Selection}
+This note uses a small number of repeated symbols. The same notation is used across optimal control, differential games, RL, and PINN/PIDL so that the link among methods is visible.
+
+\begin{longtable}{p{0.20\textwidth}p{0.70\textwidth}}
+\toprule
+Symbol & Meaning \\
+\midrule
+$x(t)$ & continuous-time cyber state, for example malware compartments, APT asset states, or misinformation populations \\
+$u_D(t),u_A(t)$ & continuous-time defender and attacker controls \\
+$a_D^k,a_A^k$ & discrete-time actions selected at decision epoch $t_k$ \\
+$t_k$ & action/observation point in the sampled MDP or Markov game after conversion \\
+$\Delta t_k=t_{k+1}-t_k$ & action interval; fixed $\Delta t$ is a special case, not a requirement \\
+$\tau_j$ & impulse or event point already present in the original continuous-time or impulse model \\
+$\theta$ & physical or propagation parameters, such as infection, repair, forgetting, deception-decay, or correction rates \\
+$J_D,J_A$ & cumulative defender and attacker objectives in continuous time \\
+$H$ & Hamiltonian used by PMP or differential-game optimality conditions \\
+$\lambda(t)$ & costate or adjoint variable; it measures marginal value of changing the state \\
+$s_k$ & RL/DRL/MARL state at decision epoch $t_k$; usually derived from $x(t_k)$ and observations \\
+$r_k$ & reward over the interval $[t_k,t_{k+1}]$, usually negative running cost \\
+$\policy$ & policy mapping states to actions, e.g., $\policy_D(a_D|s)$ \\
+\bottomrule
+\end{longtable}
+
+\subsection{What each method consumes and outputs}
+A useful way to avoid confusion is to ask what each method consumes as input and what it returns as output.
+\begin{longtable}{p{0.18\textwidth}p{0.34\textwidth}p{0.34\textwidth}}
+\toprule
+Method & Main input & Main output \\
+\midrule
+PMP & ODE model, cost functional, constraints & optimality system: state, costate, stationarity, boundary conditions \\
+FBSM & PMP optimality system and initial guess for controls & open-loop trajectory $u^*(t)$ and state $x^*(t)$ \\
+RL/DQN & MDP simulator $(s,a,r,s')$ with discrete actions & feedback policy or Q-function $Q(s,a)$ \\
+PPO/SAC/DDPG & simulator with continuous-valued or stochastic actions & feedback actor $\policy(a|s)$ and critic \\
+MARL & Markov game simulator with multiple agents & attacker and defender policies, often with centralized critics \\
+Neural ODE & observed trajectories and differentiable ODE solver & learned dynamics $\dot{x}=f_\theta(x,u,t)$ or residual term $g_\theta$ \\
+PINN/PIDL & data, equations, constraints, priors, possibly PMP/HJI residuals & states, parameters, controls, costates, or value functions satisfying residual constraints \\
+\bottomrule
+\end{longtable}
+
+\begin{boxednote}
+\textbf{Practical selection rule.}
+Use PMP/FBSM when the model is known, continuous, and low- to moderate-dimensional. Use RL/DRL when actions are operational decisions and feedback policies are needed. Use MARL when the attacker adapts. Use Neural ODE when the dynamics are partly unknown. Use PINN/PIDL when equations and constraints are important and data are sparse, or when one wants a neural solver for PMP/HJB/HJI residual systems.
+\end{boxednote}
+
+
+\section{Game Concepts Before Learning: What Exactly Is Being Solved?}\label{sec:game-concepts}
+A source of confusion in recent learning-for-differential-games papers is that the word ``game'' may refer to several different mathematical objects. Before choosing PMP, FBSM, RL, DRL, MARL, MADRL, PINN, or PIDL, it is useful to identify the game type and the solution concept. Differential games extend optimal control from one decision maker to multiple strategic decision makers: each player controls the same evolving state, but each player evaluates the outcome through its own objective. This point is emphasized in classical dynamic-game theory \cite{isaacs1965,basar1999} and in cyber differential-game tutorials.
+
+\subsection{A compact taxonomy for cyber differential games}
+The following table is intended as a practical checklist for malware, APT, deception, and propaganda-war models.
+
+\begin{longtable}{p{0.21\textwidth}p{0.33\textwidth}p{0.36\textwidth}}
+\toprule
+Dimension & Meaning & Typical cyber interpretation \\
+\midrule
+Zero-sum vs general-sum & In a zero-sum game, $J_A=-J_D$. In a general-sum game, each player has a different payoff. & Malware attacker-defender games may be approximated as zero-sum. Propaganda, compliance, and insider-assisted APT games are often general-sum because costs, reputational effects, and operational benefits are not exact negatives. \\
+Deterministic vs stochastic & The state equation is an ODE or a stochastic process. & Most propagation models use deterministic ODEs for tractability. RL/MADRL can add stochasticity through random initial states, random attacks, noisy observations, or network sampling. \\
+Nash vs Stackelberg & In Nash games, players decide simultaneously. In Stackelberg games, a leader commits first and a follower responds. & Attacker-defender malware control is often modeled as Nash. Security investment, auditing, and compliance guidance can be Stackelberg if the organization commits first and employees or attackers respond. \\
+Open-loop vs feedback & Open-loop controls are functions of time. Feedback controls are functions of the observed state. & PMP/FBSM usually returns $u_i(t)$ for a fixed initial state. RL/MADRL usually returns $\pi_i(a_i|s)$ that adapts to the current state. \\
+Flow, impulse, and continuous--impulsive hybrid & Flow controls act through $\dot{x}=f(\cdot)$. Impulses create jumps $x(\tau^+)=G(x(\tau^-),v)$. Continuous--impulsive hybrid models combine flow controls and reset maps. & Propaganda spending, patching, or monitoring affect transition rates. Human incident response, media-literacy campaigns, isolation, and takedown actions may be better modeled as impulses. \\
+\bottomrule
+\end{longtable}
+
+\begin{boxednote}
+\textbf{Why this taxonomy matters for learning.}
+DQN, PPO, SAC, MADDPG, MAPPO, and other MADRL methods do not directly require the original PMP equations. They require an environment. The game taxonomy determines what the environment should contain: one agent or multiple agents; zero-sum or general-sum rewards; simultaneous or sequential actions; discrete modes, continuous-valued actions, or parameterized actions; flow-only transitions or impulse jumps.
+\end{boxednote}
+
+\subsection{Nash equilibrium in continuous time and in Markov games}
+For a two-player continuous-time differential game,
+\begin{equation}
+\dot{x}(t)=f(x(t),u_1(t),u_2(t),t),\quad x(0)=x_0,
+\end{equation}
+with objectives $J_1(u_1,u_2)$ and $J_2(u_1,u_2)$, an open-loop Nash equilibrium $(u_1^*,u_2^*)$ satisfies
+\begin{equation}
+J_1(u_1^*,u_2^*)\ge J_1(u_1,u_2^*)\quad \text{for all }u_1,
+\end{equation}
+\begin{equation}
+J_2(u_1^*,u_2^*)\ge J_2(u_1^*,u_2)\quad \text{for all }u_2,
+\end{equation}
+when the convention is payoff maximization. If the problem is written as cost minimization, the inequality directions are reversed. PMP gives necessary conditions for such equilibria by introducing one Hamiltonian and one costate system for each player. In nonzero-sum games these conditions are normally necessary rather than sufficient, so numerical comparison against alternative strategies remains important.
+
+After time discretization, state observation, action selection, and ODE/impulse simulation, the same strategic idea becomes a Markov game:
+\begin{equation}
+\mathcal{G}=\big(\mathcal{N},\mathcal{S},\{\mathcal{A}_i\}_{i\in\mathcal{N}},P,\{r_i\}_{i\in\mathcal{N}},\gamma\big).
+\end{equation}
+Here $\mathcal{N}$ is the player set, $\mathcal{S}$ is the state space, $\mathcal{A}_i$ is player $i$'s action space, $P(s'|s,a_1,\ldots,a_N)$ is the transition kernel, $r_i$ is the reward of player $i$, and $\gamma$ is a discount factor. A Markov-perfect Nash equilibrium is a profile of feedback policies $\pi_i^*(a_i|s)$ such that no player can improve its value by unilateral deviation:
+\begin{equation}
+V_i^{\pi_i^*,\pi_{-i}^*}(s)\ge V_i^{\pi_i,\pi_{-i}^*}(s),\quad \forall \pi_i,\; \forall s.
+\end{equation}
+This is the precise object that MARL and MADRL try to approximate.
+
+\subsection{How the HODGE propaganda-war paper fits this taxonomy}
+The HODGE/ORIENTATION framework is a useful example because it is not a simple continuous-control game. It combines a degree-based network model for dual competitive information spreading with a continuous--impulsive mechanism: continuous-time propaganda investment and discrete-time impulsive counter-propaganda investment \cite{cheng2024propaganda}. In words, propaganda is modeled as persistent influence over an interval, while counter-propaganda is modeled as targeted interventions at selected moments. This distinction is exactly the distinction between continuous flow control and impulse/jump control.
+
+A simplified abstraction is
+\begin{equation}
+\dot{x}(t)=f(x(t),u_R(t),u_B(t)),\quad t\notin \tau_R\cup\tau_B,
+\end{equation}
+\begin{equation}
+x(\tau_i^+)=G_R(x(\tau_i^-),v_R(\tau_i))\quad \text{or}\quad
+x(\tau_i^+)=G_B(x(\tau_i^-),v_B(\tau_i)),
+\end{equation}
+where $u_R,u_B$ are continuous propaganda investment rates and $v_R,v_B$ are impulsive counter-propaganda investment levels. The original HODGE algorithm approximates a Nash strategy profile by iteratively updating continuous and impulsive decisions. A learning-based extension would not simply ``replace PMP by MADRL.'' Instead, it would define a Markov game in which each party observes a state summary, selects continuous and/or impulsive investment actions at decision epochs, applies jump maps if an impulse is selected, integrates the degree-based ODE until the next decision epoch, and receives a reward based on narrative benefit minus investment cost.
+
+\begin{flowbox}
+\textbf{Continuous--impulsive propaganda game as a Markov game}\par
+Observe degree-based state summary $s_k$\par
+$\Downarrow$\par
+Red chooses $(m_R^k,v_R^k,u_R^k)$, Blue chooses $(m_B^k,v_B^k,u_B^k)$\par
+$\Downarrow$\par
+If $m_i^k$ is impulsive, apply jump map $G_i$\par
+$\Downarrow$\par
+Integrate ODE with continuous investments over $[t_k,t_{k+1}]$\par
+$\Downarrow$\par
+Compute rewards: influence benefit $-$ continuous cost $-$ impulse cost\par
+$\Downarrow$\par
+Update MADRL policies by self-play or CTDE
+\end{flowbox}
+
+
 \section{PMP/FBSM Baseline Bridge}
 \begin{boxednote}
 \textbf{Scope of this section.}
@@ -745,7 +745,7 @@ than a strict decentralized-execution realization of standard MAPPO.
 \begin{figure}[h!]
 \centering
 \includegraphics[width=0.96\linewidth]{../assets/diagrams/mappo_ctde.pdf}
-\caption{Standard MAPPO uses local actors and a centralized state-value critic. The repository's constrained variant adds a budget coordinator that selects one joint community action.}
+\caption{The repository's cooperative PPO path encodes community summaries, selects one budget-feasible joint categorical action, and trains a centralized state-value critic. The coordinator makes execution joint rather than strictly decentralized.}
 \label{fig:mappo-ctde}
 \end{figure}
 
@@ -754,8 +754,9 @@ than a strict decentralized-execution realization of standard MAPPO.
 The constrained MAPPO-style experiment is cooperative: community encoders share
 the objective of limiting infection under a coordinated joint action budget. The
 attacker--defender experiment is a separate, state-conditioned actor--critic
-self-play model with player-specific rewards and unilateral-response
-diagnostics. It is not described as attacker--defender MAPPO. The static-logit
+self-play model with player-specific rewards, a learned-profile reference and
+fixed-policy cross-play. Those rollouts are not best-response retraining or an
+exploitability estimate. It is not described as attacker--defender MAPPO. The static-logit
 self-play implementation is retained only as an explicitly labelled baseline.
 \end{boxednote}
 
@@ -763,6 +764,12 @@ The action budget is enforced by the joint action map rather than represented
 only as a soft reward penalty. Recent constrained MARL work similarly
 distinguishes policy improvement from explicit safety constraints, although its
 benchmark assumptions differ from this cyber simulator \cite{zhang2024safe}.
+A broad safe-RL review distinguishes constraint satisfaction, robustness and
+risk sensitivity rather than treating them as interchangeable claims
+\cite{gu2024saferl}. Causally aware autonomous cyber-defence agents provide a
+related route to improving transfer under interventions, but use a different
+model and evidence protocol from the SIPS experiments here
+\cite{purves2024causal}.
 
 
 
@@ -786,7 +793,7 @@ This curriculum is often more stable than starting from fully random self-play. 
 
 Hierarchical PPO studies in CybORG decompose investigation, recovery and
 traffic-control decisions into sub-policies with an expert or learned master
-policy \cite{singh2024hierarchical}. A peer-reviewed hierarchical cyber-game
+policy \cite{singh2025hierarchical}. A peer-reviewed hierarchical cyber-game
 study likewise separates strategy and lower-level action decisions
 \cite{tang2024hierarchical}. These papers motivate the architecture, but their
 reported benchmark performance is not transferred to the SIPS simulator.
@@ -1067,7 +1074,7 @@ Python file & What it demonstrates \\
 {\footnotesize\texttt{cybergames.node\_evaluation}} & Uniform, degree, risk, oracle, random and learned-policy evaluation on held-out profiles. \\
 {\footnotesize\texttt{cybergames.adversarial\_env}} & Heterogeneous attacker-defender node-SIPS sampled-flow environment. \\
 {\footnotesize\texttt{cybergames.adversarial}} & Nonlearned policies and the labelled static-logit diagnostic baseline. \\
-{\footnotesize\texttt{cybergames.self\_play}} & State-conditioned attacker-defender actor-critic and unilateral-response evaluation. \\
+{\footnotesize\texttt{cybergames.self\_play}} & State-conditioned attacker-defender actor-critic and fixed-policy cross-play; no best-response claim. \\
 {\footnotesize\texttt{cybergames.evaluation}} & Policy metrics, response matrices and baseline comparisons. \\
 {\footnotesize\texttt{cybergames.configs}} & Typed model and neural hyperparameters used by the CLI. \\
 {\footnotesize\texttt{scripts/generate\_figures.py}} & Rebuilds experiment figures and shared vector diagrams. \\
@@ -1408,16 +1415,28 @@ constrained policy optimization for safe multi-agent reinforcement learning,''
 in \emph{Advances in Neural Information Processing Systems}, vol. 37, 2024,
 doi: 10.52202/079017-4400.
 
-\bibitem{singh2024hierarchical}
-A. V. Singh, E. Rathbun, E. Graham, L. Oakley, S. Boboila, A. Oprea, and
-P. Chin, ``Hierarchical multi-agent reinforcement learning for cyber network
-defense,'' arXiv:2410.17351, 2024.
+\bibitem{gu2024saferl}
+S. Gu, L. Yang, Y. Du, G. Chen, F. Walter, J. Wang, and A. Knoll, ``A review of
+safe reinforcement learning: Methods, theories, and applications,''
+\emph{IEEE Transactions on Pattern Analysis and Machine Intelligence}, vol. 46,
+no. 12, pp. 11216--11235, 2024, doi: 10.1109/TPAMI.2024.3457538.
+
+\bibitem{singh2025hierarchical}
+A. V. Singh, E. Rathbun, E. Graham, L. Oakley, S. Boboila, P. Chin, and
+A. Oprea, ``Hierarchical multi-agent reinforcement learning for cyber network
+defense,'' \emph{Reinforcement Learning Journal}, vol. 6, pp. 790--810, 2025.
 
 \bibitem{tang2024hierarchical}
 Y. Tang, J. Sun, H. Wang, J. Deng, L. Tong, and W. Xu, ``A method of network
 attack-defense game and collaborative defense decision-making based on
 hierarchical multi-agent reinforcement learning,'' \emph{Computers \&
 Security}, vol. 142, 103871, 2024, doi: 10.1016/j.cose.2024.103871.
+
+\bibitem{purves2024causal}
+T. Purves, K. G. Kyriakopoulos, S. Jenkins, I. Phillips, and T. Dudman,
+``Causally aware reinforcement learning agents for autonomous cyber defence,''
+\emph{Knowledge-Based Systems}, vol. 304, 112521, 2024,
+doi: 10.1016/j.knosys.2024.112521.
 
 \bibitem{hausknecht2015}
 M. Hausknecht and P. Stone, ``Deep reinforcement learning in parameterized action space,'' arXiv:1511.04143, 2015.

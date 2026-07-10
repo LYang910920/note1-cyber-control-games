@@ -193,11 +193,19 @@ def summarize_rollout(rollout: Dict[str, object]) -> Dict[str, float | int | str
 
 
 def evaluate_policy_suite(
-    horizon: int = 50, seed: int = 7
+    horizon: int = 50,
+    seed: int = 7,
+    config: EnvConfig | None = None,
 ) -> Tuple[List[Dict[str, object]], List[Dict[str, float | int | str]]]:
     """Roll out all representative policies and return raw and summary data."""
     rollouts = [
-        rollout_policy(label, policy, horizon=horizon, seed=seed)
+        rollout_policy(
+            label,
+            policy,
+            horizon=horizon,
+            seed=seed,
+            config=replace(config) if config is not None else None,
+        )
         for label, policy in policy_suite()
     ]
     rows = [summarize_rollout(rollout) for rollout in rollouts]

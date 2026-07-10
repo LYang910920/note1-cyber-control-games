@@ -149,6 +149,15 @@ def solve_fbsm(
             LOGGER.info("converged at iteration %d", it)
             break
 
+    # Replay the returned control so state, costate, and objective refer to the
+    # same final policy rather than to the previous sweep's policy.
+    x[0] = x0
+    for k in range(n):
+        x[k + 1] = rk4_state_step(x[k], u[k], h, beta, gamma)
+    lam[n] = np.array([0.0, A_terminal, 0.0])
+    for k in range(n, 0, -1):
+        lam[k - 1] = rk4_costate_step_backward(x[k], lam[k], u[k], h, beta, gamma, A)
+
     running_cost = A * x[:, 1] + 0.5 * B * u * u
     J = trapezoid(running_cost, t) + A_terminal * x[-1, 1]
     if return_history:

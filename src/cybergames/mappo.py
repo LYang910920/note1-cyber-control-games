@@ -56,6 +56,10 @@ def train_mappo(args: MAPPOConfig):
     architecture = ARCHITECTURE_REGISTRY.describe(
         args.architecture,
         {"actor": actor, "critic": critic},
+        configuration={
+            "hidden": int(args.hidden),
+            "graph_layers": int(args.graph_layers),
+        },
     )
     actor._cybercontrol_device = device
     actor_opt = torch.optim.Adam(actor.parameters(), lr=args.lr)
@@ -183,6 +187,8 @@ def train_mappo(args: MAPPOConfig):
                 "architecture_input_shape": str(architecture["input_shape"]),
                 "architecture_output_shape": str(architecture["output_shape"]),
                 "architecture_parameters": int(architecture["parameters"]),
+                "architecture_hidden": int(args.hidden),
+                "architecture_graph_layers": int(args.graph_layers),
             }
         )
         if update % args.log_every == 0:

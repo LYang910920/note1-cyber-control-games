@@ -32,8 +32,9 @@ python -m cybergames smoke
 python -m pytest -q
 ```
 
-After the foundation `0.2.0` changes are on `main`, a standalone checkout can
-use `python -m pip install -e ".[dev]"`.
+For a standalone checkout, `python -m pip install -e ".[dev]"` installs the
+reviewed Foundation revision pinned in `pyproject.toml`. The sibling-checkout
+commands above remain convenient when developing the repository family together.
 
 ```bash
 python -m cybergames medium --device auto --output-dir artifacts/medium
@@ -89,8 +90,10 @@ cost are better; impulse counts are reported separately.
 
 The current node-SIPS learner is a cooperative, budget-coordinated MAPPO-style
 baseline. Heterogeneous attacker-defender learning exists as a separate
-state-conditioned actor-critic; it is evaluated with response matrices and
-unilateral deviations. It is not described as attacker-defender MAPPO.
+state-conditioned actor-critic; it is evaluated with a learned-vs-learned
+reference and fixed-policy cross-play against five heuristics. These rollouts
+are not labelled best responses or exploitability estimates. It is not
+described as attacker-defender MAPPO.
 
 ## Extension Route
 

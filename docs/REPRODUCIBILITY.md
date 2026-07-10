@@ -36,7 +36,9 @@ device, RNG or thread side effects.
 The medium profile uses seeds `11, 23, 37, 51, 73`. Per seed it runs bounded
 DDQN training/evaluation, budgeted MAPPO-style PPO with held-out profile seeds at
 strengths `0.2` and `0.5`, a static-logit attacker-defender baseline and a
-state-conditioned attacker-defender actor-critic with unilateral responses.
+state-conditioned attacker-defender actor-critic with learned-profile reference
+and fixed-policy cross-play. The latter is not a best-response or exploitability
+calculation.
 MAPPO is run with both summary-MLP and graph-context actor/critic pairs. Their
 combined parameter budgets are matched and logged. The output contains
 `medium_metrics.csv` and `medium_config.json`.
@@ -63,7 +65,7 @@ Inspect medium outputs for:
 - finite state/reward values and per-node mass error;
 - deterministic evaluation given a fixed seed;
 - held-out performance reported by policy, seed and strength;
-- both player payoffs and unilateral responses in game experiments;
+- both player payoffs and fixed-policy cross-play in game experiments;
 - sample counts, configuration and hardware alongside runtime.
 
 ## Figures and PDF
