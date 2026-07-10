@@ -1,46 +1,22 @@
-# Copyright (c) 2026 Luxing Yang.
-# Licensed under the MIT License. See LICENSE in the repository root.
-
-"""Root runner for the Note 1 examples."""
+"""Deprecated root entry point; use the cybergames package CLI."""
 
 from __future__ import annotations
 
-import argparse
-import subprocess
 import sys
-from pathlib import Path
+import warnings
 
-
-ROOT = Path(__file__).resolve().parent
-
-
-def run(cmd: list[str]) -> None:
-    """Run a repository command from the root directory."""
-
-    print("$ " + " ".join(cmd), flush=True)
-    subprocess.run(cmd, cwd=ROOT, check=True)
+from cybergames.cli import main as cli_main
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run Note 1 checks, figures, and bounded examples.")
-    parser.add_argument(
-        "command",
-        choices=["smoke", "figures", "train", "mappo", "large-game", "all"],
-        help="Command group to run. Extra arguments are passed to train, mappo, or large-game.",
-    )
-    args, rest = parser.parse_known_args()
-    py = sys.executable
+    """Forward legacy invocations to the public package CLI."""
 
-    if args.command in {"smoke", "all"}:
-        run(["bash", "scripts/run_smoke_tests.sh"])
-    if args.command in {"figures", "all"}:
-        run([py, "scripts/generate_figures.py"])
-    if args.command == "train":
-        run([py, "scripts/run_training_iterations.py", *rest])
-    if args.command == "mappo":
-        run([py, "src/node_sips_mappo.py", *rest])
-    if args.command == "large-game":
-        run([py, "src/node_sips_adversarial_large.py", *rest])
+    warnings.warn(
+        "run_all.py is deprecated; use 'python -m cybergames <command>'",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    cli_main(sys.argv[1:] or ["all"])
 
 
 if __name__ == "__main__":

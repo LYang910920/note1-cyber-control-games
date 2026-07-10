@@ -15,12 +15,5 @@ if [[ -z "${PYTHON_BIN}" ]]; then
     fi
 fi
 
-"${PYTHON_BIN}" src/cyber_dynamics.py
-"${PYTHON_BIN}" src/sampled_continuous_impulse_env.py
-"${PYTHON_BIN}" src/scenario_profiles.py
-"${PYTHON_BIN}" src/fbsm_malware_baseline.py --smoke
-"${PYTHON_BIN}" src/ddqn_cyber_defense.py --smoke
-"${PYTHON_BIN}" src/madrl_ctde_parameterized_game.py --smoke
-"${PYTHON_BIN}" src/node_sips_mappo.py --smoke --device cpu
-"${PYTHON_BIN}" src/node_sips_adversarial_large.py --smoke
-"${PYTHON_BIN}" -m unittest discover -s tests
+"${PYTHON_BIN}" -m cybergames smoke
+"${PYTHON_BIN}" -m pytest -q

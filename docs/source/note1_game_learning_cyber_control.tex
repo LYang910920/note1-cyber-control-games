@@ -2,19 +2,29 @@
 \documentclass[11pt,a4paper]{article}
 \input{tutorial_style}
 \begin{document}
-\tutorialtitle{Note 1: Cyber Control and Game Learning}{Sampled-Data Control, RL/DRL, MARL/MAPPO, and Evaluation}{Dynamics, action timing, MDPs, RL/DRL, MARL/MAPPO, and evaluation}{Prepared for advanced research discussion and supervision}
+\tutorialtitle{Cyber Control and Game Learning}{Dynamics, Sampled Decisions, RL/DRL, MARL, and Game Evaluation}{A method sequence from cyber dynamics and action timing to MDPs, Markov games, learning algorithms, and evidence}{Companion volume 1: game-learning methods}
 \tableofcontents
 \newpage
 \lhead{\small\sffamily Note 1: Cyber Control and Game Learning}
-\section{How This Guide Is Organized}
-The note is organized around a clean workflow:
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.94\linewidth]{../assets/diagrams/repository_family.pdf}
+\caption{The foundation package supplies the common dynamics and numerical infrastructure. This note owns environments and game-learning methods; Note 2 owns PINN/PIDL.}
+\label{fig:repository-family}
+\end{figure}
+
+\section{Reading Path}
+The material follows the order required to define a learning problem:
 \begin{equation}
 \begin{array}{c}
-\boxed{\text{cyber dynamics}}\rightarrow\boxed{\text{control/game objective}}\rightarrow\boxed{\text{continuous-time theory}}\\[0.4em]
-\rightarrow\boxed{\text{learning formulation}}\rightarrow\boxed{\text{implementation and evaluation}}
+\boxed{\text{cyber dynamics}}\rightarrow\boxed{\text{action timing}}\rightarrow\boxed{\text{MDP or Markov game}}\\[0.4em]
+\rightarrow\boxed{\text{RL/DRL/MARL method}}\rightarrow\boxed{\text{evaluation}}
 \end{array}
 \end{equation}
-The most important improvement is that RL, DRL, and MARL are not presented as unrelated tools after PMP. Instead, the note explains exactly how a continuous-time optimal control or differential game is converted into an MDP or Markov game, and what information from PMP is preserved or lost in that conversion.
+The continuous-time model and objective are defined before the sampled
+environment. This makes clear which assumptions are preserved by the
+MDP/Markov-game conversion and which arise from observation, action and reward
+design.
 
 \begin{boxednote}
 \textbf{Key methodological principle.}
@@ -159,6 +169,19 @@ This model is suitable for introducing optimal control because the defender must
 J_D(u_p,u_c)=\int_0^T\left[A_I I(t)+\frac{B_p}{2}u_p^2(t)+\frac{B_c}{2}u_c^2(t)\right]\dd t+A_T I(T).
 \end{equation}
 The term $A_I I(t)$ is security loss, while $B_pu_p^2/2$ and $B_cu_c^2/2$ penalize aggressive intervention. The terminal term $A_T I(T)$ penalizes residual compromise.
+
+The node-level learning experiments use the canonical SIPS notation
+$[S_i,I_i,P_i]$, where $P_i$ is protected. Patching transfers $S_i\to P_i$,
+cleaning transfers $I_i\to P_i$, and protection wanes through $P_i\to S_i$.
+The distinction is not cosmetic: the environment and residual tests use the
+state order and mass invariant explicitly.
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.94\linewidth]{../assets/diagrams/state_transitions.pdf}
+\caption{Canonical SIPS transfers and node infection pressure. The aggregate SIR example uses $R$ for recovered/protected mass; node-SIPS code uses $P$ consistently.}
+\label{fig:sips-transitions}
+\end{figure}
 
 \subsection{APT repair and deception dynamics}
 APT attacks are persistent and stealthy, so it is useful to include repair, isolation, and deception. A compact APT-oriented model is
@@ -386,7 +409,12 @@ $\tau_j$ chosen by policy & The action includes event timing. & Use a semi-MDP, 
 \bottomrule
 \end{longtable}
 
-In this repository, the default code convention is simple: the policy observes $x(t_k^-)$, chooses an action, the environment applies any jump to obtain $x(t_k^+)$, then it integrates the ODE to the next observation $x(t_{k+1}^-)$. This is the convention used in \texttt{sampled\_continuous\_impulse\_env.py}. The code uses fixed \texttt{EnvConfig.dt}; the mathematics above allows nonuniform action schedules.
+In this repository, the policy observes $x(t_k^-)$, chooses an action, the
+environment applies any jump to obtain $x(t_k^+)$, and then integrates the ODE
+to $x(t_{k+1}^-)$. This ordering is implemented by
+\texttt{cybergames.envs.SampledContinuousImpulseCyberEnv}. The example uses a
+fixed \texttt{EnvConfig.dt}; the mathematics above also permits nonuniform
+decision schedules.
 
 \subsection{Step-by-step conversion to an MDP}
 At each $t_k$, the defender observes the pre-jump state summary
@@ -471,6 +499,14 @@ In code, the continuous-time model becomes an environment with two important fun
 \item \texttt{step(a\_k)}: convert $a_k$ to ODE controls, integrate the dynamics for one interval, compute reward, update budget, and return $(s_{k+1},r_k,done)$.
 \end{enumerate}
 \end{methodbox}
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.96\linewidth]{../assets/diagrams/ode_environment.pdf}
+\caption{One sampled ODE transition. Reset and flow ordering is part of the model, and running cost is recorded separately from impulse cost.}
+\label{fig:ode-environment}
+\end{figure}
+
 The Markov property requires that $s_k$ contain enough information to predict the next state distribution given the action. If the defender observes only alerts rather than true compromise levels, the problem is closer to a partially observable MDP. A practical workaround is to include a history window, recurrent neural network, or state estimator.
 
 \subsection{Conversion to a Markov game}
@@ -589,14 +625,21 @@ y^{DDQN}=r+\gamma_d Q_{\theta^-}\left(s',\argmax_{a'}Q_\theta(s',a')\right).
 \begin{methodbox}
 \textbf{DQN implementation for malware defense.}
 \begin{enumerate}
-\item State: $s_k=[S_k,I_k,R_k]$, normalized to $[0,1]$; budget or context variables can be appended only when they are explicitly modeled.
+\item Observation: $o_k=[S_k,I_k,R_k,k/K]$. The final value is a known decision-phase indicator for the scripted attack schedule, not a physical compartment.
 \item Actions: $\{\text{no-op},\text{patch},\text{clean},\text{deceive},\text{isolate}\}$.
 \item Transition: map the action to ODE parameters, integrate from $t_k$ to $t_{k+1}$.
 \item Reward: $r_k=-\Delta t_k(A_II_{k+1}+c_a(a_k)+c_{iso}\mathbf{1}_{a_k=\text{isolate}}I_{k+1})$.
-\item Network: MLP $3\to64\to64\to5$ for the default aggregate environment.
+\item Network: MLP $4\to128\to128\to5$ by default; the bounded medium profile uses width 64.
 \item Training: replay buffer, target network, $\epsilon$-greedy exploration, Adam optimizer.
 \end{enumerate}
 \end{methodbox}
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.96\linewidth]{../assets/diagrams/ddqn.pdf}
+\caption{DDQN data flow. The online network selects the next action and the target network evaluates it; replay samples are transitions between decision epochs.}
+\label{fig:ddqn}
+\end{figure}
 
 \subsection{Actor-critic methods for continuous controls}
 If actions are continuous-valued intensities such as $u_p,u_c,u_d\in[0,1]$, DQN is inconvenient. Actor-critic methods learn a policy network and a value or Q network. DDPG learns a deterministic actor for continuous-valued actions \cite{lillicrap2015}; PPO uses a clipped policy-gradient objective for stable updates \cite{schulman2017}; SAC adds entropy regularization for exploration \cite{haarnoja2018}. A typical actor for cyber defense is
@@ -684,7 +727,42 @@ Independent learning is simple but unstable. Centralized training and decentrali
 \begin{equation}
 Q_D(s,a_A,a_D),\qquad Q_A(s,a_A,a_D),
 \end{equation}
-while actors execute using local observations. MADDPG and MAPPO are representative CTDE-style methods \cite{lowe2017,yu2021mappo}.
+while actors execute using local observations. MADDPG and MAPPO are representative CTDE-style methods \cite{lowe2017,yu2022mappo}.
+
+The accompanying cooperative MAPPO experiment compares two explicit
+information structures. A summary actor applies shared weights to each
+community observation; a graph-context actor additionally aggregates a
+normalized community adjacency matrix. Both choose a single joint action from
+``no intervention'' or one community--mode pair, which enforces the same
+one-community budget as the rule and random baselines. The graph hidden width
+is selected so that the combined actor and critic parameter count is close to
+the summary-model count. This controls model capacity without claiming that a
+short bounded run ranks the architectures generally. Because the allocator
+compares community scores to choose one joint action, this constrained
+implementation is coordinated at execution time; it is MAPPO-style PPO rather
+than a strict decentralized-execution realization of standard MAPPO.
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.96\linewidth]{../assets/diagrams/mappo_ctde.pdf}
+\caption{Standard MAPPO uses local actors and a centralized state-value critic. The repository's constrained variant adds a budget coordinator that selects one joint community action.}
+\label{fig:mappo-ctde}
+\end{figure}
+
+\begin{boxednote}
+\textbf{Implementation boundary.}
+The constrained MAPPO-style experiment is cooperative: community encoders share
+the objective of limiting infection under a coordinated joint action budget. The
+attacker--defender experiment is a separate, state-conditioned actor--critic
+self-play model with player-specific rewards and unilateral-response
+diagnostics. It is not described as attacker--defender MAPPO. The static-logit
+self-play implementation is retained only as an explicitly labelled baseline.
+\end{boxednote}
+
+The action budget is enforced by the joint action map rather than represented
+only as a soft reward penalty. Recent constrained MARL work similarly
+distinguishes policy improvement from explicit safety constraints, although its
+benchmark assumptions differ from this cyber simulator \cite{zhang2024safe}.
 
 
 
@@ -706,6 +784,20 @@ A practical MARL curriculum is:
 \end{enumerate}
 This curriculum is often more stable than starting from fully random self-play. It also produces interpretable experimental stages: basic containment, adaptive attack, and robust defense.
 
+Hierarchical PPO studies in CybORG decompose investigation, recovery and
+traffic-control decisions into sub-policies with an expert or learned master
+policy \cite{singh2024hierarchical}. A peer-reviewed hierarchical cyber-game
+study likewise separates strategy and lower-level action decisions
+\cite{tang2024hierarchical}. These papers motivate the architecture, but their
+reported benchmark performance is not transferred to the SIPS simulator.
+
+\clearpage
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.94\linewidth]{../assets/diagrams/hierarchical_game.pdf}
+\caption{Hierarchical attacker-defender structure: a state-conditioned high-level target choice is followed by a bounded low-level allocation and evaluated against an opponent pool.}
+\label{fig:hierarchical-game}
+\end{figure}
 
 \subsection{MADRL algorithm families for attacker-defender games}
 MARL is the broad field of reinforcement learning with multiple agents. MADRL is the deep-learning version, where policies, critics, or value functions are neural networks. For cyber differential games, four families are especially useful.
@@ -716,7 +808,7 @@ Family & How it works & When it is suitable \\
 \midrule
 Independent DQN/PPO & Each agent treats the other agents as part of the environment and learns its own value or policy. & Simple baseline. Useful for small cyber games, but training can be unstable because the environment is nonstationary from each agent's view. \\
 Self-play & Agents repeatedly train against recent or historical versions of opponents. & Good for attacker-defender cyber games where we want adaptive behavior rather than a policy overfitted to one fixed attacker. \\
-Centralized critic, decentralized actors & During training, the critic sees joint actions and possibly global state; during execution, each actor uses local observation. & Useful for simultaneous attacker-defender decisions. MADDPG and MAPPO follow this spirit \cite{lowe2017,yu2021mappo}. \\
+Centralized critic, decentralized actors & During training, the critic sees joint actions and possibly global state; during execution, each actor uses local observation. & Useful for simultaneous attacker-defender decisions. MADDPG and MAPPO follow this spirit \cite{lowe2017,yu2022mappo}. \\
 Opponent modeling / population training & Agents learn or sample from a population of opponent policies. & Useful when the defender must be robust against many attacker types, not just the latest self-play opponent. \\
 \bottomrule
 \end{longtable}
@@ -741,7 +833,7 @@ For a two-player attacker-defender game, use the following sequence.
 \item \textbf{Apply impulse first if needed.} If the action is an incident-response impulse, compute $x(t_k^+)=G(x(t_k^-),a_A^k,a_D^k)$.
 \item \textbf{Integrate the ODE.} Compute $x(t_{k+1})=\ODESolve(f,x(t_k^+),a_A^k,a_D^k,\Delta t_k)$.
 \item \textbf{Compute rewards by interval integration.} For player $i$, set $r_i^k\approx \int_{t_k}^{t_{k+1}} L_i(x,u_A,u_D)\dd t$ plus any impulse reward/cost.
-\item \textbf{Train policies.} Use independent PPO for a simple start, then MAPPO or MADDPG for CTDE.
+\item \textbf{Train policies.} Start with independent actor--critic baselines, then use a player-specific CTDE method when centralized training is justified. The budgeted MAPPO-style implementation in this repository addresses coordinated community defense, not the attacker--defender game.
 \item \textbf{Evaluate game quality.} Report not only average reward but also best-response tests, exploitability proxies, robustness to unseen opponents, and comparison with PMP/FBSM or HODGE-style baselines.
 \end{enumerate}
 
@@ -912,6 +1004,13 @@ Start with deterministic no-defense, fixed-patch, fixed-clean, threshold, and ra
 
 
 \section{Concise Experiment Protocol}
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.96\linewidth]{../assets/diagrams/model_to_paper.pdf}
+\caption{A game-learning paper begins with the threat and simulator, establishes budget-matched baselines, evaluates held-out cases and unilateral deviations, and limits its claim to the validated regime.}
+\label{fig:model-to-paper}
+\end{figure}
 The case table above describes the algorithms. This shorter protocol is the checklist that should appear in a clean implementation or paper.
 
 \begin{methodbox}
@@ -950,22 +1049,28 @@ PMP and FBSM provide theoretical structure, optimality conditions, and interpret
 
 
 \section{Python Implementation Map and Code Organization}
-The accompanying code is intentionally organized around the same methodological structure as this note.  The mathematical model is separated from the solvers so that FBSM, DDQN, compact CTDE, node-SIPS MAPPO, and shared evaluation metrics can be compared on the same cyber-control timing convention.
+The installable \texttt{cybergames} package contains environment and learning
+logic. Shared equations, integration, neural blocks, buffers and plotting come
+from \texttt{cybercontrol}. The command \texttt{python -m cybergames} is the
+single documented runner.
 
 \begin{longtable}{p{0.36\textwidth}p{0.54\textwidth}}
 \toprule
 Python file & What it demonstrates \\
 \midrule
-{\footnotesize\texttt{cyber\_dynamics.py}} & ODE right-hand sides, RK4 integration, and state projection for compartment models. \\
-{\footnotesize\texttt{sampled\_continuous\_impulse\_env.py}} & The central sampled-data environment: observe, decode action, optionally apply a jump map, integrate ODE flow, compute rewards. \\
-{\footnotesize\texttt{evaluation\_metrics.py}} & Shared rollout metrics for policy comparison: cumulative compromise, peak/final compromise, defense cost, impulse count, and action switches. \\
-{\footnotesize\texttt{fbsm\_malware\_baseline.py}} & Classical PMP/FBSM baseline for continuous malware control. \\
-{\footnotesize\texttt{ddqn\_cyber\_defense.py}} & Discrete-action DDQN defender against a scripted attacker. \\
-{\footnotesize\texttt{madrl\_ctde\_parameterized\_game.py}} & A compact CTDE attacker-defender Markov-game baseline. \\
-{\footnotesize\texttt{node\_sips\_mappo.py}} & Community MAPPO on heterogeneous node-SIPS dynamics. Observations include local state, boundary pressure, and known community risk/rate summaries; rewards use criticality-weighted infection and per-node action costs. \\
-{\footnotesize\texttt{node\_level\_robustness.py}} & Node-level epidemic robustness experiment comparing DDQN aggregate feedback with nominal-parameter FBSM open-loop control. \\
-{\footnotesize\texttt{run\_training\_iterations.py}} & Produces convergence histories, policy-comparison metrics, game diagnostics, node-level epidemic robustness metrics, and training summaries. \\
-{\footnotesize\texttt{generate\_figures.py}} & Rebuilds the README figures, including taxonomy, neural-network, and $t_k$ versus $\tau_j$ timing diagrams. \\
+{\footnotesize\texttt{cybergames.actions}} & Typed defender and attacker modes plus parameterized mode/intensity actions. \\
+{\footnotesize\texttt{cybergames.envs}} & Aggregate sampled-data environment: observe, decode action, apply an optional reset, integrate flow and compute player rewards. \\
+{\footnotesize\texttt{cybergames.ddqn}} & Discrete-action DDQN defender against the declared scripted attacker. \\
+{\footnotesize\texttt{cybergames.ctde}} & Compact attacker-defender actor-critic with centralized training information. \\
+{\footnotesize\texttt{cybergames.node\_env}} & Heterogeneous node-SIPS flow environment and community observations. \\
+{\footnotesize\texttt{cybergames.mappo}} & Budgeted cooperative MAPPO-style PPO update with shared encoders, a joint-action allocator and centralized value critic. \\
+{\footnotesize\texttt{cybergames.node\_evaluation}} & Uniform, degree, risk, oracle, random and learned-policy evaluation on held-out profiles. \\
+{\footnotesize\texttt{cybergames.adversarial\_env}} & Heterogeneous attacker-defender node-SIPS sampled-flow environment. \\
+{\footnotesize\texttt{cybergames.adversarial}} & Nonlearned policies and the labelled static-logit diagnostic baseline. \\
+{\footnotesize\texttt{cybergames.self\_play}} & State-conditioned attacker-defender actor-critic and unilateral-response evaluation. \\
+{\footnotesize\texttt{cybergames.evaluation}} & Policy metrics, response matrices and baseline comparisons. \\
+{\footnotesize\texttt{cybergames.configs}} & Typed model and neural hyperparameters used by the CLI. \\
+{\footnotesize\texttt{scripts/generate\_figures.py}} & Rebuilds experiment figures and shared vector diagrams. \\
 \bottomrule
 \end{longtable}
 
@@ -1250,7 +1355,10 @@ $x(t_k^+)=G(x(t_k^-),a_k)$.
 
 \begin{boxednote}
 \textbf{Where the full implementation lives.}
-The executable implementation is in the repository files \texttt{sampled\_continuous\_impulse\_env.py}, \texttt{ddqn\_cyber\_defense.py}, \texttt{madrl\_ctde\_parameterized\_game.py}, and \texttt{evaluation\_metrics.py}.  This guide keeps the mathematical mapping and reporting checklist concise.
+The executable implementation is in \texttt{cybergames.envs},
+\texttt{cybergames.ddqn}, \texttt{cybergames.ctde},
+\texttt{cybergames.mappo}, and \texttt{cybergames.self\_play}. Shared equations
+and numerical utilities are imported from \texttt{cybercontrol}.
 \end{boxednote}
 
 \begin{thebibliography}{99}
@@ -1288,8 +1396,28 @@ M. L. Littman, ``Markov games as a framework for multi-agent reinforcement learn
 \bibitem{lowe2017}
 R. Lowe et al., ``Multi-agent actor-critic for mixed cooperative-competitive environments,'' arXiv:1706.02275, 2017.
 
-\bibitem{yu2021mappo}
-C. Yu et al., ``The surprising effectiveness of PPO in cooperative multi-agent games,'' arXiv:2103.01955, 2021.
+\bibitem{yu2022mappo}
+C. Yu, A. Velu, E. Vinitsky, J. Gao, Y. Wang, A. Bayen, and Y. Wu,
+``The surprising effectiveness of PPO in cooperative multi-agent games,'' in
+\emph{Advances in Neural Information Processing Systems}, vol. 35,
+pp. 24611--24624, 2022.
+
+\bibitem{zhang2024safe}
+L. Zhang, L. Li, W. Wei, H. Song, Y. Yang, and J. Liang, ``Scalable
+constrained policy optimization for safe multi-agent reinforcement learning,''
+in \emph{Advances in Neural Information Processing Systems}, vol. 37, 2024,
+doi: 10.52202/079017-4400.
+
+\bibitem{singh2024hierarchical}
+A. V. Singh, E. Rathbun, E. Graham, L. Oakley, S. Boboila, A. Oprea, and
+P. Chin, ``Hierarchical multi-agent reinforcement learning for cyber network
+defense,'' arXiv:2410.17351, 2024.
+
+\bibitem{tang2024hierarchical}
+Y. Tang, J. Sun, H. Wang, J. Deng, L. Tong, and W. Xu, ``A method of network
+attack-defense game and collaborative defense decision-making based on
+hierarchical multi-agent reinforcement learning,'' \emph{Computers \&
+Security}, vol. 142, 103871, 2024, doi: 10.1016/j.cose.2024.103871.
 
 \bibitem{hausknecht2015}
 M. Hausknecht and P. Stone, ``Deep reinforcement learning in parameterized action space,'' arXiv:1511.04143, 2015.
@@ -1319,31 +1447,13 @@ Y. Qin, X. Yang, L.-X. Yang, and K. Huang, ``Modeling and study of defense outso
 S. Shen, L. Xie, Y. Zhang, G. Wu, H. Zhang, and S. Yu, ``Joint differential game and double deep Q-networks for suppressing malware spread in Industrial Internet of Things,'' \emph{IEEE Transactions on Information Forensics and Security}, vol. 18, pp. 5302--5316, 2023.
 
 \bibitem{he2026timedelay}
-W. He, J. Tan, R. Wang, Z. Liu, X. Luo, H. Hu, and H. Zhang, ``A deep reinforcement learning approach to time delay differential game deception resource deployment,'' \emph{IEEE Transactions on Dependable and Secure Computing}, vol. 23, no. 1, pp. 1655--1670, 2026.
+W. He, J. Tan, R. Wang, Z. Liu, X. Luo, H. Hu, and H. Zhang, ``A deep reinforcement learning approach to time delay differential game deception resource deployment,'' \emph{IEEE Transactions on Dependable and Secure Computing}, vol. 23, no. 1, pp. 1655--1670, 2026, doi: 10.1109/TDSC.2025.3620151.
 
 \bibitem{he2024deception}
 W. He, J. Tan, Y. Guo, K. Shang, and H. Zhang, ``A deep reinforcement learning-based deception asset selection algorithm in differential games,'' \emph{IEEE Transactions on Information Forensics and Security}, vol. 19, pp. 8353--8366, 2024.
 
-\bibitem{shen2026privacy}
-S. Shen et al., ``Privacy-aware DRL for differential games-assisted malware defense in edge intelligence-enabled Social IoT,'' \emph{IEEE Transactions on Network and Service Management}, vol. 23, pp. 2680--2695, 2026.
-
-\bibitem{shen2026snn}
-Y. Shen, C. Shepherd, C. M. Ahmed, S. Shen, and S. Yu, ``Malware patching strategies in edge intelligence IoT systems: A differential games approach with spiking neural networks,'' \emph{IEEE Transactions on Dependable and Secure Computing}, early access, 2026.
-
 \bibitem{zhang2024pno}
-L. Zhang, M. Ghimire, Z. Xu, W. Zhang, and Y. Ren, ``Pontryagin neural operator for solving general-sum differential games with parametric state constraints,'' in \emph{Proceedings of Learning for Dynamics and Control}, PMLR, vol. 242, pp. 1--13, 2024.
-
-\bibitem{han2025nodec}
-D. Han, S. Jin, and C. Li, ``Controlling epidemics with information dynamics: A Neural ODE approach,'' \emph{IEEE Transactions on Computational Social Systems}, vol. 12, no. 6, pp. 4179--4192, 2025.
-
-\bibitem{hou2026sapdr}
-Y. Hou et al., ``SAPDR: A self-adaptive physics-informed deep learning framework for rumor propagation dynamics,'' 2026.
-
-\bibitem{jing2025simplicial}
-Y. Jing et al., ``Physics-informed learning for simplicial complex rumor dynamics,'' 2025.
-
-\bibitem{ma2026shtri}
-L. Ma et al., ``Physics-informed learning and optimal control for negative information propagation,'' 2026.
+L. Zhang, M. Ghimire, Z. Xu, W. Zhang, and Y. Ren, ``Pontryagin neural operator for solving general-sum differential games with parametric state constraints,'' in \emph{Proceedings of the 6th Annual Learning for Dynamics and Control Conference}, PMLR, vol. 242, pp. 1728--1740, 2024.
 
 
 \bibitem{isaacs1965}

@@ -9,9 +9,9 @@ architecture diagrams used for orientation.
 """
 
 from pathlib import Path
-import textwrap
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
@@ -31,13 +31,14 @@ from cybercontrol.plotting import (
     save_publication_figure,
     style_axis,
 )
-from sampled_continuous_impulse_env import (
+from cybercontrol.guide_diagrams import render_diagrams
+from cybergames.actions import mode_intensity
+from cybergames.envs import (
     SampledContinuousImpulseCyberEnv,
-    mode_intensity,
     scripted_attacker,
 )
-from evaluation_metrics import evaluate_policy_suite
-from fbsm_malware_baseline import solve_fbsm
+from cybergames.evaluation import evaluate_policy_suite
+from cybergames.fbsm import solve_fbsm
 
 
 def policy_display_label(name: str) -> str:
@@ -161,8 +162,22 @@ def plot_sampled_impulse_policy_comparison(output_dir: Path) -> None:
 
     width = 0.36
     ax = axes[1, 0]
-    ax.bar(x - width / 2, [row["peak_compromised"] for row in metrics], width, label="peak I", color="#e45756", alpha=0.80)
-    ax.bar(x + width / 2, [row["final_compromised"] for row in metrics], width, label="final I", color="#72b7b2", alpha=0.85)
+    ax.bar(
+        x - width / 2,
+        [row["peak_compromised"] for row in metrics],
+        width,
+        label="peak I",
+        color="#e45756",
+        alpha=0.80,
+    )
+    ax.bar(
+        x + width / 2,
+        [row["final_compromised"] for row in metrics],
+        width,
+        label="final I",
+        color="#72b7b2",
+        alpha=0.85,
+    )
     panel_label(ax, "(c) peak and final state")
     ax.set_ylabel("Compromised share")
     ax.set_xticks(x, labels, rotation=20, ha="right")
@@ -175,7 +190,7 @@ def plot_sampled_impulse_policy_comparison(output_dir: Path) -> None:
     max_cost = max(costs)
     label_x = max_cost * 1.06
     for idx, row in enumerate(metrics):
-        note = f'{row["impulse_events"]} impulses'
+        note = f"{row['impulse_events']} impulses"
         ax.text(label_x, idx, note, va="center", fontsize=7.5)
     panel_label(ax, "(d) cost and impulses")
     ax.set_xlabel("Total defender cost (lower is better)")
@@ -246,7 +261,10 @@ def plot_neural_architectures(output_dir: Path) -> None:
         fig,
         output_dir / "neural_architectures",
         formats=("png", "pdf"),
-        metadata={"figure_type": "guide diagram", "caption_hint": "Neural-control architecture overview."},
+        metadata={
+            "figure_type": "guide diagram",
+            "caption_hint": "Neural-control architecture overview.",
+        },
     )
     plt.close(fig)
 
@@ -261,7 +279,9 @@ def plot_control_action_taxonomy(output_dir: Path) -> None:
     zoh_values = np.array([0.15, 0.62, 0.35, 0.75, 0.48, 0.48])
 
     ax = axes[0, 0]
-    ax.plot(t, 0.48 + 0.28 * np.sin(1.15 * t) + 0.08 * np.sin(3.4 * t), color="#4c78a8", linewidth=2.2)
+    ax.plot(
+        t, 0.48 + 0.28 * np.sin(1.15 * t) + 0.08 * np.sin(3.4 * t), color="#4c78a8", linewidth=2.2
+    )
     ax.set_ylim(0, 1)
     panel_label(ax, "(a) time-varying continuous-time control")
     style_axis(ax, xlabel="time", ylabel="u(t)")
@@ -278,8 +298,22 @@ def plot_control_action_taxonomy(output_dir: Path) -> None:
     ax = axes[1, 0]
     modes = np.array([0, 1, 2, 1, 3])
     intensity = np.array([0.0, 0.35, 0.8, 0.55, 0.25])
-    ax.step(np.arange(len(modes)), modes + 0.05, where="post", color="#54a24b", linewidth=2.0, label="mode m_k")
-    ax.plot(np.arange(len(intensity)), 3.3 * intensity, "o--", color="#9467bd", linewidth=1.6, label="intensity v_k")
+    ax.step(
+        np.arange(len(modes)),
+        modes + 0.05,
+        where="post",
+        color="#54a24b",
+        linewidth=2.0,
+        label="mode m_k",
+    )
+    ax.plot(
+        np.arange(len(intensity)),
+        3.3 * intensity,
+        "o--",
+        color="#9467bd",
+        linewidth=1.6,
+        label="intensity v_k",
+    )
     ax.set_yticks([0, 1, 2, 3])
     ax.set_yticklabels(["none", "patch", "clean", "deceive"])
     panel_label(ax, "(c) switched/parameterized sampled action")
@@ -296,7 +330,14 @@ def plot_control_action_taxonomy(output_dir: Path) -> None:
     for idx, (tau, _) in enumerate(jumps, start=1):
         before = np.interp(tau - 1e-3, t, y)
         after = np.interp(tau + 1e-3, t, y)
-        ax.vlines(tau, min(before, after), max(before, after), color="#e45756", linestyle="--", linewidth=2.0)
+        ax.vlines(
+            tau,
+            min(before, after),
+            max(before, after),
+            color="#e45756",
+            linestyle="--",
+            linewidth=2.0,
+        )
         ax.text(tau, max(before, after) + 0.05, f"$\\tau_{idx}$", ha="center", fontsize=10)
     panel_label(ax, "(d) impulse/reset and continuous-impulsive flow")
     style_axis(ax, xlabel="time", ylabel="state component")
@@ -334,14 +375,34 @@ def plot_action_timing(output_dir: Path) -> None:
             arrowprops={"arrowstyle": "->", "lw": 1.5, "color": color},
         )
 
-    ax.text(x0 - 0.08, y_action, "decision epochs", ha="right", va="center", fontsize=9.5, color="#234f7f")
-    ax.text(x0 - 0.08, y_flow, "ODE substeps", ha="right", va="center", fontsize=9.5, color="#444444")
-    ax.text(x0 - 0.08, y_impulse, "impulse times", ha="right", va="center", fontsize=9.5, color="#a83232")
+    ax.text(
+        x0 - 0.08,
+        y_action,
+        "decision epochs",
+        ha="right",
+        va="center",
+        fontsize=9.5,
+        color="#234f7f",
+    )
+    ax.text(
+        x0 - 0.08, y_flow, "ODE substeps", ha="right", va="center", fontsize=9.5, color="#444444"
+    )
+    ax.text(
+        x0 - 0.08,
+        y_impulse,
+        "impulse times",
+        ha="right",
+        va="center",
+        fontsize=9.5,
+        color="#a83232",
+    )
 
     for idx, t in enumerate(action_times):
         ax.vlines(t, y_action - 0.16, y_action + 0.16, color="#4c78a8", linewidth=2.4)
         ax.scatter([t], [y_action], s=60, color="#4c78a8", zorder=3)
-        ax.text(t, y_action + 0.24, f"$t_{idx}$", ha="center", va="bottom", fontsize=11, color="#234f7f")
+        ax.text(
+            t, y_action + 0.24, f"$t_{idx}$", ha="center", va="bottom", fontsize=11, color="#234f7f"
+        )
         ax.text(t, y_action - 0.28, "observe\nchoose action", ha="center", va="top", fontsize=8.2)
 
     for idx in range(len(action_times) - 1):
@@ -352,13 +413,30 @@ def plot_action_timing(output_dir: Path) -> None:
             xytext=(left + 0.08, y_flow - 0.22),
             arrowprops={"arrowstyle": "<->", "lw": 1.1, "color": "#666666"},
         )
-        ax.text((left + right) / 2, y_flow - 0.38, f"$\\Delta t_{idx}$", ha="center", va="top", fontsize=10)
+        ax.text(
+            (left + right) / 2,
+            y_flow - 0.38,
+            f"$\\Delta t_{idx}$",
+            ha="center",
+            va="top",
+            fontsize=10,
+        )
         substeps = np.linspace(left, right, substep_counts[idx] + 2)[1:-1]
         ax.scatter(substeps, np.full_like(substeps, y_flow), s=24, color="#666666", zorder=3)
-        ax.text((left + right) / 2, y_flow + 0.18, "RK4/internal flow", ha="center", va="bottom", fontsize=8.5, color="#444444")
+        ax.text(
+            (left + right) / 2,
+            y_flow + 0.18,
+            "RK4/internal flow",
+            ha="center",
+            va="bottom",
+            fontsize=8.5,
+            color="#444444",
+        )
 
     for j, tau in enumerate(impulse_times, start=1):
-        ax.vlines(tau, y_impulse - 0.18, y_impulse + 0.18, color="#e45756", linewidth=2.0, linestyles="--")
+        ax.vlines(
+            tau, y_impulse - 0.18, y_impulse + 0.18, color="#e45756", linewidth=2.0, linestyles="--"
+        )
         ax.scatter([tau], [y_impulse], marker="v", s=80, color="#e45756", zorder=4)
         label = f"$\\tau_{j}$"
         if np.any(np.isclose(tau, action_times)):
@@ -367,8 +445,20 @@ def plot_action_timing(output_dir: Path) -> None:
             label += " inside transition"
         ax.text(tau, y_impulse - 0.26, label, ha="center", va="top", fontsize=9.5, color="#a83232")
 
-    ax.text(action_times[0] - 0.1, 2.0, "$t_k$: MDP/MG observation and action points", color="#234f7f", fontsize=10)
-    ax.text(action_times[0] - 0.1, 1.78, "$\\tau_j$: impulse/event times in the original model", color="#a83232", fontsize=10)
+    ax.text(
+        action_times[0] - 0.1,
+        2.0,
+        "$t_k$: MDP/MG observation and action points",
+        color="#234f7f",
+        fontsize=10,
+    )
+    ax.text(
+        action_times[0] - 0.1,
+        1.78,
+        "$\\tau_j$: impulse/event times in the original model",
+        color="#a83232",
+        fontsize=10,
+    )
     ax.text(
         action_times[0] - 0.1,
         -1.92,
@@ -403,6 +493,19 @@ def main() -> None:
     plot_neural_architectures(output_dir)
     plot_control_action_taxonomy(output_dir)
     plot_action_timing(output_dir)
+    render_diagrams(
+        output_dir / "diagrams",
+        diagram_ids=(
+            "repository_family",
+            "state_transitions",
+            "control_timing",
+            "ode_environment",
+            "ddqn",
+            "mappo_ctde",
+            "hierarchical_game",
+            "model_to_paper",
+        ),
+    )
     print(f"Wrote figures to {output_dir}")
 
 
