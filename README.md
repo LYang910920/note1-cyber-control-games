@@ -67,7 +67,9 @@ python -m cybergames all
 
 The ODE environment separates policy epochs, internal integration substeps and
 explicit reset times. A sampled continuous-valued action remains piecewise
-constant under zero-order hold.
+constant under zero-order hold. The timing diagram is conceptual: the checked
+environment applies isolation resets at policy epochs, while impulse times
+between epochs describe a broader event-driven model.
 
 ![Control timing taxonomy](docs/assets/control_action_taxonomy.png)
 

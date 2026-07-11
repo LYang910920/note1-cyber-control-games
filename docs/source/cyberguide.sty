@@ -80,6 +80,7 @@
 \lstdefinestyle{textstyle}{basicstyle=\ttfamily\footnotesize,backgroundcolor=\color{CodeGray},breaklines=true,columns=fullflexible,frame=single,showstringspaces=false}
 \lstset{style=pythonstyle}
 \newcommand{\tutorialtitle}[4]{%
+\hypersetup{pageanchor=false}%
 \begin{titlepage}
 \centering
 \vspace*{1.25cm}
@@ -102,7 +103,8 @@
 {\large #4\par}
 \vspace{0.45cm}
 {\large \today\par}
-\end{titlepage}}
+\end{titlepage}%
+\hypersetup{pageanchor=true}}
 % Compatibility aliases for earlier document versions.
 \newcommand{\ODESolve}{\operatorname{ODESolve}}
 \newcommand{\ind}{\mathbf{1}}

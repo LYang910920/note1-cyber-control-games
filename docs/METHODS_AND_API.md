@@ -52,7 +52,7 @@ is not an equilibrium certificate.
 | Setting | Observation | Action | Evidence |
 |---|---|---|---|
 | aggregate DDQN | SIR state plus known decision phase | discrete defender mode | seeded randomized-initial-state return and rule baselines |
-| compact CTDE | player observations and global training state | parameterized attacker/defender actions | joint-action-conditioned player critics and returns |
+| compact CTDE | player observations and global training state | discrete sampled attacker/defender modes at their configured mappings | joint-action-conditioned player critics and returns |
 | budgeted MAPPO-style PPO | community SIPS state, boundary pressure and known risk/rate summaries | coordinated community intervention | held-out state metrics and baseline suite |
 | attacker-defender actor-critic | state-conditioned community features | separate bounded attack and defense selections | learned-profile reference and fixed-policy cross-play |
 
@@ -110,7 +110,12 @@ state-conditioned actor-critic in
 static-logit self-play routine in `cybergames.adversarial` is retained only as an
 explicit baseline. This repository does not advertise attacker-defender MAPPO.
 
-![Hierarchical game policy](assets/diagrams/hierarchical_game.png)
+The implemented actors choose target communities. The environment then applies
+fixed patch/clean rules for defender targets and a receiver-side transmission
+boost for attacker targets; there is no learned low-level intensity allocator.
+Role-specific pooled critics are used during training only.
+
+![Attacker-defender actor-critic and cross-play](assets/diagrams/hierarchical_game.png)
 
 ## Baselines and held-out evaluation
 

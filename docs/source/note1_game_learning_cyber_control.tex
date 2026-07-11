@@ -273,7 +273,7 @@ If the original continuous-time or impulse model already has event points, denot
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.95\linewidth]{../assets/action_timing.pdf}
-\caption{Three-lane action timing used in the sampled-data learning code. Decision epochs $t_k$ are the points where the MDP or Markov game observes the state and chooses actions. ODE substeps are internal numerical integration steps. Impulse times $\tau_j$ belong to the original continuous-time or impulse model and may coincide with, or fall between, decision epochs.}
+\caption{Conceptual relation among policy epochs, ODE substeps, and original-model impulse times. The checked learning environment uses fixed decision intervals, applies an isolation reset only at a decision epoch, and then integrates with fixed internal substeps. An impulse time $\tau_j$ between epochs describes the broader continuous-time model; it is not an extra action taken by the current policy implementation.}
 \label{fig:action-timing}
 \end{figure}
 
@@ -609,7 +609,7 @@ RL is useful when the defender can simulate the cyber system but cannot easily s
 so the defender can react to the current cyber state instead of following a precomputed open-loop control $u(t)$.
 
 \subsection{DQN for discrete cyber actions}
-For discrete actions such as no-op, patch, monitor, isolate, and deceive, DQN approximates $Q(s,a)$ using a neural network \cite{mnih2015}. The Bellman target is
+For discrete actions such as no-op, patch, clean, isolate, and deceive, DQN approximates $Q(s,a)$ using a neural network \cite{mnih2015}. The Bellman target is
 \begin{equation}
 y=r+\gamma_d\max_{a'}Q_{\theta^-}(s',a'),
 \end{equation}
@@ -627,8 +627,12 @@ y^{DDQN}=r+\gamma_d Q_{\theta^-}\left(s',\argmax_{a'}Q_\theta(s',a')\right).
 \begin{enumerate}
 \item Observation: $o_k=[S_k,I_k,R_k,k/K]$. The final value is a known decision-phase indicator for the scripted attack schedule, not a physical compartment.
 \item Actions: $\{\text{no-op},\text{patch},\text{clean},\text{deceive},\text{isolate}\}$.
-\item Transition: map the action to ODE parameters, integrate from $t_k$ to $t_{k+1}$.
-\item Reward: $r_k=-\Delta t_k(A_II_{k+1}+c_a(a_k)+c_{iso}\mathbf{1}_{a_k=\text{isolate}}I_{k+1})$.
+\item Transition: decode the sampled mode and intensity. Isolation first applies $x(t_k^+)=G(x(t_k^-),v_k)$; patching, cleaning, and deception change rates held over $[t_k,t_{k+1})$. The solver then integrates to $t_{k+1}$.
+\item Reward: let $\bar I_k$ and $\bar S_k$ be interval means obtained from the ODE substeps. The implementation uses
+\[
+r_k^D=-\Delta t_k\!\left(A_I\bar I_k+A_S\bar S_k+c_pu_{p,k}^2+c_cu_{c,k}^2+c_du_{d,k}^2\right)-C_{J,k},
+\]
+where $C_{J,k}=\mathbf{1}_{\{m_k=\mathrm{isolate}\}}\left(c_iv_k^2+c_u[I(t_k^-)-I(t_k^+)]\right)$. The running and jump costs are also returned separately for audit.
 \item Network: MLP $4\to128\to128\to5$ by default; the bounded medium profile uses width 64.
 \item Training: replay buffer, target network, $\epsilon$-greedy exploration, Adam optimizer.
 \end{enumerate}
@@ -745,7 +749,7 @@ than a strict decentralized-execution realization of standard MAPPO.
 \begin{figure}[h!]
 \centering
 \includegraphics[width=0.96\linewidth]{../assets/diagrams/mappo_ctde.pdf}
-\caption{The repository's cooperative PPO path encodes community summaries, selects one budget-feasible joint categorical action, and trains a centralized state-value critic. The coordinator makes execution joint rather than strictly decentralized.}
+\caption{The cooperative PPO path encodes community summaries and selects one budget-feasible joint categorical action. The environment returns one reward per community; training averages these into a scalar team reward for GAE. The pooled value critic is used during training, while the shared coordinator alone selects actions at evaluation time.}
 \label{fig:mappo-ctde}
 \end{figure}
 
@@ -760,6 +764,7 @@ exploitability estimate. It is not described as attacker--defender MAPPO. The st
 self-play implementation is retained only as an explicitly labelled baseline.
 \end{boxednote}
 
+\begin{samepage}
 The action budget is enforced by the joint action map rather than represented
 only as a soft reward penalty. Recent constrained MARL work similarly
 distinguishes policy improvement from explicit safety constraints, although its
@@ -770,6 +775,7 @@ risk sensitivity rather than treating them as interchangeable claims
 related route to improving transfer under interventions, but use a different
 model and evidence protocol from the SIPS experiments here
 \cite{purves2024causal}.
+\end{samepage}
 
 
 
@@ -798,11 +804,18 @@ study likewise separates strategy and lower-level action decisions
 \cite{tang2024hierarchical}. These papers motivate the architecture, but their
 reported benchmark performance is not transferred to the SIPS simulator.
 
+The repository baseline shown below is not that hierarchical architecture. It
+uses separate state-conditioned attacker and defender actors to choose budgeted
+target communities. The environment deterministically maps defender targets to
+patching or cleaning according to current local infection and maps attacker
+targets to a receiver-side transmission boost. Role-specific critics are used
+during training; held-out evaluation freezes the learned policies.
+
 \clearpage
 \begin{figure}[h!]
 \centering
 \includegraphics[width=0.94\linewidth]{../assets/diagrams/hierarchical_game.pdf}
-\caption{Hierarchical attacker-defender structure: a state-conditioned high-level target choice is followed by a bounded low-level allocation and evaluated against an opponent pool.}
+\caption{Implemented attacker--defender baseline. Separate actors select target communities, the sampled-flow SIPS environment applies fixed intervention rules, and role-specific critics support policy-gradient training. Evaluation uses deterministic fixed-policy cross-play against learned and heuristic opponents; no best-response or equilibrium claim is made.}
 \label{fig:hierarchical-game}
 \end{figure}
 
