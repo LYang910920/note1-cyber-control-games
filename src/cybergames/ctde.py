@@ -15,30 +15,29 @@ actions, the environment applies any impulse jump, integrates the ODE until
 t_{k+1}, and returns the next observation and both rewards.
 
 For PPO-style cooperative defenders on node-level SIPS dynamics, use
-``node_sips_mappo.py``.  This file focuses on the two-player interaction loop
+``cybergames.mappo``. This file focuses on the two-player interaction loop
 and does not claim to be a full MAPPO implementation.
 """
+
 from __future__ import annotations
 
-import argparse
-import numpy as np
+import logging
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.distributions import Categorical
-from sampled_continuous_impulse_env import SampledContinuousImpulseCyberEnv
+from .envs import SampledFlowImpulseEnv
 
-from cybercontrol.torch_utils import configure_torch
+from cybercontrol.nn import MLP
+from cybercontrol.experiments import configure_torch
+
+LOGGER = logging.getLogger(__name__)
 
 
 class Actor(nn.Module):
     def __init__(self, obs_dim, n_actions, hidden=128):
         super().__init__()
-        self.net = nn.Sequential(
-            nn.Linear(obs_dim, hidden), nn.Tanh(),
-            nn.Linear(hidden, hidden), nn.Tanh(),
-            nn.Linear(hidden, n_actions),
-        )
+        self.net = MLP(obs_dim, n_actions, width=hidden, depth=2, activation="tanh")
 
     def forward(self, obs):
         return self.net(obs)
@@ -51,25 +50,27 @@ class Actor(nn.Module):
 
 
 class CentralCritic(nn.Module):
-    def __init__(self, obs_dim, n_def_actions, n_atk_actions, hidden=128):
+    """Player-specific critic conditioned on global state and both actions."""
+
+    def __init__(self, obs_dim, defender_actions, attacker_actions, hidden=128):
         super().__init__()
-        in_dim = obs_dim + n_def_actions + n_atk_actions
-        self.net = nn.Sequential(
-            nn.Linear(in_dim, hidden), nn.Tanh(),
-            nn.Linear(hidden, hidden), nn.Tanh(),
-            nn.Linear(hidden, 1),
-        )
-        self.n_def_actions = n_def_actions
-        self.n_atk_actions = n_atk_actions
+        self.defender_actions = int(defender_actions)
+        self.attacker_actions = int(attacker_actions)
+        self.input_dim = obs_dim + self.defender_actions + self.attacker_actions
+        self.net = MLP(self.input_dim, 1, width=hidden, depth=2, activation="tanh")
 
-    def forward(self, obs, a_def, a_atk):
-        d_onehot = nn.functional.one_hot(a_def, self.n_def_actions).float()
-        a_onehot = nn.functional.one_hot(a_atk, self.n_atk_actions).float()
-        x = torch.cat([obs, d_onehot, a_onehot], dim=-1)
-        return self.net(x).squeeze(-1)
+    def forward(self, obs, defender_action, attacker_action):
+        defender_one_hot = nn.functional.one_hot(
+            defender_action.long(), num_classes=self.defender_actions
+        ).to(dtype=obs.dtype)
+        attacker_one_hot = nn.functional.one_hot(
+            attacker_action.long(), num_classes=self.attacker_actions
+        ).to(dtype=obs.dtype)
+        joint_input = torch.cat([obs, defender_one_hot, attacker_one_hot], dim=-1)
+        return self.net(joint_input).squeeze(-1)
 
 
-def rollout(env, defender, attacker, critic, horizon, device):
+def rollout(env, defender, attacker, horizon, device):
     """Collect one attacker-defender trajectory from the sampled environment."""
     obs_np = env.reset()
     storage = []
@@ -77,13 +78,23 @@ def rollout(env, defender, attacker, critic, horizon, device):
         obs = torch.tensor(obs_np, dtype=torch.float32, device=device).unsqueeze(0)
         a_def, logp_def, ent_def = defender.sample(obs)
         a_atk, logp_atk, ent_atk = attacker.sample(obs)
-        value = critic(obs, a_def, a_atk)
         next_obs, rewards, done, _ = env.step(int(a_def.item()), int(a_atk.item()))
         # scale rewards to avoid large gradients
         r_def = torch.tensor(rewards["defender"] / 10.0, dtype=torch.float32, device=device)
         r_atk = torch.tensor(rewards["attacker"] / 10.0, dtype=torch.float32, device=device)
-        storage.append((obs.squeeze(0), a_def.squeeze(0), a_atk.squeeze(0), logp_def.squeeze(0),
-                        logp_atk.squeeze(0), ent_def.squeeze(0), ent_atk.squeeze(0), value.squeeze(0), r_def, r_atk))
+        storage.append(
+            (
+                obs.squeeze(0),
+                a_def.squeeze(0),
+                a_atk.squeeze(0),
+                logp_def.squeeze(0),
+                logp_atk.squeeze(0),
+                ent_def.squeeze(0),
+                ent_atk.squeeze(0),
+                r_def,
+                r_atk,
+            )
+        )
         obs_np = next_obs
         if done:
             break
@@ -112,23 +123,37 @@ def train(args):
         threads=getattr(args, "threads", 1),
     )
     device = torch.device(resolved_device)
-    np.random.seed(args.seed)
-    env = SampledContinuousImpulseCyberEnv(seed=args.seed)
+    env = SampledFlowImpulseEnv(seed=args.seed)
     if args.smoke:
         env.cfg.horizon = 10
     if hasattr(args, "horizon") and args.horizon is not None:
         env.cfg.horizon = args.horizon
     defender = Actor(env.obs_dim, env.n_defender_actions, args.hidden).to(device)
     attacker = Actor(env.obs_dim, env.n_attacker_actions, args.hidden).to(device)
-    critic_d = CentralCritic(env.obs_dim, env.n_defender_actions, env.n_attacker_actions, args.hidden).to(device)
-    critic_a = CentralCritic(env.obs_dim, env.n_defender_actions, env.n_attacker_actions, args.hidden).to(device)
-    opt = optim.Adam(list(defender.parameters()) + list(attacker.parameters()) +
-                     list(critic_d.parameters()) + list(critic_a.parameters()), lr=args.lr)
+    critic_d = CentralCritic(
+        env.obs_dim,
+        env.n_defender_actions,
+        env.n_attacker_actions,
+        args.hidden,
+    ).to(device)
+    critic_a = CentralCritic(
+        env.obs_dim,
+        env.n_defender_actions,
+        env.n_attacker_actions,
+        args.hidden,
+    ).to(device)
+    opt = optim.Adam(
+        list(defender.parameters())
+        + list(attacker.parameters())
+        + list(critic_d.parameters())
+        + list(critic_a.parameters()),
+        lr=args.lr,
+    )
     history = []
 
     for ep in range(args.episodes):
-        data = rollout(env, defender, attacker, critic_d, env.cfg.horizon, device)
-        obs, ad, aa, logpd, logpa, entd, enta, vd_old, rd, ra = zip(*data)
+        data = rollout(env, defender, attacker, env.cfg.horizon, device)
+        obs, ad, aa, logpd, logpa, entd, enta, rd, ra = zip(*data)
         obs = torch.stack(obs)
         ad = torch.stack(ad)
         aa = torch.stack(aa)
@@ -140,14 +165,14 @@ def train(args):
         ra = list(ra)
         Gd = torch.stack(discounted_returns(rd, args.gamma, device=device)).detach()
         Ga = torch.stack(discounted_returns(ra, args.gamma, device=device)).detach()
-        Vd = critic_d(obs, ad, aa)
-        Va = critic_a(obs, ad, aa)
-        adv_d = (Gd - Vd.detach())
-        adv_a = (Ga - Va.detach())
+        Qd = critic_d(obs, ad, aa)
+        Qa = critic_a(obs, ad, aa)
+        adv_d = Gd - Qd.detach()
+        adv_a = Ga - Qa.detach()
         # In a general-sum game, each actor optimizes its own objective.
         actor_loss = -(logpd * adv_d).mean() - (logpa * adv_a).mean()
-        critic_loss = nn.functional.mse_loss(Vd, Gd) + nn.functional.mse_loss(Va, Ga)
-        entropy_bonus = (entd.mean() + enta.mean())
+        critic_loss = nn.functional.mse_loss(Qd, Gd) + nn.functional.mse_loss(Qa, Ga)
+        entropy_bonus = entd.mean() + enta.mean()
         loss = actor_loss + 0.5 * critic_loss - args.entropy_coef * entropy_bonus
         opt.zero_grad()
         loss.backward()
@@ -156,39 +181,27 @@ def train(args):
         if ep % args.log_every == 0:
             rd_total = sum(x.item() for x in rd)
             ra_total = sum(x.item() for x in ra)
-            print(f"ep={ep:04d}, len={len(data):03d}, Rd={rd_total:7.2f}, Ra={ra_total:7.2f}, loss={loss.detach().item():.3f}")
-            history.append({
-                "episode": ep,
-                "rollout_length": len(data),
-                "defender_return": float(rd_total),
-                "attacker_return": float(ra_total),
-                "loss": float(loss.detach().item()),
-                "critic_loss": float(critic_loss.detach().item()),
-                "entropy": float(entropy_bonus.detach().item()),
-            })
+            LOGGER.info(
+                "ep=%04d len=%03d Rd=%7.2f Ra=%7.2f loss=%.3f",
+                ep,
+                len(data),
+                rd_total,
+                ra_total,
+                loss.detach().item(),
+            )
+            history.append(
+                {
+                    "episode": ep,
+                    "rollout_length": len(data),
+                    "defender_return": float(rd_total),
+                    "attacker_return": float(ra_total),
+                    "loss": float(loss.detach().item()),
+                    "critic_loss": float(critic_loss.detach().item()),
+                    "entropy": float(entropy_bonus.detach().item()),
+                    "critic_input_dim": critic_d.input_dim,
+                    "critic_conditions_on_joint_actions": True,
+                }
+            )
     if getattr(args, "return_history", False):
         return defender, attacker, history
     return defender, attacker
-
-
-if __name__ == "__main__":
-    p = argparse.ArgumentParser(
-        description="Run a compact CTDE attacker-defender training loop."
-    )
-    p.add_argument("--smoke", action="store_true", help="Run a tiny execution check.")
-    p.add_argument("--episodes", type=int, default=200, help="Number of training episodes.")
-    p.add_argument("--horizon", type=int, default=None, help="Decision epochs per episode.")
-    p.add_argument("--hidden", type=int, default=128, help="Hidden width for actors and critics.")
-    p.add_argument("--lr", type=float, default=3e-4, help="Adam learning rate.")
-    p.add_argument("--gamma", type=float, default=0.99, help="Discount factor.")
-    p.add_argument("--entropy-coef", type=float, default=0.01, help="Entropy bonus coefficient.")
-    p.add_argument("--log-every", type=int, default=10, help="Episode interval for console logs and history rows.")
-    p.add_argument("--seed", type=int, default=0, help="Random seed.")
-    p.add_argument("--device", choices=["auto", "cpu", "cuda", "mps"], default="auto", help="Training device.")
-    p.add_argument("--threads", type=int, default=1, help="Torch CPU thread count; use 0 to leave unchanged.")
-    args = p.parse_args()
-    if args.smoke:
-        args.episodes = 3
-        args.log_every = 1
-        args.hidden = 32
-    train(args)

@@ -208,12 +208,7 @@ Cyber-control papers often use the words \emph{continuous}, \emph{discrete}, \em
 \item \textbf{State effect:} does the action change only the vector field, create a reset $x^+=G(x^-,v)$, or do both?
 \end{enumerate}
 
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=0.95\linewidth]{../assets/control_action_taxonomy.pdf}
-\caption{Control-action taxonomy used in this note. A continuous-time control is a time signal $u(t)$. A sampled real action $u_k$ under zero-order hold is piecewise constant. A mode or parameterized action selects the interval vector field without a reset unless a jump map is specified. An impulse is defined by the reset $x(\tau_j^+)=G(x(\tau_j^-),v_j)$.}
-\label{fig:control-action-taxonomy}
-\end{figure}
+The classification does not require a separate diagram. A continuous-time control is a signal $u(t)$ defined throughout time. A sampled real action $u_k$ becomes piecewise constant under zero-order hold. A mode or parameterized action selects an interval vector field without a reset unless a jump map is specified. An impulse is defined by $x(\tau_j^+)=G(x(\tau_j^-),v_j)$.
 
 \subsection{Classification axes}
 The same cyber intervention can look different depending on the axis. For example, a patching intensity $u_k=0.7$ chosen every hour is continuous-valued, but its decision timing is sampled and its applied signal is piecewise constant under zero-order hold. A mode $\texttt{patch}$ is discrete-valued, but the state can still evolve continuously with no jump. Isolation becomes impulsive only if it immediately changes the state.
@@ -386,7 +381,7 @@ $\tau_j$ chosen by policy & The action includes event timing. & Use a semi-MDP, 
 \bottomrule
 \end{longtable}
 
-In this repository, the default code convention is simple: the policy observes $x(t_k^-)$, chooses an action, the environment applies any jump to obtain $x(t_k^+)$, then it integrates the ODE to the next observation $x(t_{k+1}^-)$. This is the convention used in \texttt{sampled\_continuous\_impulse\_env.py}. The code uses fixed \texttt{EnvConfig.dt}; the mathematics above allows nonuniform action schedules.
+In this repository, the default code convention is simple: the policy observes $x(t_k^-)$, chooses an action, the environment applies any jump to obtain $x(t_k^+)$, then it integrates the ODE to the next observation $x(t_{k+1}^-)$. This is the convention used by \texttt{cybergames.envs.SampledFlowImpulseEnv}. The code uses fixed \texttt{EnvConfig.dt}; the mathematics above allows nonuniform action schedules.
 
 \subsection{Step-by-step conversion to an MDP}
 At each $t_k$, the defender observes the pre-jump state summary
@@ -956,22 +951,23 @@ The accompanying code is intentionally organized around the same methodological 
 \toprule
 Python file & What it demonstrates \\
 \midrule
-{\footnotesize\texttt{cyber\_dynamics.py}} & ODE right-hand sides, RK4 integration, and state projection for compartment models. \\
-{\footnotesize\texttt{sampled\_continuous\_impulse\_env.py}} & The central sampled-data environment: observe, decode action, optionally apply a jump map, integrate ODE flow, compute rewards. \\
-{\footnotesize\texttt{evaluation\_metrics.py}} & Shared rollout metrics for policy comparison: cumulative compromise, peak/final compromise, defense cost, impulse count, and action switches. \\
-{\footnotesize\texttt{fbsm\_malware\_baseline.py}} & Classical PMP/FBSM baseline for continuous malware control. \\
-{\footnotesize\texttt{ddqn\_cyber\_defense.py}} & Discrete-action DDQN defender against a scripted attacker. \\
-{\footnotesize\texttt{madrl\_ctde\_parameterized\_game.py}} & A compact CTDE attacker-defender Markov-game baseline. \\
-{\footnotesize\texttt{node\_sips\_mappo.py}} & Community MAPPO on heterogeneous node-SIPS dynamics. Observations include local state, boundary pressure, and known community risk/rate summaries; rewards use criticality-weighted infection and per-node action costs. \\
-{\footnotesize\texttt{node\_level\_robustness.py}} & Node-level epidemic robustness experiment comparing DDQN aggregate feedback with nominal-parameter FBSM open-loop control. \\
-{\footnotesize\texttt{run\_training\_iterations.py}} & Produces convergence histories, policy-comparison metrics, game diagnostics, node-level epidemic robustness metrics, and training summaries. \\
-{\footnotesize\texttt{generate\_figures.py}} & Rebuilds the README figures, including taxonomy, neural-network, and $t_k$ versus $\tau_j$ timing diagrams. \\
+{\footnotesize\texttt{cybercontrol}} & Foundation package for ODEs, SIPS graph dynamics, integration, projections, neural blocks, buffers, metrics, and plotting. \\
+{\footnotesize\texttt{cybergames.envs}} & Sampled-flow and impulse environment: observe, decode actions, apply a reset only when declared, integrate flow, and compute interval rewards. \\
+{\footnotesize\texttt{cybergames.actions}} & Defender/attacker modes and typed mode--intensity actions. \\
+{\footnotesize\texttt{cybergames.fbsm}} & Classical PMP/FBSM baseline for continuous malware control. \\
+{\footnotesize\texttt{cybergames.ddqn}} & Discrete-action DDQN defender against a scripted attacker. \\
+{\footnotesize\texttt{cybergames.ctde}} & Compact centralized-training/decentralized-execution actor--critic baseline. \\
+{\footnotesize\texttt{cybergames.node\_env}, \texttt{cybergames.mappo}} & Community MAPPO on heterogeneous node-SIPS dynamics. \\
+{\footnotesize\texttt{cybergames.adversarial\_env}, \texttt{cybergames.self\_play}} & Attacker--defender node-SIPS environment, state-conditioned policies, cross-play, and response diagnostics. \\
+{\footnotesize\texttt{cybergames.evaluation}} & Fixed/rule policy rollouts, cumulative exposure, costs, and response matrices. \\
+{\footnotesize\texttt{cybergames.experiments}} & Bounded multi-seed experiment profiles, held-out evaluation, metrics, and provenance manifests. \\
+{\footnotesize\texttt{python -m cybergames}} & Single public runner for smoke, medium, figures, and PDF builds. \\
 \bottomrule
 \end{longtable}
 
 \begin{boxednote}
 \textbf{Recommended implementation sequence.}
-First run the ODE environment and FBSM baseline. Then train DDQN against a scripted attacker. Only after these two parts are debugged should one move to compact CTDE, node-SIPS MAPPO, or node-level epidemic robustness experiments. Use the metric and figure scripts to compare learned policies against fixed, rule-based, and nominal-parameter optimal-control baselines.
+First run the ODE environment and FBSM baseline. Then train DDQN against a scripted attacker. Move to CTDE or node-SIPS MAPPO only after transition ordering, rewards, and fixed-policy baselines are verified. For attacker--defender studies, add cross-play and unilateral-deviation diagnostics rather than relying on self-play reward alone.
 \end{boxednote}
 
 \appendix
@@ -1250,7 +1246,7 @@ $x(t_k^+)=G(x(t_k^-),a_k)$.
 
 \begin{boxednote}
 \textbf{Where the full implementation lives.}
-The executable implementation is in the repository files \texttt{sampled\_continuous\_impulse\_env.py}, \texttt{ddqn\_cyber\_defense.py}, \texttt{madrl\_ctde\_parameterized\_game.py}, and \texttt{evaluation\_metrics.py}.  This guide keeps the mathematical mapping and reporting checklist concise.
+The executable implementation is in \texttt{cybergames.envs}, \texttt{cybergames.ddqn}, \texttt{cybergames.ctde}, \texttt{cybergames.mappo}, and \texttt{cybergames.evaluation}. The public command is \texttt{python -m cybergames}.
 \end{boxednote}
 
 \begin{thebibliography}{99}

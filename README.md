@@ -1,122 +1,110 @@
-# Network Control Tutorial Family: Note 1
+# Cyber Control and Game Learning
 
-**Cyber Control and Game Learning**
-
-Executable code for cyber optimal control, sampled-data reinforcement learning, and attacker-defender game learning. This is the second repository in the Network Control Tutorial Family. It uses the foundation package `cybercontrol` for shared dynamics, integration, plotting, and neural helper blocks; this repository keeps the environment and learning code.
+Sampled cyber-control environments, reinforcement learning, and multi-agent game
+evaluation. Shared ODEs, graph models, integration, neural blocks, buffers, metrics,
+and plotting come from the Foundation `cybercontrol` package.
 
 ## Repository Family
 
-| Order | Family name | Current repository | Role |
-|---:|---|---|---|
-| 0 | Foundation: Network Control and Differential Games | [network-control-differential-games](https://github.com/LYang910920/network-control-differential-games) | Shared notation, `cybercontrol`, continuous-time, impulse, continuous-impulsive examples, degree-vs-node scalability, and reference smoke runs. |
-| 1 | Note 1: Cyber Control and Game Learning | `note1-cyber-control-games` | FBSM baseline, sampled-data MDP conversion, DDQN defense, CTDE attacker-defender learning, cooperative node-SIPS MAPPO, and larger node-SIPS attacker-defender benchmarks. |
-| 2 | Note 2: Physics-Informed Cyber Control | [note2-pinn-pidl-cyber-control](https://github.com/LYang910920/note2-pinn-pidl-cyber-control) | PINN/PIDL inverse learning, neural control, PMP-informed losses, and graph-state residual examples. |
+| Repository | Purpose |
+|---|---|
+| [Network Control and Differential Games](https://github.com/LYang910920/network-control-differential-games) | Foundation equations, FBS solvers, heterogeneous profiles, and shared Python components. |
+| **Cyber Control and Game Learning** | Sampled environments, DDQN, CTDE, MAPPO, and attacker-defender evaluation. |
+| [Physics-Informed Cyber Control](https://github.com/LYang910920/note2-pinn-pidl-cyber-control) | Inverse PINN, PIDL, neural control, and PMP-informed learning. |
 
-The GitHub repository slugs are kept stable for existing links. The family names above are the display names used in the PDFs and documentation.
+## Five-Minute Start
 
-## 5-Minute Quick Start
+With the Foundation repository next to this checkout:
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
-python -m pip install -e "../network-control-differential-games[torch,dev]"
+python -m pip install -e "../network-control-differential-games[torch]"
 python -m pip install -e ".[dev]"
-python run_all.py smoke
-python run_all.py figures
+python -m cybergames smoke
 ```
 
-If this repository is cloned without the sibling foundation repo:
+For a standalone checkout, `python -m pip install -e ".[dev]"` installs the
+Foundation revision declared in `pyproject.toml`.
 
 ```bash
-python -m pip install "cybercontrol[torch] @ git+https://github.com/LYang910920/network-control-differential-games.git"
-python -m pip install -e ".[dev]"
+python -m cybergames medium --device auto --output-dir artifacts/medium
+python -m cybergames figures
+python -m cybergames docs
 ```
 
-For bounded diagnostics that write local artifacts:
-
-```bash
-python run_all.py train
-```
+`medium` is a bounded five-seed DDQN/MAPPO and attacker-defender evaluation. It
+writes metrics and a run manifest under ignored `artifacts/`.
 
 ## Code Map
 
-| Need | Start here |
+| Topic | Module |
 |---|---|
-| Tutorial PDF | `docs/note1_game_learning_cyber_control.pdf` |
-| Run and implementation guide | `docs/code_run_guide.pdf`, `docs/implementation_companion.pdf` |
-| Parameters and hyperparameters | `docs/PARAMETERS.md` |
-| MDP, Markov-game, and impulse timing | `docs/MODEL_TO_MDP.md` |
-| Paper workflow and extensions | `docs/PAPER_WORKFLOW.md`, `docs/EXTENDING.md` |
-| Aggregate cyber environment | `src/sampled_continuous_impulse_env.py` |
-| FBSM baseline | `src/fbsm_malware_baseline.py` |
-| DDQN and CTDE | `src/ddqn_cyber_defense.py`, `src/madrl_ctde_parameterized_game.py` |
-| Heterogeneous cooperative node-SIPS MAPPO | `src/node_sips_mappo.py` |
-| Larger heterogeneous node-SIPS attacker-defender game | `src/node_sips_adversarial_large.py` |
-| Static figures and bounded diagnostics | `scripts/generate_figures.py`, `scripts/run_training_iterations.py` |
+| Sampled SIR flow and impulse environment | `cybergames.envs` |
+| Explicit action modes and intensities | `cybergames.actions` |
+| Typed model and learning settings | `cybergames.configs` |
+| Continuous-control FBS baseline | `cybergames.fbsm` |
+| DDQN | `cybergames.ddqn` |
+| Compact CTDE actor-critic | `cybergames.ctde` |
+| Cooperative node-SIPS MAPPO | `cybergames.node_env`, `cybergames.mappo` |
+| Attacker-defender node-SIPS game | `cybergames.adversarial_env`, `cybergames.self_play` |
+| Baselines and held-out evaluation | `cybergames.evaluation`, `cybergames.node_evaluation` |
+| Bounded multi-seed experiment profile | `cybergames.experiments` |
 
-## Capability Status
+The public entry point is `python -m cybergames`. `run_all.py` remains a small
+compatibility shim; it contains no model or training implementation.
 
-| Capability | API / file | Command | Metrics | Validation status |
-|---|---|---|---|---|
-| Heterogeneous node-SIPS cooperative MAPPO | `src/node_sips_mappo.py` | `python run_all.py mappo --policy-csv artifacts/extended_validation/mappo_policy.csv` | reward, infected exposure, peak/final infection, mass error | community defenders observe local state plus risk/rate summaries |
-| Uniform/degree/risk/oracle/budget-random baselines | `baseline_actions`, `evaluate_policy_baselines` | same command with `--policy-csv` | cumulative infected exposure and action count | budget-matched one-community intervention per epoch |
-| Held-out seeds and heterogeneity strengths | `evaluate_policy_baselines` | same command | policy metrics across seeds 101-105 and strengths 0.2/current/0.5 | runs on unseen profiles after training |
-| Larger heterogeneous attacker-defender node-SIPS benchmark | `src/node_sips_adversarial_large.py` | `python run_all.py large-game --response-csv ... --summary-csv ...` | defender/attacker payoff, infected exposure, response matrix, mass error | sparse graph, community budgets, self-play softmax policies, held-out seeds/strengths/sizes |
+## Control Timing
+
+At decision epoch `t_k`, the policy observes the pre-jump state, chooses an
+action, applies a reset only when the action is impulsive, and then integrates the
+ODE to `t_{k+1}`. Internal RK4 points are solver substeps, not additional actions.
+
+![Decision epochs, ODE substeps, and impulse times](docs/assets/action_timing.png)
+
+The exact flow/jump order, action domains, and reward terms are documented in
+[Methods and API](docs/METHODS_AND_API.md).
 
 ## Representative Experiments
 
-The FBSM baseline solves a continuous-time malware-control problem and produces a continuous patching intensity over time.
+The FBS baseline produces a genuinely time-varying continuous patching signal.
+The upper panel is the population-average SIR state; the lower panel is `u(t)`.
 
-![FBSM malware-control baseline](docs/assets/fbsm_malware_control.png)
+![Continuous-control FBS baseline](docs/assets/fbsm_malware_control.png)
 
-The taxonomy figure separates decision timing, action-value domain, and state effect. This prevents confusing a continuous-valued sampled action with a continuously varying control signal.
-
-![Control action taxonomy](docs/assets/control_action_taxonomy.png)
-
-The sampled-flow plus optional impulse comparison evaluates no defense, fixed defenses, and a rule-based policy on the same simulator. Lower compromised exposure is better.
+The policy comparison uses one simulator and seed for no defense, fixed actions,
+and a rule-based policy. Exposure is the time integral of the compromised share;
+impulse costs are charged separately from running costs.
 
 ![Sampled-flow and impulse policy comparison](docs/assets/sampled_impulse_policy_comparison.png)
 
-The action-timing diagram separates policy decision epochs, internal ODE substeps, and impulse/event times from the original continuous or impulse model.
-
-![Action timing](docs/assets/action_timing.png)
-
-The node-level robustness example deploys a nominal open-loop FBSM schedule and a DDQN feedback policy on stochastic node-level epidemic rollouts. Here robustness means lower infected-node exposure under parameter mismatch, not a formal guarantee. The cooperative MAPPO environment uses the foundation SIPS equations with community-correlated susceptibility, infectivity, recovery, criticality, costs, bounds, and efficacy. The larger attacker-defender benchmark uses the same SIPS semantics on a sparse graph, adds attacker beta-boost actions, and reports a response matrix against uniform, degree, risk, oracle, random, and learned community policies.
-
-![Node-level epidemic model robustness](docs/assets/node_level_learning_advantage.png)
+The cooperative MAPPO example is not an attacker-defender equilibrium algorithm.
+The separate attacker-defender module reports response matrices and unilateral
+deviation diagnostics; these are empirical checks, not equilibrium proofs.
 
 ## Extension Route
 
-1. Read `docs/PARAMETERS.md` to locate the model, solver, and neural-training settings.
-2. Edit one method at a time: environment dynamics, reward/payoff, policy class, or training profile.
-3. Keep shared numerics and plotting in the foundation package `cybercontrol`; add Note 1 code only for game-learning behavior.
-4. Run `python run_all.py smoke` after each structural change.
-5. Use `python run_all.py train` for bounded diagnostics. Outputs go to ignored `artifacts/experiments/` and `artifacts/figures/`.
+1. Define the continuous model and action timing before changing a learner.
+2. Add observation and reward terms in the environment, with units and shapes documented.
+3. Change typed configurations in `cybergames.configs`; avoid literals in training loops.
+4. Compare learned policies with uniform, degree, risk, oracle, and budget-matched random baselines.
+5. Evaluate held-out graph and parameter seeds before making robustness claims.
+
+See [Reproducibility](docs/REPRODUCIBILITY.md) and
+[From Model to Paper](docs/FROM_MODEL_TO_PAPER.md).
 
 ## Validation
 
 ```bash
 python -m compileall -q src tests scripts
-python -m pytest -q
-python run_all.py smoke
-python run_all.py figures
+ruff check .
+ruff format --check src tests scripts
+pytest -q
+python -m cybergames smoke
+python -m cybergames figures
 ```
 
-Extended local diagnostic run:
-
-```bash
-python run_all.py train --profile teaching --episodes 240 --device cpu
-python run_all.py large-game --nodes 1000 --communities 10 --horizon 8 --episodes 8 \
-  --eval-seeds 101,102 --eval-strengths 0.25,0.55 --size-sweep 256,1000 \
-  --response-csv artifacts/extended_validation/large_game_deep_response.csv \
-  --summary-csv artifacts/extended_validation/large_game_deep_summary.csv
-```
-
-In this run, FBSM control updates converged, DDQN evaluation return improved from about -76.6 to -20.6, and the node-level robustness comparison reported mean infected-node exposure 1.677 for DDQN feedback versus 16.111 for the nominal-beta FBSM open-loop schedule.
-
-GitHub Actions runs the smoke tests on pushes and pull requests. The examples are teaching baselines, not calibrated cyber-risk models.
-
-## Citation and License
-
-See `LICENSE` and `NOTICE.md`. When using the repository in a paper or report, cite the related publication and the foundation repository when its shared package is used.
+The examples are controlled synthetic studies, not calibrated operational risk
+models. See [LICENSE](LICENSE) and [NOTICE.md](NOTICE.md) for reuse terms, and the
+[tutorial PDF](docs/note1_game_learning_cyber_control.pdf) for the full derivation.
