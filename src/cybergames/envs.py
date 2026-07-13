@@ -21,35 +21,16 @@ Here t_k denotes learning action/observation points.  If the original model has
 its own impulse/event points, denote them by tau_j and decide whether they
 coincide with, sit inside, or are chosen separately from the learning grid.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, Tuple, Union
+from typing import Dict, Tuple
 import numpy as np
-from cyber_dynamics import SampledSIRParams, sampled_sir_flow_rhs, isolation_jump, project_simplex3, rk4_integrate
+from cybercontrol.models import SampledSIRParams, isolation_jump, sampled_sir_flow_rhs
+from cybercontrol.numerics import project_simplex3, rk4_integrate
 
-
-@dataclass(frozen=True)
-class ModeIntensityAction:
-    """Parameterized sampled action ``(mode, intensity)``.
-
-    ``mode`` selects the ODE-rate effect or impulse kind.  ``intensity`` is
-    clipped to ``[0,1]`` and held constant over one decision interval when the
-    action affects the flow.  A parameterized action is not an impulse unless
-    its mode explicitly calls :meth:`jump_map`.
-    """
-
-    mode: int
-    intensity: float = 1.0
-
-
-Action = Union[int, ModeIntensityAction]
-
-
-def mode_intensity(mode: int, intensity: float = 1.0) -> ModeIntensityAction:
-    """Build a readable parameterized/mixed action for policies and tests."""
-
-    return ModeIntensityAction(mode=int(mode), intensity=float(intensity))
+from .actions import Action, AttackerMode, DefenderMode, ModeIntensityAction
 
 
 @dataclass
@@ -79,7 +60,7 @@ class EnvConfig:
     randomize_initial_state: bool = False
 
 
-class SampledContinuousImpulseCyberEnv:
+class SampledFlowImpulseEnv:
     """Sampled-data SIR propagation with ZOH flow actions and optional impulses.
 
     Inputs to `step` are a defender action and an attacker action.  The method
@@ -90,17 +71,17 @@ class SampledContinuousImpulseCyberEnv:
     """
 
     # Defender modes
-    DEF_NONE = 0
-    DEF_PATCH = 1
-    DEF_CLEAN = 2
-    DEF_DECEIVE = 3
-    DEF_ISOLATE = 4
+    DEF_NONE = int(DefenderMode.NONE)
+    DEF_PATCH = int(DefenderMode.PATCH)
+    DEF_CLEAN = int(DefenderMode.CLEAN)
+    DEF_DECEIVE = int(DefenderMode.DECEIVE)
+    DEF_ISOLATE = int(DefenderMode.ISOLATE)
 
     # Attacker modes
-    ATK_SCAN = 0
-    ATK_EXPLOIT = 1
-    ATK_LATERAL = 2
-    ATK_STEALTH = 3
+    ATK_SCAN = int(AttackerMode.SCAN)
+    ATK_EXPLOIT = int(AttackerMode.EXPLOIT)
+    ATK_LATERAL = int(AttackerMode.LATERAL)
+    ATK_STEALTH = int(AttackerMode.STEALTH)
 
     def __init__(self, config: EnvConfig | None = None, seed: int = 0):
         self.cfg = config if config is not None else EnvConfig()
@@ -110,7 +91,7 @@ class SampledContinuousImpulseCyberEnv:
 
     @property
     def obs_dim(self) -> int:
-        return 3
+        return 4
 
     @property
     def n_defender_actions(self) -> int:
@@ -141,7 +122,8 @@ class SampledContinuousImpulseCyberEnv:
         Markov-game conversion transparent.  The environment uses the pre-jump
         state at the current decision epoch as the observation.
         """
-        return self.state.copy()
+        decision_phase = self.t / max(1, self.cfg.horizon)
+        return np.r_[self.state, decision_phase].astype(np.float64)
 
     def decode_action(self, action: Action) -> Tuple[int, float]:
         """Decode an integer mode or ``ModeIntensityAction``.
@@ -221,16 +203,41 @@ class SampledContinuousImpulseCyberEnv:
         def rhs(x, t):
             return sampled_sir_flow_rhs(x, dpar, apar, self.cfg.params)
 
-        next_state, path = rk4_integrate(rhs, post_jump, t0=t_start,
-                                         dt=self.cfg.dt, substeps=self.cfg.substeps,
-                                         project=project_simplex3)
+        next_state, path = rk4_integrate(
+            rhs,
+            post_jump,
+            t0=t_start,
+            dt=self.cfg.dt,
+            substeps=self.cfg.substeps,
+            project=project_simplex3,
+        )
         self.state = next_state
         self.t += 1
 
-        I_mean = float(path[:, 1].mean())
-        S_mean = float(path[:, 0].mean())
+        substep_dt = self.cfg.dt / self.cfg.substeps
+
+        def interval_mean(values: np.ndarray) -> float:
+            if self.cfg.substeps >= 2 and self.cfg.substeps % 2 == 0:
+                integral = (
+                    substep_dt
+                    / 3.0
+                    * (
+                        values[0]
+                        + values[-1]
+                        + 4.0 * values[1:-1:2].sum()
+                        + 2.0 * values[2:-1:2].sum()
+                    )
+                )
+            else:
+                integrate = np.trapezoid if hasattr(np, "trapezoid") else np.trapz
+                integral = integrate(values, dx=substep_dt)
+            return float(integral / self.cfg.dt)
+
+        I_mean = interval_mean(path[:, 1])
+        S_mean = interval_mean(path[:, 0])
         running_defense_cost = (
-            self.cfg.w_I * I_mean + self.cfg.w_S * S_mean
+            self.cfg.w_I * I_mean
+            + self.cfg.w_S * S_mean
             + self.cfg.c_patch * dpar["patch"] ** 2
             + self.cfg.c_clean * dpar["clean"] ** 2
             + self.cfg.c_deceive * dpar["deceive"] ** 2
@@ -253,6 +260,11 @@ class SampledContinuousImpulseCyberEnv:
             "t_next_observe": t_start + self.cfg.dt,
             "decision_dt": self.cfg.dt,
             "solver_substeps": self.cfg.substeps,
+            "running_cost_quadrature": (
+                "composite_simpson"
+                if self.cfg.substeps >= 2 and self.cfg.substeps % 2 == 0
+                else "trapezoid"
+            ),
             "transition_order": "observe -> jump_map -> ODE flow -> next_observation",
             "observation_state": "pre_jump_state_at_t_k_minus",
             "next_observation_state": "state_at_t_k_plus_1_minus",
@@ -266,25 +278,23 @@ class SampledContinuousImpulseCyberEnv:
             "dpar": dpar,
             "apar": apar,
         }
-        return self.observe(), {"defender": defender_reward, "attacker": attacker_reward}, done, info
+        return (
+            self.observe(),
+            {"defender": defender_reward, "attacker": attacker_reward},
+            done,
+            info,
+        )
 
 
-def scripted_attacker(env: SampledContinuousImpulseCyberEnv, k: int):
+# Compatibility for code written before the environment name described its
+# sampled-flow semantics explicitly. New code should use SampledFlowImpulseEnv.
+SampledContinuousImpulseCyberEnv = SampledFlowImpulseEnv
+
+
+def scripted_attacker(env: SampledFlowImpulseEnv, k: int):
     """A non-learning attacker used for first defender experiments."""
     if k < 20:
         return env.ATK_SCAN
     if k < 60:
         return env.ATK_EXPLOIT
     return env.ATK_LATERAL
-
-
-if __name__ == "__main__":
-    env = SampledContinuousImpulseCyberEnv(seed=1)
-    obs = env.reset()
-    print("initial", obs)
-    for k in range(5):
-        obs, rewards, done, info = env.step(
-            defender_action=mode_intensity(env.DEF_PATCH, 0.8),
-            attacker_action=scripted_attacker(env, k),
-        )
-        print(f"k={k:02d}", "obs=", np.round(obs, 4), "rewards=", rewards)
