@@ -78,5 +78,8 @@ The main source is `docs/source/note1_game_learning_cyber_control.tex`.
 `python -m cybergames docs` runs `latexmk` and copies the current PDF to
 `docs/note1_game_learning_cyber_control.pdf`.
 
-Literature status and page-level evidence are recorded under
-`docs/literature/`. Publisher PDFs are never committed.
+`docs/literature/literature_decision_matrix.csv` records full-text status,
+rubric decisions and claim boundaries. Integrated papers have page-level notes
+and local hash records in `docs/literature/pdf_inventory.csv`. PDFs and
+extracted text remain ignored under `literature_pdfs/` and
+`.literature_cache/`; they are never committed.

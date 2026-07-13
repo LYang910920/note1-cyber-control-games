@@ -1,13 +1,14 @@
 # Full-Text Requests
 
-The matrix separates verified metadata from technical claims that require a
-legally obtained full paper. Do not commit publisher PDFs to this repository.
-Place owner-provided copies in the ignored `literature_pdfs/` directory and
-record page-level evidence before changing a row to `full-text-reviewed`.
+These papers remain metadata-only candidates. They do not support technical
+claims in the guide until a lawful full text is reviewed. Local PDFs belong in
+ignored `literature_pdfs/`; extracted text belongs in `.literature_cache/`.
 
-| DOI | Paper | Why the full text is needed |
+| DOI | Paper | Evidence needed before integration |
 |---|---|---|
-| `10.1016/j.cose.2024.103871` | Tang et al., hierarchical cyber-defense MARL | Verify network layers, action decomposition, baselines and equilibrium language beyond the abstract. |
-| `10.1016/j.jcp.2022.111510` | Kashefi and Mukerji, Physics-informed PointNet | Verify exact encoder dimensions, loss construction and unseen-geometry protocol before adapting architecture details. |
-| `10.1016/j.jcp.2022.111731` | Mowlavi and Nabi, PINN optimal control | Verify optimization schedule, loss-weight selection and direct-adjoint baseline settings. |
-| `10.1016/j.neucom.2024.127419` | Antonelo et al., PINC | Verify interval conditioning, rollout protocol and long-horizon error analysis. |
+| `10.1016/j.cose.2024.103871` | Tang et al., hierarchical cyber-defense MARL | Game model, network layers, action decomposition, baselines and equilibrium language. |
+| `10.1109/TPAMI.2024.3457538` | Gu et al., safe-RL review | Exact taxonomy, assumptions and evidence boundaries for deployment safety. |
+| `10.1016/j.knosys.2024.112521` | Purves et al., causally aware cyber defense | Causal model, intervention protocol, baselines and operational metrics. |
+
+Requested papers remain in the decision matrix but are not used to justify
+architecture dimensions, hyperparameters or benchmark performance.

@@ -260,8 +260,8 @@ def evaluate_large_response_matrix(
         for defender in defenders:
             for attacker in attackers:
                 row, _, _ = rollout_game(
-                    "learned" if defender == "static_logit" else defender,
-                    "learned" if attacker == "static_logit" else attacker,
+                    defender,
+                    attacker,
                     replace(cfg, seed=seed),
                     defender_logits=defender_logits,
                     attacker_logits=attacker_logits,

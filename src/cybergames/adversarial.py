@@ -98,9 +98,9 @@ def choose_communities(
             replace=False,
         )
         return np.asarray(chosen, dtype=int), np.zeros(env.cfg.communities, dtype=np.float64)
-    if policy == "learned":
+    if policy in {"static_logit", "learned"}:
         if logits is None:
-            raise ValueError("learned policy requires logits")
+            raise ValueError("static-logit policy requires logits")
         if sample:
             return _sample_without_replacement(logits, budget, rng)
         return _top_communities(np.asarray(logits, dtype=np.float64), budget), np.zeros_like(logits)
@@ -161,8 +161,8 @@ def rollout_game(
         infected_exposure += cfg.dt * global_infected
         peak_infected = max(peak_infected, global_infected)
     row = {
-        "defender_policy": defender_policy,
-        "attacker_policy": attacker_policy,
+        "defender_policy": "static_logit" if defender_policy == "learned" else defender_policy,
+        "attacker_policy": "static_logit" if attacker_policy == "learned" else attacker_policy,
         "seed": run_seed,
         "nodes": cfg.nodes,
         "communities": cfg.communities,
@@ -204,8 +204,8 @@ def train_static_logit_self_play(
     for episode in range(int(episodes)):
         run_seed = int(rng.integers(0, 2**31 - 1))
         row, defender_score, attacker_score = rollout_game(
-            "learned",
-            "learned",
+            "static_logit",
+            "static_logit",
             cfg,
             seed=run_seed,
             defender_logits=defender_logits,

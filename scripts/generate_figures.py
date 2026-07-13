@@ -479,7 +479,6 @@ def main() -> None:
         diagram_ids=(
             "repository_family",
             "state_transitions",
-            "control_timing",
             "ode_environment",
             "ddqn",
             "mappo_ctde",

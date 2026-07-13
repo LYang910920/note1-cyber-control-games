@@ -259,8 +259,8 @@ def _medium(output_dir: Path, device: str) -> list[dict[str, float | int | str]]
             seed=seed,
         )
         static_row, _, _ = rollout_game(
-            "learned",
-            "learned",
+            "static_logit",
+            "static_logit",
             game,
             seed=2_000 + seed,
             defender_logits=defender_logits,

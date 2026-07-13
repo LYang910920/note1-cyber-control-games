@@ -53,6 +53,7 @@ class AdversarialSIPSEnv:
         "risk",
         "oracle",
         "budget_random",
+        "static_logit",
         "learned",
     )
     ATTACKER_POLICIES = DEFENDER_POLICIES

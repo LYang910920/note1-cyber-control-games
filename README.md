@@ -1,12 +1,18 @@
 # Cyber Control and Game Learning
 
-Executable material for turning cyber propagation models into sampled-data
-MDPs and Markov games, then studying DDQN, actor-critic, CTDE, cooperative MAPPO
-and attacker-defender response evaluation. Shared equations and numerical
-infrastructure come from the foundation package `cybercontrol`.
+Sampled-data environments and learning methods for cyber propagation models.
+The repository covers DDQN, actor-critic, CTDE, cooperative budgeted MAPPO-style
+learning and attacker-defender response evaluation. Shared equations, neural
+blocks and numerical utilities come from `cybercontrol`.
 
-The examples are bounded research templates. They do not represent calibrated
-networks or establish operational safety or Nash equilibrium.
+It answers three questions:
+
+- How does a continuous-time model become an MDP or Markov game?
+- Which DDQN/PPO/MAPPO components are implemented, and what do they observe?
+- Which held-out and response diagnostics support a cautious learning claim?
+
+The simulators are bounded research templates. They do not establish operational
+safety, exploitability or Nash equilibrium.
 
 ## Repository Family
 
@@ -14,122 +20,126 @@ networks or establish operational safety or Nash equilibrium.
 
 | Order | Repository | Responsibility |
 |---:|---|---|
-| 0 | [Network Control and Differential Games](https://github.com/LYang910920/network-control-differential-games) | Shared equations, heterogeneity, graphs, numerics, FBSM, neural blocks and plotting |
-| 1 | **Cyber Control and Game Learning** | Environments, DDQN/PPO, CTDE, cooperative MAPPO and attacker-defender evaluation |
+| 0 | [Network Control and Differential Games](https://github.com/LYang910920/network-control-differential-games) | Shared equations, heterogeneity, graphs, FBSM, neural utilities and plotting |
+| 1 | **Cyber Control and Game Learning** | Sampled environments, DDQN/PPO, CTDE, MAPPO and game evaluation |
 | 2 | [Physics-Informed Cyber Control](https://github.com/LYang910920/note2-pinn-pidl-cyber-control) | Inverse PINN, PIDL, neural control and PMP-informed learning |
 
-## 5-Minute Quick Start
+New readers should follow the Foundation
+[Learning Path](https://github.com/LYang910920/network-control-differential-games/blob/main/docs/LEARNING_PATH.md)
+before changing an environment or reward.
 
-Python 3.10 or newer is required. With sibling checkouts:
+## First Run
+
+Python 3.10 or newer is required. With sibling checkouts, install the reviewed
+Foundation and this repository:
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
 python -m pip install -e "../network-control-differential-games[torch]"
 python -m pip install -e ".[dev]" --no-deps
-python -m cybergames smoke
-python -m pytest -q
 ```
 
-For a standalone checkout, `python -m pip install -e ".[dev]"` installs the
-reviewed Foundation revision pinned in `pyproject.toml`. The sibling-checkout
-commands above remain convenient when developing the repository family together.
+Then run the bounded CPU smoke check, normally well under one minute:
+
+```bash
+python -m cybergames smoke
+```
+
+## Expected Output
+
+| Output | Interpretation |
+|---|---|
+| `artifacts/smoke_summary.json` | FBSM mass/objective, short DDQN/CTDE histories, MAPPO action count, Git and hardware provenance |
+| terminal exit code `0` | Environment, learning and invariant checks completed without an exception |
+
+The smoke reward is not a benchmark result. Use it to verify data flow, shapes
+and reproducibility before a medium run.
+
+## Read These Two Files
+
+1. [`src/cybergames/node_env.py`](src/cybergames/node_env.py): heterogeneous
+   node-SIPS observation, budgeted action, ODE transition and reward.
+2. [`src/cybergames/mappo.py`](src/cybergames/mappo.py): rollout collection,
+   GAE, minibatches and clipped PPO update.
+
+Exact action semantics, tensor shapes and hyperparameters are listed in
+[`docs/METHODS_AND_API.md`](docs/METHODS_AND_API.md).
+
+## Change One Thing
+
+Raise `NodeSIPSEnvConfig.beta` in
+[`configs.py`](src/cybergames/configs.py), then rerun the same seed. Faster
+transmission should increase uncontrolled exposure; the learned-policy effect
+must be measured because reward, action cost and the budget interact.
+
+## Control Timing
+
+Decision epochs, ZOH flow and impulse/reset times are separate parts of the
+environment contract. A sampled real-valued action is not automatically a
+continuously varying control, and a mode change is not an impulse without a
+state reset.
+
+![Control action taxonomy](docs/assets/control_action_taxonomy.png)
+
+![Decision, solver and impulse times](docs/assets/action_timing.png)
+
+## Medium Experiment
+
+Run the five-seed DDQN/baseline and cooperative/adversarial learning profile:
 
 ```bash
 python -m cybergames medium --device auto --output-dir artifacts/medium
-python -m cybergames figures
-python -m cybergames docs
-python -m cybergames all
 ```
 
-## Code Map
+Inspect:
 
-| Need | Start here |
-|---|---|
-| Main PDF | [`docs/note1_game_learning_cyber_control.pdf`](docs/note1_game_learning_cyber_control.pdf) |
-| Models, actions and algorithms | [`docs/METHODS_AND_API.md`](docs/METHODS_AND_API.md) |
-| Commands and experiment record | [`docs/REPRODUCIBILITY.md`](docs/REPRODUCIBILITY.md) |
-| Paper workflow | [`docs/FROM_MODEL_TO_PAPER.md`](docs/FROM_MODEL_TO_PAPER.md) |
-| Public package | [`src/cybergames/`](src/cybergames/) |
-| Aggregate environment | [`src/cybergames/envs.py`](src/cybergames/envs.py) |
-| DDQN and CTDE | [`ddqn.py`](src/cybergames/ddqn.py), [`ctde.py`](src/cybergames/ctde.py) |
-| Node-SIPS environment | [`src/cybergames/node_env.py`](src/cybergames/node_env.py) |
-| Budgeted cooperative PPO update | [`src/cybergames/mappo.py`](src/cybergames/mappo.py) |
-| Held-out policy evaluation | [`src/cybergames/node_evaluation.py`](src/cybergames/node_evaluation.py) |
-| Attacker-defender environment | [`src/cybergames/adversarial_env.py`](src/cybergames/adversarial_env.py) |
-| Attacker-defender baselines | [`src/cybergames/adversarial.py`](src/cybergames/adversarial.py) |
-| State-conditioned self-play | [`src/cybergames/self_play.py`](src/cybergames/self_play.py) |
-| Typed hyperparameters | [`src/cybergames/configs.py`](src/cybergames/configs.py) |
-| Literature evidence | [`docs/literature/literature_matrix.csv`](docs/literature/literature_matrix.csv) |
+- `artifacts/medium/medium_metrics.csv` for returns, exposure, mass and held-out
+  policy comparisons;
+- `artifacts/medium/medium_config.json` for seeds, architectures, hardware and
+  parameter counts.
 
-## Representative Experiments
-
-The ODE environment separates policy epochs, internal integration substeps and
-explicit reset times. A sampled continuous-valued action remains piecewise
-constant under zero-order hold. The timing diagram is conceptual: the checked
-environment applies isolation resets at policy epochs, while impulse times
-between epochs describe a broader event-driven model.
-
-![Control timing taxonomy](docs/assets/control_action_taxonomy.png)
-
-![Decision epochs, ODE substeps and impulse times](docs/assets/action_timing.png)
-
-The cooperative learning example uses shared community encoders, a centralized
-state-value critic, GAE and clipped PPO updates. A coordinator converts local
-mode scores into one budget-feasible joint action. This constrained variant is
-MAPPO-style, but execution is not strictly decentralized because the allocator
-compares communities. Held-out profiles are evaluated against uniform, degree,
-risk, oracle and budget-random policies.
+The cooperative learner uses a centralized value critic and a coordinator that
+maps local scores to one budget-feasible joint action. It is MAPPO-style, but
+execution is not strictly decentralized because communities are compared by the
+allocator.
 
 ![MAPPO and CTDE](docs/assets/diagrams/mappo_ctde.png)
 
-The aggregate policy comparison uses one simulator and reports compromised
-exposure, peak/final state, defender cost and impulse count. Lower exposure and
-cost are better; impulse counts are reported separately.
+The attacker-defender learner is a separate state-conditioned actor-critic.
+Fixed-policy cross-play is evaluation evidence, not a best-response or
+exploitability calculation.
 
-![Sampled and impulse policy comparison](docs/assets/sampled_impulse_policy_comparison.png)
+![Attacker-defender actor-critic and cross-play](docs/assets/diagrams/hierarchical_game.png)
 
-The current node-SIPS learner is a cooperative, budget-coordinated MAPPO-style
-baseline. Heterogeneous attacker-defender learning exists as a separate
-state-conditioned actor-critic; it is evaluated with a learned-vs-learned
-reference and fixed-policy cross-play against five heuristics. These rollouts
-are not labelled best responses or exploitability estimates. It is not
-described as attacker-defender MAPPO.
+## Next Experiment
+
+Train on one heterogeneity range and evaluate unseen parameter seeds, graph
+seeds, one unseen size and a tighter action budget. Compare uniform, degree,
+risk, oracle and budget-random policies under the same budget. The complete
+recording protocol is in
+[`docs/REPRODUCIBILITY.md`](docs/REPRODUCIBILITY.md).
 
 ## Extension Route
 
-1. Validate model state, timing, reset and reward semantics before training.
-2. Make the policy information structure explicit.
-3. Enforce budgets in the action map and also report their use.
-4. Compare learned policies with implementable and oracle diagnostics.
-5. Test unseen profiles, graphs, sizes, attackers and budgets.
-6. Keep shared equations and neural utilities in `cybercontrol`.
+1. Validate SIPS mass, adjacency orientation, ZOH timing and reset-only jumps.
+2. State exactly what each actor and the training critic observe.
+3. Keep operational budgets in the action map and report their use separately.
+4. Report exposure, peak/final infection, criticality-weighted loss, action cost
+   and response/deviation evidence, not reward alone.
+5. Put shared equations or neural utilities in the Foundation only when another
+   real caller needs them.
 
-The [methods guide](docs/METHODS_AND_API.md) lists architecture shapes,
-hyperparameters and the old-to-new import map.
-
-The medium MAPPO experiment compares a shared summary-MLP policy with a
-graph-context policy under the same one-community action budget. Their combined
-actor-plus-critic parameter counts are matched and recorded in the run manifest.
+The repository-specific paper checklist is
+[`docs/FROM_MODEL_TO_PAPER.md`](docs/FROM_MODEL_TO_PAPER.md).
 
 ## Validation
 
-```bash
-python -m compileall -q src tests scripts
-python -m ruff check src tests scripts
-python -m pytest -q
-python -m cybergames smoke
-python -m cybergames figures
-python -m cybergames docs
-```
-
-The five-seed medium profile and output checks are documented in
-[`docs/REPRODUCIBILITY.md`](docs/REPRODUCIBILITY.md).
+The maintained install, test, figure and PDF commands are in
+[`docs/REPRODUCIBILITY.md`](docs/REPRODUCIBILITY.md). Tests cover timing,
+rewards, deterministic seeds, action budgets, GAE/MAPPO shapes and SIPS mass.
 
 ## Citation and License
 
 Code, documentation and generated figures are MIT-licensed unless a file says
 otherwise. See [`LICENSE`](LICENSE) and [`NOTICE.md`](NOTICE.md). Cite the
-foundation repository when using `cybercontrol` and cite the relevant paper or
-method source recorded in `docs/literature/`.
+Foundation for `cybercontrol` and the relevant method source recorded under
+`docs/literature/`.

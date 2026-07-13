@@ -766,15 +766,13 @@ self-play implementation is retained only as an explicitly labelled baseline.
 
 \begin{samepage}
 The action budget is enforced by the joint action map rather than represented
-only as a soft reward penalty. Recent constrained MARL work similarly
-distinguishes policy improvement from explicit safety constraints, although its
-benchmark assumptions differ from this cyber simulator \cite{zhang2024safe}.
-A broad safe-RL review distinguishes constraint satisfaction, robustness and
-risk sensitivity rather than treating them as interchangeable claims
-\cite{gu2024saferl}. Causally aware autonomous cyber-defence agents provide a
-related route to improving transfer under interventions, but use a different
-model and evidence protocol from the SIPS experiments here
-\cite{purves2024causal}.
+only as a soft reward penalty. This is a feasibility rule for each sampled
+action, not a formal long-horizon safety guarantee. The guarantee in scalable
+constrained MARL work assumes spatial correlation decay and ideal sequential
+constrained updates; the authors note that the practical PPO approximation may
+not retain that guarantee \cite{zhang2024safe}. The present coordinator has no
+cost critic, Lagrange update or spatial-decay test and is therefore not
+described as Scal-MAPPO-L.
 \end{samepage}
 
 
@@ -797,12 +795,15 @@ A practical MARL curriculum is:
 \end{enumerate}
 This curriculum is often more stable than starting from fully random self-play. It also produces interpretable experimental stages: basic containment, adaptive attack, and robust defense.
 
-Hierarchical PPO studies in CybORG decompose investigation, recovery and
-traffic-control decisions into sub-policies with an expert or learned master
-policy \cite{singh2025hierarchical}. A peer-reviewed hierarchical cyber-game
-study likewise separates strategy and lower-level action decisions
-\cite{tang2024hierarchical}. These papers motivate the architecture, but their
-reported benchmark performance is not transferred to the SIPS simulator.
+Singh et al. decompose CybORG investigation, recovery and traffic-control
+decisions into sub-policies selected by either an expert rule or a learned PPO
+master \cite{singh2025hierarchical}. Their evaluation reports operational
+measures such as clean-host ratio and recovery precision alongside return, and
+tests four fixed red-policy variants. This supports the distinction between
+master-selection and primitive-action layers and the use of multiple reporting
+metrics; it does not establish transfer to SIPS, adaptive attackers or
+operational networks. The related Tang et al. article remains a full-text
+request and is not used for architecture or performance claims here.
 
 The repository baseline shown below is not that hierarchical architecture. It
 uses separate state-conditioned attacker and defender actors to choose budgeted
@@ -1428,28 +1429,10 @@ constrained policy optimization for safe multi-agent reinforcement learning,''
 in \emph{Advances in Neural Information Processing Systems}, vol. 37, 2024,
 doi: 10.52202/079017-4400.
 
-\bibitem{gu2024saferl}
-S. Gu, L. Yang, Y. Du, G. Chen, F. Walter, J. Wang, and A. Knoll, ``A review of
-safe reinforcement learning: Methods, theories, and applications,''
-\emph{IEEE Transactions on Pattern Analysis and Machine Intelligence}, vol. 46,
-no. 12, pp. 11216--11235, 2024, doi: 10.1109/TPAMI.2024.3457538.
-
 \bibitem{singh2025hierarchical}
 A. V. Singh, E. Rathbun, E. Graham, L. Oakley, S. Boboila, P. Chin, and
 A. Oprea, ``Hierarchical multi-agent reinforcement learning for cyber network
 defense,'' \emph{Reinforcement Learning Journal}, vol. 6, pp. 790--810, 2025.
-
-\bibitem{tang2024hierarchical}
-Y. Tang, J. Sun, H. Wang, J. Deng, L. Tong, and W. Xu, ``A method of network
-attack-defense game and collaborative defense decision-making based on
-hierarchical multi-agent reinforcement learning,'' \emph{Computers \&
-Security}, vol. 142, 103871, 2024, doi: 10.1016/j.cose.2024.103871.
-
-\bibitem{purves2024causal}
-T. Purves, K. G. Kyriakopoulos, S. Jenkins, I. Phillips, and T. Dudman,
-``Causally aware reinforcement learning agents for autonomous cyber defence,''
-\emph{Knowledge-Based Systems}, vol. 304, 112521, 2024,
-doi: 10.1016/j.knosys.2024.112521.
 
 \bibitem{hausknecht2015}
 M. Hausknecht and P. Stone, ``Deep reinforcement learning in parameterized action space,'' arXiv:1511.04143, 2015.

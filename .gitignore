@@ -11,6 +11,7 @@ dist/
 outputs/
 artifacts/
 literature_pdfs/
+.literature_cache/
 *.log
 *.aux
 *.fdb_latexmk
