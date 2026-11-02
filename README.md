@@ -1,110 +1,48 @@
-# Cyber Control and Game Learning
+# Learning cyber control and games
 
-Sampled cyber-control environments, reinforcement learning, and multi-agent game
-evaluation. Shared ODEs, graph models, integration, neural blocks, buffers, metrics,
-and plotting come from the Foundation `cybercontrol` package.
+Start with a continuous-time propagation model. Turn intervention times into decision steps, train a defender, and compare the actions it actually executes. Then extend the example to cooperative multi-agent control and adversarial games.
 
-## Repository Family
+**First run:** one CPU experiment with DDQN, an untrained policy, and five fixed-action baselines. **Read next:** [the walkthrough](docs/GUIDE.md). The [lecture notes](docs/note1_game_learning_cyber_control.pdf) explain the wider progression from optimal control to reinforcement learning and games.
 
-| Repository | Purpose |
-|---|---|
-| [Network Control and Differential Games](https://github.com/LYang910920/network-control-differential-games) | Foundation equations, FBS solvers, heterogeneous profiles, and shared Python components. |
-| **Cyber Control and Game Learning** | Sampled environments, DDQN, CTDE, MAPPO, and attacker-defender evaluation. |
-| [Physics-Informed Cyber Control](https://github.com/LYang910920/note2-pinn-pidl-cyber-control) | Inverse PINN, PIDL, neural control, and PMP-informed learning. |
+## Install and run
 
-## Five-Minute Start
-
-With the Foundation repository next to this checkout:
+Use Python 3.11 or 3.12 and install Git. From this repository:
 
 ```bash
 python -m venv .venv
+# macOS / Linux:
 source .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install -e "../network-control-differential-games[torch]"
-python -m pip install -e ".[dev]"
-python -m cybergames smoke
+# Windows PowerShell instead:
+# .venv\Scripts\Activate.ps1
+
+python -m pip install -e .
+python -m cybergames
 ```
 
-For a standalone checkout, `python -m pip install -e ".[dev]"` installs the
-Foundation revision declared in `pyproject.toml`.
+The installer fetches the tested revision of the shared `cybercontrol` library automatically. A GPU, external dataset and LaTeX are not required. On Windows or Linux without a GPU, installing CPU-only PyTorch first avoids downloading CUDA libraries:
 
 ```bash
-python -m cybergames medium --device auto --output-dir artifacts/medium
-python -m cybergames figures
-python -m cybergames docs
+python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+python -m pip install -e .
 ```
 
-`medium` is a bounded five-seed DDQN/MAPPO and attacker-defender evaluation. It
-writes metrics and a run manifest under ignored `artifacts/`.
+The example writes only figures and tables to `results/`: learning progress, infection trajectories, executed actions and paired policy comparisons. All final policies are evaluated on the same held-out initial conditions. The attacker is scripted; this introductory experiment learns a defender rather than solving a two-player equilibrium.
 
-## Code Map
+```bash
+python -m cybergames --episodes 240 --seed 2 --output-dir results/seed2
+```
 
-| Topic | Module |
+A short training run can be weaker than a fixed baseline. Read the measured costs and action curves rather than assuming that training must win.
+
+## Read the code
+
+| Question | Start here |
 |---|---|
-| Sampled SIR flow and impulse environment | `cybergames.envs` |
-| Explicit action modes and intensities | `cybergames.actions` |
-| Typed model and learning settings | `cybergames.configs` |
-| Continuous-control FBS baseline | `cybergames.fbsm` |
-| DDQN | `cybergames.ddqn` |
-| Compact CTDE actor-critic | `cybergames.ctde` |
-| Cooperative node-SIPS MAPPO | `cybergames.node_env`, `cybergames.mappo` |
-| Attacker-defender node-SIPS game | `cybergames.adversarial_env`, `cybergames.self_play` |
-| Baselines and held-out evaluation | `cybergames.evaluation`, `cybergames.node_evaluation` |
-| Bounded multi-seed experiment profile | `cybergames.experiments` |
+| What does the complete experiment do? | [`cli.py`](src/cybergames/cli.py): `run_example` |
+| How are replay and Double DQN implemented? | [`ddqn.py`](src/cybergames/ddqn.py): `train` |
+| What happens between two decisions? | [`envs.py`](src/cybergames/envs.py): `step` |
+| How do I change the model or add a game? | [Walkthrough](docs/GUIDE.md) |
 
-The public entry point is `python -m cybergames`. `run_all.py` remains a small
-compatibility shim; it contains no model or training implementation.
+The [foundation tutorial](https://github.com/LYang910920/network-control-differential-games) supplies the shared dynamics, integration and neural building blocks. [Note 2](https://github.com/LYang910920/note2-pinn-pidl-cyber-control) studies inference when dynamics or states are only partly known.
 
-## Control Timing
-
-At decision epoch `t_k`, the policy observes the pre-jump state, chooses an
-action, applies a reset only when the action is impulsive, and then integrates the
-ODE to `t_{k+1}`. Internal RK4 points are solver substeps, not additional actions.
-
-![Decision epochs, ODE substeps, and impulse times](docs/assets/action_timing.png)
-
-The exact flow/jump order, action domains, and reward terms are documented in
-[Methods and API](docs/METHODS_AND_API.md).
-
-## Representative Experiments
-
-The FBS baseline produces a genuinely time-varying continuous patching signal.
-The upper panel is the population-average SIR state; the lower panel is `u(t)`.
-
-![Continuous-control FBS baseline](docs/assets/fbsm_malware_control.png)
-
-The policy comparison uses one simulator and seed for no defense, fixed actions,
-and a rule-based policy. Exposure is the time integral of the compromised share;
-impulse costs are charged separately from running costs.
-
-![Sampled-flow and impulse policy comparison](docs/assets/sampled_impulse_policy_comparison.png)
-
-The cooperative MAPPO example is not an attacker-defender equilibrium algorithm.
-The separate attacker-defender module reports response matrices and unilateral
-deviation diagnostics; these are empirical checks, not equilibrium proofs.
-
-## Extension Route
-
-1. Define the continuous model and action timing before changing a learner.
-2. Add observation and reward terms in the environment, with units and shapes documented.
-3. Change typed configurations in `cybergames.configs`; avoid literals in training loops.
-4. Compare learned policies with uniform, degree, risk, oracle, and budget-matched random baselines.
-5. Evaluate held-out graph and parameter seeds before making robustness claims.
-
-See [Reproducibility](docs/REPRODUCIBILITY.md) and
-[From Model to Paper](docs/FROM_MODEL_TO_PAPER.md).
-
-## Validation
-
-```bash
-python -m compileall -q src tests scripts
-ruff check .
-ruff format --check src tests scripts
-pytest -q
-python -m cybergames smoke
-python -m cybergames figures
-```
-
-The examples are controlled synthetic studies, not calibrated operational risk
-models. See [LICENSE](LICENSE) and [NOTICE.md](NOTICE.md) for reuse terms, and the
-[tutorial PDF](docs/note1_game_learning_cyber_control.pdf) for the full derivation.
+For development: `python -m pip install -e ".[dev]"`, then `pytest -q`. The ordinary example and the unit tests have separate purposes. Source attribution and licensing are in [LICENSE](LICENSE) and [NOTICE.md](NOTICE.md).

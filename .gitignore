@@ -8,6 +8,7 @@ build/
 dist/
 .mypy_cache/
 *.egg-info/
+results/
 outputs/
 artifacts/
 literature_pdfs/
