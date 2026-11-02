@@ -100,7 +100,9 @@ def run_example(args: argparse.Namespace) -> pd.DataFrame:
     _, device, _ = configure_torch(seed=args.seed, device=args.device, threads=1)
     untrained = make_q_network(4, 5, hidden=config.hidden, depth=config.depth).to(device)
     trained, history = train(config)
-    policies = {name: (lambda observation, mode=mode: mode) for mode, name in enumerate(ACTION_NAMES)}
+    policies = {
+        name: (lambda observation, mode=mode: mode) for mode, name in enumerate(ACTION_NAMES)
+    }
     policies["Untrained DDQN"] = greedy_policy(untrained)
     policies["Trained DDQN"] = greedy_policy(trained)
     cases, trajectories = compare_policies(
@@ -110,7 +112,8 @@ def run_example(args: argparse.Namespace) -> pd.DataFrame:
     out.mkdir(parents=True, exist_ok=True)
     cases.to_csv(out / "comparison.csv", index=False)
     trajectories.to_csv(out / "trajectories.csv", index=False)
-    training = pd.DataFrame(history)
+    columns = ["episode", "training_return", "evaluation_return", "epsilon"]
+    training = pd.DataFrame(history)[columns]
     training.to_csv(out / "training.csv", index=False)
 
     fig, ax = plt.subplots(figsize=(7, 4))
