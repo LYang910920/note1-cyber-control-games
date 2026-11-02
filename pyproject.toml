@@ -5,24 +5,19 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "note1-cyber-control-games"
 version = "0.2.0"
-description = "Tutorial code for cyber optimal control, sampled-data RL, and parameterized attacker-defender games."
+description = "Sampled cyber control, reinforcement learning, and multi-agent games."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
 license-files = ["LICENSE", "NOTICE.md"]
 authors = [{name = "Luxing Yang"}]
 dependencies = [
-    "numpy",
-    "scipy",
-    "pandas",
-    "matplotlib",
-    "networkx",
-    "torch",
-    "cybercontrol @ git+https://github.com/LYang910920/network-control-differential-games.git@0a9267057fd941b41bed531fb08caf31728a38a2",
+    "torch>=2.2,<3",
+    "cybercontrol @ git+https://github.com/LYang910920/network-control-differential-games.git@eedae9f86ddadfa1ccfc306ad88c1020c01c679d",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest", "ruff"]
+dev = ["pytest>=8,<10", "ruff==0.17.3"]
 
 [project.scripts]
 cybergames = "cybergames.cli:main"
@@ -40,7 +35,5 @@ src = ["src", "tests", "scripts"]
 target-version = "py310"
 
 [tool.ruff.lint]
-extend-ignore = [
-    "E402",  # figure scripts select a noninteractive backend before pyplot imports
-    "E741",  # compartment notation uses I for infected state
-]
+select = ["E4", "E7", "E9", "F"]
+ignore = ["E402", "E741"]
