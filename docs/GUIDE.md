@@ -86,3 +86,7 @@ python -m cybergames docs
 ```
 
 The tests check state conservation, action timing, integration refinement, neural gradients and the learner interfaces. They do not assert that a short training run must outperform every policy. Only `docs` requires LaTeX/latexmk and a source checkout. The existing lecture commands `smoke`, `figures` and `medium` remain aliases for `check`, `example` and `study`; the README presents only the current learning route.
+
+## Research connections
+
+The lecture connects the learning formulation to Yang and collaborators’ papers on strategic patching and repair, backup/recovery, impulse defense and outsourcing, hybrid propaganda competition, awareness, and malware-opinion dynamics. Its published-models section explains which states, information, costs and event semantics must be preserved when constructing a learning environment. Jafar et al.’s feedback-loop paper is discussed specifically as learning-based parameter estimation for MPC, distinct from direct DDQN action selection. Full paper references and research-code links are included in the lecture.
