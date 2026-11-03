@@ -1,0 +1,79 @@
+name: Publish reviewed lecture
+on:
+  push:
+    paths: [.github/workflows/publish-lectures.yml]
+permissions:
+  contents: write
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Assemble reviewed source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import base64, hashlib, json, os, re, urllib.request
+          from pathlib import Path
+          def blob(repo, sha):
+              request = urllib.request.Request(f'https://api.github.com/repos/{repo}/git/blobs/{sha}', headers={'Authorization': 'Bearer '+os.environ['GH_TOKEN'], 'Accept': 'application/vnd.github+json'})
+              with urllib.request.urlopen(request) as response:
+                  return base64.b64decode(json.load(response)['content'])
+          foundation = 'LYang910920/network-control-differential-games'
+          prefix = b''.join(blob(foundation, '835ffdfa039e3f1f5d50b5365019fecbf50a066b').splitlines(keepends=True)[:65])
+          suffix = b''.join(blob(foundation, '4e3279114fd0aa28d39c3a4e0cf92811e2bd892b').splitlines(keepends=True)[-26:])
+          parts = ['2b8b36475ddf548195eafafb26cc40e59ebcdc34','216216fb11260b6c1a10a04fe185d4ab6431be5c','726c2b291fbd37c2151ba0b619e16b11d61b8afd']
+          data = prefix + b''.join(blob(os.environ['GITHUB_REPOSITORY'], sha) for sha in parts) + suffix
+          assert hashlib.sha256(data).hexdigest() == '4c691feb04851f910dc6ed98b2521e9e57c07a7ba7a949b8b6c010b3b332c542'
+          Path('docs/source/note1_game_learning_cyber_control.tex').write_bytes(data)
+          text = data.decode()
+          body = text.split('\\begin{thebibliography}')[0]
+          references = set(re.findall(r'\\bibitem\{([^}]+)\}', text))
+          cited = {key.strip() for group in re.findall(r'\\cite\{([^}]+)\}', body) for key in group.split(',')}
+          assert cited == references
+          papers = {'security2017','patch2018','repair2019','backup2021','opinions2020','rumor2021','impulse2023','outsource2024','feedback2024','war2024','awareness2025','malware2025'}
+          assert papers <= cited
+          print(f'{len(references)} references; all 12 research papers connected to the lecture.')
+          guide = Path('docs/GUIDE.md')
+          section = '\n## Research connections\n\nThe lecture connects the learning formulation to Yang and collaborators\u2019 papers on strategic patching and repair, backup/recovery, impulse defense and outsourcing, hybrid propaganda competition, awareness, and malware-opinion dynamics. Its published-models section explains which states, information, costs and event semantics must be preserved when constructing a learning environment. Jafar et al.\u2019s feedback-loop paper is discussed specifically as learning-based parameter estimation for MPC, distinct from direct DDQN action selection. Full paper references and research-code links are included in the lecture.\n'
+          if '## Research connections' not in guide.read_text():
+              guide.write_text(guide.read_text()+section)
+          PY
+      - name: Test and run the learning example
+        env:
+          MPLBACKEND: Agg
+        run: |
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch
+          python -m pip install -e '.[dev]'
+          python -m compileall -q src tests scripts
+          ruff check .
+          ruff format --check src tests scripts
+          pytest -q
+          python -m cybergames check
+          python -m cybergames --output-dir results/lecture
+      - uses: xu-cheng/latex-action@v3
+        with:
+          working_directory: docs/source
+          root_file: note1_game_learning_cyber_control.tex
+          args: -pdf -file-line-error -halt-on-error -interaction=nonstopmode
+      - name: Publish source and PDF
+        run: |
+          if grep -E 'Overfull|undefined references|undefined citations' docs/source/note1_game_learning_cyber_control.log; then exit 1; fi
+          cp docs/source/note1_game_learning_cyber_control.pdf docs/note1_game_learning_cyber_control.pdf
+          git config user.name 'LYang910920'
+          git config user.email '20222003+LYang910920@users.noreply.github.com'
+          git add docs/source/note1_game_learning_cyber_control.tex docs/note1_game_learning_cyber_control.pdf docs/GUIDE.md
+          git commit -m 'Restore cyber-control research context and publish the reviewed learning lecture'
+          git push origin HEAD:main
+      - uses: actions/upload-artifact@v4
+        with:
+          name: reviewed-lecture
+          path: |
+            docs/note1_game_learning_cyber_control.pdf
+            docs/source/note1_game_learning_cyber_control.tex
+          retention-days: 7
